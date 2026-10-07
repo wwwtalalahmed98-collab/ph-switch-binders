@@ -1,0 +1,19 @@
+# Downloaded structures and sequences - re-fetched by the scripts, not source
+data/
+tnf/data/
+
+# Scratch, test fixtures and dead ends
+scratch/
+scratch_cell2.py
+incoming/
+kaggle/round2_cell.txt
+kaggle/round2_cell.b64
+kaggle/serve_cors.py
+
+# Personal data - never publish
+cv_text.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/

@@ -1,0 +1,146 @@
+[
+ {
+  "name": "egfr_a_15",
+  "length": 59,
+  "i_ptm": 0.725,
+  "plddt": 0.777
+ },
+ {
+  "name": "egfr_a_18",
+  "length": 56,
+  "i_ptm": 0.604,
+  "plddt": 0.588
+ },
+ {
+  "name": "egfr_a_9",
+  "length": 89,
+  "i_ptm": 0.601,
+  "plddt": 0.525
+ },
+ {
+  "name": "egfr_a_12",
+  "length": 95,
+  "i_ptm": 0.531,
+  "plddt": 0.665
+ },
+ {
+  "name": "egfr_a_20",
+  "length": 56,
+  "i_ptm": 0.477,
+  "plddt": 0.648
+ },
+ {
+  "name": "egfr_a_16",
+  "length": 55,
+  "i_ptm": 0.472,
+  "plddt": 0.458
+ },
+ {
+  "name": "egfr_a_8",
+  "length": 81,
+  "i_ptm": 0.462,
+  "plddt": 0.532
+ },
+ {
+  "name": "egfr_a_5",
+  "length": 79,
+  "i_ptm": 0.461,
+  "plddt": 0.58
+ },
+ {
+  "name": "egfr_a_7",
+  "length": 58,
+  "i_ptm": 0.442,
+  "plddt": 0.453
+ },
+ {
+  "name": "egfr_a_0",
+  "length": 93,
+  "i_ptm": 0.422,
+  "plddt": 0.652
+ },
+ {
+  "name": "egfr_a_4",
+  "length": 84,
+  "i_ptm": 0.416,
+  "plddt": 0.568
+ },
+ {
+  "name": "egfr_a_17",
+  "length": 59,
+  "i_ptm": 0.305,
+  "plddt": 0.471
+ },
+ {
+  "name": "egfr_a_11",
+  "length": 92,
+  "i_ptm": 0.289,
+  "plddt": 0.619
+ },
+ {
+  "name": "egfr_a_21",
+  "length": 68,
+  "i_ptm": 0.177,
+  "plddt": 0.425
+ },
+ {
+  "name": "egfr_a_3",
+  "length": 83,
+  "i_ptm": 0.153,
+  "plddt": 0.41
+ },
+ {
+  "name": "egfr_a_2",
+  "length": 95,
+  "i_ptm": 0.126,
+  "plddt": 0.796
+ },
+ {
+  "name": "egfr_a_13",
+  "length": 88,
+  "i_ptm": 0.124,
+  "plddt": 0.414
+ },
+ {
+  "name": "egfr_a_14",
+  "length": 87,
+  "i_ptm": 0.117,
+  "plddt": 0.718
+ },
+ {
+  "name": "egfr_a_23",
+  "length": 94,
+  "i_ptm": 0.117,
+  "plddt": 0.758
+ },
+ {
+  "name": "egfr_a_1",
+  "length": 94,
+  "i_ptm": 0.109,
+  "plddt": 0.723
+ },
+ {
+  "name": "egfr_a_6",
+  "length": 83,
+  "i_ptm": 0.108,
+  "plddt": 0.635
+ },
+ {
+  "name": "egfr_a_22",
+  "length": 69,
+  "i_ptm": 0.105,
+  "plddt": 0.421
+ },
+ {
+  "name": "egfr_a_10",
+  "length": 78,
+  "i_ptm": 0.102,
+  "plddt": 0.42
+ },
+ {
+  "name": "egfr_a_19",
+  "length": 77,
+  "i_ptm": 0.098,
+  "plddt": 0.747
+ }
+]

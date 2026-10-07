@@ -1,0 +1,6 @@
+name,source_backbone,length,his_substitutions,switch_score,i_ptm,parent_i_ptm,iptm_retained,plddt,epitope_uniprot,epitope_mouse_identity_pct,phase1_patch_contacts
+egfr_ph_sw_01,r2_w0_007,57,"E39H,L32H,E6H",2.819,0.615,0.718,0.857,0.587,36-152,93,"44,45,49,74,75"
+egfr_ph_sw_02,r2_w1_001,53,"S29H,T5H",2.207,0.555,0.58,0.957,0.645,38-152,90,"44,45"
+egfr_ph_sw_03,r2_w0_006,66,"T33H,S49H",1.511,0.706,0.701,1.007,0.541,38-152,84,44
+egfr_ph_sw_04,r2_w1_004,69,"S17H,F21H",1.342,0.506,0.592,0.855,0.617,38-184,83,44
+egfr_ph_sw_05,r2_w0_010,56,"S36H,T33H,R9H",1.033,0.694,0.684,1.015,0.65,38-181,92,"44,46"

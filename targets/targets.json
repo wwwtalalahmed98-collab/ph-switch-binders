@@ -1,0 +1,142 @@
+{
+ "A_domainI_ligand": {
+  "construct_pdb": "EGFR_A_domainI_ligand.pdb",
+  "construct_uniprot": [
+   25,
+   188
+  ],
+  "construct_pdb_range": [
+   1,
+   164
+  ],
+  "hotspots_uniprot": [
+   44,
+   45,
+   46,
+   49,
+   52,
+   74,
+   75
+  ],
+  "hotspots_pdb": [
+   20,
+   21,
+   22,
+   25,
+   28,
+   50,
+   51
+  ],
+  "carboxylates_uniprot": [
+   45,
+   46,
+   75,
+   97
+  ],
+  "carboxylates_pdb": [
+   21,
+   22,
+   51,
+   73
+  ],
+  "buried_in_full_ecd": [],
+  "trim_artefact": [],
+  "note": "domain I ligand-binding face; blocks EGF binding"
+ },
+ "B_domainII_dimerarm": {
+  "construct_pdb": "EGFR_B_domainII_dimerarm.pdb",
+  "construct_uniprot": [
+   189,
+   334
+  ],
+  "construct_pdb_range": [
+   165,
+   310
+  ],
+  "hotspots_uniprot": [
+   274,
+   275,
+   277,
+   278,
+   279,
+   281,
+   282,
+   283
+  ],
+  "hotspots_pdb": [
+   250,
+   251,
+   253,
+   254,
+   255,
+   257,
+   258,
+   259
+  ],
+  "carboxylates_uniprot": [
+   278,
+   282,
+   321,
+   602
+  ],
+  "carboxylates_pdb": [
+   254,
+   258,
+   297,
+   578
+  ],
+  "buried_in_full_ecd": [],
+  "trim_artefact": [
+   275
+  ],
+  "note": "dimerization arm; blocks receptor dimerization"
+ },
+ "C_domainII_K294": {
+  "construct_pdb": "EGFR_C_domainII_K294.pdb",
+  "construct_uniprot": [
+   189,
+   334
+  ],
+  "construct_pdb_range": [
+   165,
+   310
+  ],
+  "hotspots_uniprot": [
+   282,
+   283,
+   293,
+   294,
+   296,
+   319,
+   320,
+   321
+  ],
+  "hotspots_pdb": [
+   258,
+   259,
+   269,
+   270,
+   272,
+   295,
+   296,
+   297
+  ],
+  "carboxylates_uniprot": [
+   257,
+   282,
+   319,
+   320,
+   321
+  ],
+  "carboxylates_pdb": [
+   233,
+   258,
+   295,
+   296,
+   297
+  ],
+  "buried_in_full_ecd": [],
+  "trim_artefact": [],
+  "note": "backup; highest carboxylate density"
+ }
+}

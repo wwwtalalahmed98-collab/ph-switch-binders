@@ -1,0 +1,210 @@
+[
+ {
+  "uniprot": 373,
+  "aa": "P",
+  "mouse_aa": "P",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 3.42
+ },
+ {
+  "uniprot": 374,
+  "aa": "V",
+  "mouse_aa": "V",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 4.47
+ },
+ {
+  "uniprot": 377,
+  "aa": "R",
+  "mouse_aa": "K",
+  "identical": false,
+  "domain": "III (L2)",
+  "min_dist": 3.61
+ },
+ {
+  "uniprot": 406,
+  "aa": "L",
+  "mouse_aa": "L",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 3.55
+ },
+ {
+  "uniprot": 408,
+  "aa": "Q",
+  "mouse_aa": "Q",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 3.43
+ },
+ {
+  "uniprot": 432,
+  "aa": "Q",
+  "mouse_aa": "Q",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 2.6
+ },
+ {
+  "uniprot": 433,
+  "aa": "H",
+  "mouse_aa": "H",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 3.47
+ },
+ {
+  "uniprot": 435,
+  "aa": "Q",
+  "mouse_aa": "Q",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 3.88
+ },
+ {
+  "uniprot": 436,
+  "aa": "F",
+  "mouse_aa": "F",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 3.85
+ },
+ {
+  "uniprot": 439,
+  "aa": "A",
+  "mouse_aa": "A",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 4.13
+ },
+ {
+  "uniprot": 441,
+  "aa": "V",
+  "mouse_aa": "V",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 3.59
+ },
+ {
+  "uniprot": 442,
+  "aa": "S",
+  "mouse_aa": "G",
+  "identical": false,
+  "domain": "III (L2)",
+  "min_dist": 3.26
+ },
+ {
+  "uniprot": 462,
+  "aa": "I",
+  "mouse_aa": "I",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 3.45
+ },
+ {
+  "uniprot": 464,
+  "aa": "S",
+  "mouse_aa": "S",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 2.74
+ },
+ {
+  "uniprot": 465,
+  "aa": "G",
+  "mouse_aa": "G",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 3.3
+ },
+ {
+  "uniprot": 466,
+  "aa": "N",
+  "mouse_aa": "N",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 4.91
+ },
+ {
+  "uniprot": 467,
+  "aa": "K",
+  "mouse_aa": "R",
+  "identical": false,
+  "domain": "III (L2)",
+  "min_dist": 3.39
+ },
+ {
+  "uniprot": 489,
+  "aa": "K",
+  "mouse_aa": "K",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 2.77
+ },
+ {
+  "uniprot": 490,
+  "aa": "I",
+  "mouse_aa": "I",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 3.92
+ },
+ {
+  "uniprot": 491,
+  "aa": "I",
+  "mouse_aa": "M",
+  "identical": false,
+  "domain": "III (L2)",
+  "min_dist": 3.05
+ },
+ {
+  "uniprot": 492,
+  "aa": "S",
+  "mouse_aa": "N",
+  "identical": false,
+  "domain": "III (L2)",
+  "min_dist": 2.82
+ },
+ {
+  "uniprot": 493,
+  "aa": "N",
+  "mouse_aa": "N",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 2.7
+ },
+ {
+  "uniprot": 494,
+  "aa": "R",
+  "mouse_aa": "R",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 4.81
+ },
+ {
+  "uniprot": 495,
+  "aa": "G",
+  "mouse_aa": "A",
+  "identical": false,
+  "domain": "III (L2)",
+  "min_dist": 3.44
+ },
+ {
+  "uniprot": 496,
+  "aa": "E",
+  "mouse_aa": "E",
+  "identical": true,
+  "domain": "III (L2)",
+  "min_dist": 4.24
+ },
+ {
+  "uniprot": 497,
+  "aa": "N",
+  "mouse_aa": "K",
+  "identical": false,
+  "domain": "III (L2)",
+  "min_dist": 3.08
+ }
+]

@@ -1,0 +1,9 @@
+{
+    "design_path": "/content/drive/MyDrive/BindCraft/EGFR_B/",
+    "binder_name": "EGFRb",
+    "starting_pdb": "/content/EGFR_B_domainII_dimerarm.pdb",
+    "chains": "A",
+    "target_hotspot_residues": "250,253,254,255,257,258,259",
+    "lengths": [55, 95],
+    "number_of_final_designs": 6
+}

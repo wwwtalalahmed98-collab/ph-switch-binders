@@ -1,0 +1,8 @@
+
+--- natural_serum_albumin_fragment (144 aa) ---
+  ERROR: BLAST timed out for C2E91TF2014
+
+--- scrambled_same_composition (144 aa) ---
+  ERROR: BLAST timed out for C2EW40YE014
+
+Expected: the natural fragment FAILS (high identity); the scrambled control returns much lower identity or no hits.

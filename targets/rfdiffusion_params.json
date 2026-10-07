@@ -1,0 +1,40 @@
+{
+  "_comment": "RFdiffusion + ProteinMPNN + AF2 fallback parameters for Challenge 1. Target constructs and hotspots are from Phase 1 (results/PHASE1_REPORT.md). PDB numbering = UniProt - 24.",
+  "epitope_A_domainI_ligand": {
+    "pdb": "EGFR_A_domainI_ligand.pdb",
+    "target_range_pdb": "A1-161",
+    "contigs": "A1-161:55-95",
+    "hotspot": "A20,A21,A22,A25,A28,A50,A51",
+    "hotspot_uniprot": "F44,E45,D46,L49,Q52,Y74,D75",
+    "carboxylates_uniprot": "E45,D46,D75,E97",
+    "num_designs": 32,
+    "iterations": 50,
+    "use_beta_model_split": "two thirds alpha (false), one third beta (true)",
+    "note": "primary epitope; blocks EGF binding; 100% human/mouse identical; no occlusion in full ECD"
+  },
+  "epitope_B_domainII_dimerarm": {
+    "pdb": "EGFR_B_domainII_dimerarm.pdb",
+    "target_range_pdb": "A165-310",
+    "contigs": "A165-310:55-95",
+    "hotspot": "A250,A253,A254,A255,A257,A258,A259",
+    "hotspot_uniprot": "T274,M277,D278,V279,P281,E282,G283",
+    "carboxylates_uniprot": "D278,E282,D321,E602",
+    "num_designs": 16,
+    "iterations": 50,
+    "use_beta_model_split": "false",
+    "note": "hedge epitope; blocks dimerization; Y275/A251 deliberately excluded as half-occluded by domain IV"
+  },
+  "proteinmpnn": {
+    "num_seqs": 8,
+    "mpnn_sampling_temp": 0.1,
+    "rm_aa": "C",
+    "use_solubleMPNN": true
+  },
+  "alphafold_validation": {
+    "initial_guess": true,
+    "num_recycles": 3,
+    "use_multimer": true,
+    "pae_interaction_cutoff": 10.0,
+    "plddt_cutoff": 80.0
+  }
+}
