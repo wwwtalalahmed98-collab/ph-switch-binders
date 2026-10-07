@@ -62,3 +62,61 @@ Split the 20 designs across the two best patches rather than betting on one:
 **K141 (primary)** and **S223 (secondary)**. Challenge 1 showed binders drift from the
 intended epitope regardless, so diversity of starting point is cheap insurance, and
 the challenge scores pH-selectivity and cross-reactivity above raw affinity.
+
+---
+
+# Target construct decision
+
+Adaptyv assays the **trimer**, but designing against all three chains (456 residues)
+costs roughly five times as much AlphaFold compute per trajectory as Challenge 1's
+target, which would leave about nine designs inside the available GPU budget. Two
+chains (304 residues) costs about 2.7x and allows roughly eighteen. Dropping a chain
+exposes surface that is buried in the real trimer, so the question is whether the
+chosen epitope depends on any of it.
+
+Measured residue by residue, rel_SASA in each construct vs the intact trimer:
+
+| construct | residues | artificially exposed (Δ rel_SASA > 0.25) |
+|---|---|---|
+| A + B (drop C) | 304 | 16 |
+| A alone | 152 | 18 |
+
+Against the candidate patches:
+
+| patch | size | artefacts in A+B | artefacts in A alone |
+|---|---|---|---|
+| I159 | 15 | 0 | 0 |
+| S223 | 15 | 1 | 1 |
+| **K141** | 20 | **4** | 5 |
+
+**This overturns the K141 recommendation.** A fifth of that patch only exists because
+the trimer was cut, and the binder would be free to exploit it — surface that is not
+there in the assay. The earlier recommendation was made on conservation and switch
+chemistry alone, before the construct was chosen, and it does not survive the
+construct.
+
+## The site actually chosen
+
+Scanning composite sites centred between conserved cationic residues on *different*
+protomers — the geometry the challenge recommends — gives a clear winner:
+
+**K166(chain A) + R108(chain B), 16 Å apart**
+
+| property | value |
+|---|---|
+| residues | 25 |
+| human/mouse identity | 76.0% |
+| conserved cationic anchors | 2 (K166, R108) |
+| trim artefacts in A+B | **0** |
+| TNFR2 footprint overlap | **13 of 32** |
+
+It beats every single-chain patch on receptor overlap (13 vs 7–9), carries the two
+switch anchors the acid-OFF mechanism requires, is free of construct artefacts, and
+sits at 76.0% identity — below the 79% domain average but above the 71.9% of the
+receptor site as a whole. It is also precisely the inter-protomer receptor site the
+challenge page recommends, so no divergence needs defending this time.
+
+Site residues (UniProt): 95, 105–112, 155, 159, 161–168, 201, 203, 207, 220, 221, 223.
+
+Construct: `targets/TNF_AB_receptor_site.pdb`, chains A and B, 152 residues each.
+Hotspots: `A86,A87,A88,A90,A91,A92,B29,B32,B33,B34,B35,B36` (PDB numbering = UniProt − 76).
