@@ -1,4 +1,4 @@
-# === CHALLENGE 2 (TNF-alpha) : CONFIRMATION OF THE SUBMITTED DESIGNS, ROUND 2 ===
+# === CHALLENGE 2 (TNF-alpha) : CONFIRMATION OF THE SUBMITTED DESIGNS ===
 #
 # The switch stage scored each variant by prediction but did not save the predicted
 # complex, so two things were asserted rather than measured:
@@ -115,9 +115,9 @@ def predict(seq, out_pdb):
     return (round(float(lg.get("i_ptm", lg.get("ptm", 0.0))), 3),
             round(float(lg.get("plddt", 0.0)), 3))
 
-rj = glob.glob("/kaggle/input/**/tnf_designs_final2.json", recursive=True)
+rj = glob.glob("/kaggle/working/tnf_designs_final2.json")
 if not rj:
-    raise SystemExit("tnf_designs_final2.json not found - attach the tnf_switch output")
+    raise SystemExit("tnf_designs_final2.json not found - the switch cell did not run")
 recs = {r["name"]: r for r in json.load(open(rj[0]))}
 usable = sorted([r for r in recs.values()
                  if r["role"] == "switch" and r["i_ptm"] >= 0.45
@@ -180,12 +180,12 @@ for sw in mine:
 log("worker done")
 """
 
-with open("/kaggle/working/confirm2_worker.py", "w") as fh:
+with open("/kaggle/working/confirm_worker2.py", "w") as fh:
     fh.write(textwrap.dedent(WORKER))
 
 procs = []
 for shard, gpu in enumerate(["0", "1"]):
-    p = subprocess.Popen([sys.executable, "-u", "/kaggle/working/confirm2_worker.py",
+    p = subprocess.Popen([sys.executable, "-u", "/kaggle/working/confirm_worker2.py",
                           gpu, str(shard), str(TIME_BUDGET_MIN)],
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                          text=True, bufsize=1)

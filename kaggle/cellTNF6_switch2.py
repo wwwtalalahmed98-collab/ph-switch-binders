@@ -1,4 +1,4 @@
-# === CHALLENGE 2 (TNF-alpha) : acid-OFF SWITCH PLACEMENT + LIABILITY REPAIR, ROUND 2 ===
+# === CHALLENGE 2 (TNF-alpha) : acid-OFF SWITCH PLACEMENT + LIABILITY REPAIR ===
 #
 # Takes the 27 round-1 designs, keeps the ones that both bind and bind the RIGHT
 # place, puts histidines where protonation at pH 6.0 will cost the interface, repairs
@@ -22,7 +22,7 @@
 #      the repair is kept only if it holds its i_ptm.
 import glob, json, os, subprocess, sys, textwrap, time
 
-TIME_BUDGET_MIN = 60           # round 2 is ~half the designs and the stage is cheap
+TIME_BUDGET_MIN = 150          # 2.5 h, inside the GPU quota left this week
 MIN_IPTM = 0.45                # round-1 re-scored i_ptm
 MIN_ONSITE = 4                 # contacts on the intended 25-residue site
 KEEP_FRAC = 0.70               # a switch must hold this much of the parent i_ptm
@@ -271,7 +271,7 @@ def score(seq):
 
 rj = glob.glob("/kaggle/input/**/tnf_round2.json", recursive=True)
 if not rj:
-    raise SystemExit("tnf_round2.json not found - attach the tnf_generate output")
+    raise SystemExit("tnf_round2.json not found - attach the tnf_generate2 output")
 designs = json.load(open(rj[0]))
 pdb_by = {}
 for p in glob.glob("/kaggle/input/**/tnf_out2/*.pdb", recursive=True):
@@ -351,13 +351,13 @@ for d in mine:
 log("worker done")
 """
 
-with open("/kaggle/working/tnf_switch2_worker.py", "w") as fh:
+with open("/kaggle/working/tnf_switch_worker2.py", "w") as fh:
     fh.write(textwrap.dedent(WORKER))
 
 args = [str(MIN_IPTM), str(MIN_ONSITE), str(KEEP_FRAC), str(REPAIR_KEEP)]
 procs = []
 for shard, gpu in enumerate(["0", "1"]):
-    p = subprocess.Popen([sys.executable, "-u", "/kaggle/working/tnf_switch2_worker.py",
+    p = subprocess.Popen([sys.executable, "-u", "/kaggle/working/tnf_switch_worker2.py",
                           gpu, str(shard), str(TIME_BUDGET_MIN)] + args,
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                          text=True, bufsize=1)
