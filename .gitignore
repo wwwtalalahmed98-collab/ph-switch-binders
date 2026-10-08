@@ -21,3 +21,4 @@ __pycache__/
 # Challenge 2 design sequences - withheld until the submission window closes
 tnf/results/round1_sequences.csv
 submission/challenge2_*
+tnf/results/switch_sequences.csv
