@@ -17,3 +17,7 @@ cv_text.txt
 __pycache__/
 *.pyc
 .venv/
+
+# Challenge 2 design sequences - withheld until the submission window closes
+tnf/results/round1_sequences.csv
+submission/challenge2_*
