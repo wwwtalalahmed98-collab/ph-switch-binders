@@ -1,0 +1,13 @@
+name,source,role,n_his,n_anchor,i_ptm,parent_iptm,retained,verdict
+tnf2_w0_008_sw,tnf2_w0_008,switch,1,1,0.598,0.642,0.931,KEEP
+tnf2_w1_001_sw,tnf2_w1_001,switch,3,2,0.443,0.595,0.745,below i_ptm 0.45
+tnf2_w0_001_sw,tnf2_w0_001,switch,3,2,0.418,0.481,0.869,below i_ptm 0.45
+tnf2_w0_007_sw,tnf2_w0_007,switch,3,2,0.414,0.586,0.706,below i_ptm 0.45
+tnf2_w0_006_sw,tnf2_w0_006,switch,3,2,0.286,0.682,0.419,breaks interface
+tnf2_w1_003_sw,tnf2_w1_003,switch,4,3,0.236,0.470,0.502,breaks interface
+tnf2_w0_008_ctl,tnf2_w0_008,control,0,0,0.613,0.642,0.955,OK
+tnf2_w1_001_ctl,tnf2_w1_001,control,0,0,0.594,0.595,0.998,OK
+tnf2_w0_007_ctl,tnf2_w0_007,control,0,0,0.587,0.586,1.002,OK
+tnf2_w1_003_ctl,tnf2_w1_003,control,0,0,0.474,0.470,1.009,OK
+tnf2_w0_006_ctl,tnf2_w0_006,control,0,0,0.470,0.682,0.689,REPAIR COSTLY
+tnf2_w0_001_ctl,tnf2_w0_001,control,0,0,0.447,0.481,0.929,OK

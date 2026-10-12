@@ -1,0 +1,5 @@
+name,i_ptm_confirm,i_ptm_stage3,epitope_kept_pct,control_kept_pct,on_site_switch,his_in_reach,his_total,his_geometry
+tnf2_w0_008_sw,0.598,0.598,100,97,11,1,1,H2->R108B 5.79
+tnf2_w1_001_sw,0.553,0.553,100,100,10,2,2,H13->R108B 6.31 / H10->R108B 6.93
+tnf2_w0_007_sw,0.487,0.487,88,84,14,2,2,H30->R108B 7.03 / H27->R108B 5.06
+tnf2_w0_001_sw,0.469,0.470,100,90,12,2,2,H40->R108B 7.99 / H37->R108B 7.03
