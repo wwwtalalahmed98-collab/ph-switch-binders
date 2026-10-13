@@ -15,10 +15,26 @@
 # therefore comes from the pairwise alignment, never from arithmetic on a human
 # number. On EGFR a three-residue numbering shift silently emptied a result list for
 # two rounds, so each step below asserts what it believes.
+#
+# CORRECTED after the first attempt failed on its own assertion with
+# "mouse 168 is GLU, expected LYS". 2TNF's author numbering is NOT a constant offset
+# from UniProt: the chain runs 9-157, which is 149 positions, while its DBREF claims
+# 1-156, and the observed offset takes BOTH the values 78 and 79 within a single
+# chain. Mouse K168 is residue 90, not 89. Residue numbers are therefore derived by
+# aligning each observed chain sequence to P06804 and are never computed by adding a
+# constant - the same rule already applied to the human construct, which this cell
+# originally failed to follow.
 import glob, json, os, shutil, subprocess, sys, time
 t0 = time.time()
-OFF = 79                       # 2TNF author numbering = UniProt - 79
 RADIUS = 22.0                  # same sphere as the human crop
+
+# UniProt P06804, mouse TNF-alpha precursor, 235 aa. Embedded so the mapping does not
+# depend on a second network fetch at run time.
+P06804 = (
+    "MSTESMIRDVELAEEALPQKMGGFQNSRRCLCLSLFSFLLVAGATTLFCLLNFGVIGPQR"
+    "DEKFPNGLPLISSMAQTLTLRSSSQNSSDKPVAHVVANHQVEEQLEWLSQRANALLANGM"
+    "DLKDNQLVVPADGLYLVYSQVLFKGQGCPDYVLLTHTVSRFAISYQEKVNLLSAVKSPCP"
+    "KDTPEGAELKPWYEPIYLGGVFQLEKGDQLSAEVNLPKYLDFAESGQVYFGVIAL")
 
 # From the pairwise alignment of P01375 and P06804 (tnf/results/human_to_mouse_index.json).
 # Mouse UniProt numbers for the 25 human site residues, in human order.
@@ -71,8 +87,32 @@ if not os.path.exists(raw):
     open(raw, "wb").write(urllib.request.urlopen(
         "https://files.rcsb.org/download/2TNF.pdb", timeout=180).read())
 
+from Bio import Align
+_al = Align.PairwiseAligner()
+_al.open_gap_score, _al.extend_gap_score = -11, -1
+_al.substitution_matrix = Align.substitution_matrices.load("BLOSUM62")
+
 P = PDBParser(QUIET=True)
 mdl = P.get_structure("m", raw)[0]
+
+# residue number -> UniProt index, per chain, by ALIGNMENT not arithmetic
+R2U = {}
+for cid in ("A", "B"):
+    res = [r for r in mdl[cid] if r.id[0] == " "]
+    seq = "".join(protein_letters_3to1.get(r.get_resname(), "X") for r in res)
+    aln = _al.align(P06804, seq)[0]
+    mp = {}
+    for (us, ue), (ss, se) in zip(aln.aligned[0], aln.aligned[1]):
+        for k in range(int(ue - us)):
+            mp[res[int(ss + k)].id[1]] = int(us + k) + 1
+    bad = [(n, u) for n, u in mp.items()
+           if P06804[u - 1] != protein_letters_3to1.get(mdl[cid][n].get_resname(), "X")]
+    assert not bad, "chain %s: %d residues disagree with P06804, e.g. %s" % (cid, len(bad), bad[:3])
+    R2U[cid] = mp
+    print("chain %s: %d residues mapped to P06804, 0 mismatches, offsets present %s"
+          % (cid, len(mp), sorted({u - n for n, u in mp.items()})), flush=True)
+
+U2R = {cid: {u: n for n, u in mp.items()} for cid, mp in R2U.items()}
 ca, name3 = {}, {}
 for ch in mdl:
     for r in ch:
@@ -80,12 +120,13 @@ for ch in mdl:
             ca[(ch.id, r.id[1])] = r["CA"].get_coord()
             name3[(ch.id, r.id[1])] = r.get_resname()
 
-kA, rB = ("A", ANCHOR_K - OFF), ("B", ANCHOR_R - OFF)
-assert kA in ca and rB in ca, "an anchor is missing from 2TNF: %s %s" % (kA, rB)
-assert name3[kA] == "LYS", "mouse %d is %s, expected LYS" % (ANCHOR_K, name3[kA])
-assert name3[rB] == "ARG", "mouse %d is %s, expected ARG" % (ANCHOR_R, name3[rB])
-print("anchors confirmed in 2TNF: K%d = %s A%d, R%d = %s B%d"
-      % (ANCHOR_K, name3[kA], kA[1], ANCHOR_R, name3[rB], rB[1]), flush=True)
+assert ANCHOR_K in U2R["A"], "mouse K%d is absent from 2TNF chain A" % ANCHOR_K
+assert ANCHOR_R in U2R["B"], "mouse R%d is absent from 2TNF chain B" % ANCHOR_R
+kA, rB = ("A", U2R["A"][ANCHOR_K]), ("B", U2R["B"][ANCHOR_R])
+assert name3[kA] == "LYS", "mouse %d (resi A%d) is %s, expected LYS" % (ANCHOR_K, kA[1], name3[kA])
+assert name3[rB] == "ARG", "mouse %d (resi B%d) is %s, expected ARG" % (ANCHOR_R, rB[1], name3[rB])
+print("anchors confirmed in 2TNF: K%d = resi A%d, R%d = resi B%d"
+      % (ANCHOR_K, kA[1], ANCHOR_R, rB[1]), flush=True)
 
 centre = (ca[kA] + ca[rB]) / 2
 keep = {k for k, v in ca.items() if k[0] in ("A", "B")
@@ -106,11 +147,12 @@ order = []
 for ch in P.get_structure("c", TARGET)[0]:
     for r in ch:
         if r.id[0] == " ":
-            order.append(dict(chain=ch.id, pdb=r.id[1], uniprot=r.id[1] + OFF,
+            order.append(dict(chain=ch.id, pdb=r.id[1], uniprot=R2U[ch.id][r.id[1]],
                               aa=protein_letters_3to1.get(r.get_resname(), "X")))
 H2M = dict(zip(HUMAN_SITE, MOUSE_SITE))
 M2H = {m: h for h, m in H2M.items()}
-json.dump(dict(species="mouse", pdb="2TNF", radius=RADIUS, n=len(order), offset=OFF,
+json.dump(dict(species="mouse", pdb="2TNF", radius=RADIUS, n=len(order),
+               numbering="per-residue, from alignment to P06804; offset is not constant",
                order=order, mouse_site=MOUSE_SITE, human_site=HUMAN_SITE,
                mouse_to_human_site=M2H),
           open("/kaggle/working/construct_map_mouse.json", "w"))
