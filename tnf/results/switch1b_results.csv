@@ -1,0 +1,14 @@
+name,n_his,n_anchor,i_ptm,parent_iptm,retained,partners,verdict
+tnf_w1_012_sw,2,2,0.744,0.758,0.982,K166A/R108B,KEEP
+tnf_w0_008_sw,2,2,0.710,0.682,1.041,R108B,KEEP
+tnf_w0_011_sw,2,1,0.651,0.638,1.020,R107B/R108B,KEEP
+tnf_w0_003_sw,2,2,0.650,0.717,0.907,R108B,KEEP
+tnf_w0_012_sw,2,2,0.620,0.691,0.897,R108B,KEEP
+tnf_w0_010_sw,2,1,0.561,0.489,1.147,R107B/R108B,KEEP
+tnf_w1_004_sw,2,2,0.493,0.632,0.780,R108B,KEEP
+tnf_w0_004_sw,2,2,0.487,0.597,0.816,R108B,KEEP
+tnf_w0_006_sw,2,2,0.352,0.497,0.708,R108B,below 0.45
+tnf_w0_009_sw,2,1,0.305,0.647,0.471,R107B/R108B,breaks
+tnf_w0_007_sw,2,2,0.284,0.504,0.563,R108B,breaks
+tnf_w0_005_sw,2,2,0.258,0.486,0.531,R108B,breaks
+tnf_w1_008_sw,2,2,0.230,0.477,0.482,R108B,breaks
