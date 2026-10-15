@@ -137,6 +137,20 @@ log("worker done")
 with open("/kaggle/working/mouse_parent_worker.py", "w") as fh:
     fh.write(textwrap.dedent(WORKER))
 
+# The first attempt at this cell ran BEFORE the setup cell - a stray click in the Kaggle
+# editor had swapped the two - and both workers died instantly on "No module named
+# 'Bio'". The run still reported "Successfully ran" and printed an empty table, which is
+# the silent-empty-result failure this project has been bitten by before. So: install
+# what the worker imports, and refuse to launch unless the setup cell's artifacts are
+# actually on disk.
+subprocess.run("pip install -q biopython", shell=True)
+NEEDED = ["/kaggle/working/targets/TNF_mouse_site_crop.pdb",
+          "/kaggle/working/construct_map_mouse.json",
+          "/kaggle/working/mouse_hotspot.txt"]
+missing = [p for p in NEEDED if not os.path.exists(p)]
+if missing:
+    raise SystemExit("the mouse target setup cell has not run - missing %s" % missing)
+
 procs = []
 for shard, gpu in enumerate(["0", "1"]):
     p = subprocess.Popen([sys.executable, "-u", "/kaggle/working/mouse_parent_worker.py",
@@ -165,6 +179,9 @@ for f in sorted(glob.glob("/kaggle/working/mouse_parent_w*.jsonl")):
             rows.append(json.loads(line))
 rows.sort(key=lambda r: -r["mouse_i_ptm"])
 json.dump(rows, open("/kaggle/working/tnf_mouse_parents.json", "w"), indent=1)
+if not rows:
+    raise SystemExit("no parent was scored - check the worker log above, do not read "
+                     "an empty table as 'no lineage binds mouse'")
 
 good = [r for r in rows if r["mouse_i_ptm"] >= 0.45 and len(r["mouse_on_site"]) >= 5]
 print("\n==== PARENT DESIGNS AGAINST MOUSE ====")
