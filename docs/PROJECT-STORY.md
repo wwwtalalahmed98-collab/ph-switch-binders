@@ -4,9 +4,103 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 4 | 2026-10-18 | One good histidine out of thirty-five |
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 4. 2026-10-18 — One good histidine out of thirty-five
+
+### Where we are
+
+We measured all 35 ways we know how to build the switch, found that only one of them has any real support, and now have to decide whether to replace what is already entered.
+
+### What this project is for
+
+Anthropic's protein design competition, Challenge 2, Track 3. A small protein that grabs human TNF-alpha at normal body acidity, lets go when slightly acidic, and does the same on the mouse version. Ranked on the acidity switch first, mouse second, binding strength third.
+
+### Why this step
+
+We had submitted twenty designs chosen on a rule that nobody had ever tested: put a histidine within a certain distance of a positively charged spot on the target. The previous run showed that rule barely predicts anything, and that a better one — how much *gripping* buries the histidine — predicts three times better. This step applied the better rule to every placement we have, not just the twelve we happened to send.
+
+### What we actually did
+
+Measured all 35 placements across 14 design families: how buried each histidine gets when the binder grips, whether that spot actually objects to a positive charge, whether the binder folds on its own, and how far each histidine really is from a positive spot once folded.
+
+It ran in **40 minutes**, against 79 minutes for the previous smaller job, because I stopped it rebuilding the prediction model between every single prediction.
+
+### The three things it found
+
+**One placement in thirty-five has real support.** We test each histidine spot by asking what happens if we put a *neutral* amino acid there versus a *positively charged* one. If the spot genuinely rejects a positive charge, the switch has a reason to fire. Across 35 placements, exactly one shows a clear effect: `tnf2_w0_001` Y37H. It is also the only one that reproduced — an earlier run measured the same spot independently and got the same answer. For the other 34, the effect is smaller than the wobble we get re-running the identical calculation, and in **8 of them a positive charge actually helps**.
+
+**Every two-histidine design has a dead partner.** Our argument for using two histidines was simple chemistry: one histidine leaves half the molecules still gripping in acid, two leaves a quarter. But that assumes both are doing work. Ranked on the *weaker* of their two histidines, every pair we have sits near the bottom: the best pair scores 0.100 where the best single scores 0.404, and our top submitted design scores **0.000** — one of its two histidines sits in open water and cannot contribute anything. Across all 35, **seven have a histidine that is doing nothing**.
+
+**I was wrong about the folding.** Last checkpoint I said the designs might only hold their shape when the target is there to hold them, inferred from Proteinbase reporting lower confidence than we did. Measured directly: they score *higher* on their own than when gripping. They are fine. The inference was wrong, and the reason it cost nothing is that I flagged it as a guess and measured it instead of acting on it.
+
+### The bad news
+
+**Only two of our twelve submitted placements are the best their family offers.** The other ten are beaten by a different histidine position in the same design.
+
+**The evidence for the switch is thin and I do not want to oversell the fix.** Burial is a *correlate* of charge rejection, not a measurement of switching, and charge rejection is itself a stand-in for chemistry the prediction model does not actually simulate. There are two unproven links in that chain. What we can say is that we looked for support at 35 placements and found it at one.
+
+**Eleven of 41 histidines face a positive spot that is not one of the two conserved ones** — meaning even if those switches fire in human, there is no guarantee of the same spot existing in mouse.
+
+**One predicted structure is simply wrong**: a histidine sits 0.86 angstroms from a positive charge, which is closer than two atoms can physically be.
+
+### How it works
+
+The hand-and-ball picture again: the binder is a hand gripping a ball, the switch is a spring-loaded spike that pops out in acid and pushes the hand off.
+
+What we learned is that a spike only works if **closing the hand traps it**. A spike sticking out into open air pops out freely and the hand keeps gripping — it costs nothing and does nothing. That is what "zero burial" means, and seven of our spikes are like that, including one of the two on our best design. Two spikes are only better than one if both are trapped.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[35 ways to place the switch] -->|does the spot reject<br/>a positive charge?| B{Real effect?}
+    B -->|1 placement| C[Y37H, and it reproduced]
+    B -->|34 placements| D[Smaller than our own noise]
+    A -->|how much does gripping<br/>trap the histidine?| E{Trapped?}
+    E -->|28 placements| F[Something to work with]
+    E -->|7 placements| G[Sits in open water,<br/>cannot contribute]
+    F --> H[Best single beats<br/>every pair]
+    G --> H
+    style C fill:#15803d,stroke:#14532d,color:#ffffff
+    style G fill:#b45309,stroke:#78350f,color:#ffffff
+```
+
+Green is the one placement with evidence behind it. Amber is the seven that cannot work regardless of chemistry.
+
+### What you have now
+
+- [tnf/results/BURIAL_ALL_RESULTS.md](../tnf/results/BURIAL_ALL_RESULTS.md) — all 35 placements with burial, charge, and binding, and the best option for each family. Open it for the table showing which of our submitted choices were beaten.
+- [tnf/results/SWITCH_EVIDENCE_RESULTS.md](../tnf/results/SWITCH_EVIDENCE_RESULTS.md) — the run before it, which found the better rule.
+- **Submitted and counting:** 12 switches and 8 controls, banked and designated. Unchanged by any of this.
+
+### Decisions made, and why
+
+| We chose | Instead of | Because |
+|---|---|---|
+| Measuring all 35 placements | Only the 12 we sent | 10 of the 12 turned out not to be the best their family offers |
+| Reporting one positive out of 35 | Reporting the best few | Only one cleared the noise floor, and saying more would be inventing signal |
+| Measuring the folding claim | Repeating last checkpoint's inference | It was a guess, and it was wrong |
+| Running measurements in grouped passes | The previous per-design order | The old order rebuilt the model 152 times for 212 predictions |
+
+### Jargon decoder
+
+- **Burial on binding** — how much of the histidine gets covered up when the binder grips the target. A histidine that stays exposed cannot drive release.
+- **Charge test** — predicting the same spot as a neutral amino acid and as a positively charged one. The gap says whether the spot objects to charge.
+- **Noise floor** — how much a number moves when you re-run the identical calculation. Ours is about 0.02 to 0.03, so smaller differences mean nothing.
+- **Conserved anchor** — a positively charged spot present in both the human and mouse target. A switch built against a human-only spot cannot work in mouse.
+- **Henderson-Hasselbalch** — the textbook sum for how much of a histidine is charged at a given acidity. The basis for preferring two histidines over one.
+
+### What is next, and what could go wrong
+
+**Next:** decide whether to replace the submitted set. The window opens 18 October 08:14 UTC and the deadline is 19 October 11:59 UTC, so there is about a day of room.
+
+**The risk either way.** Replacing means trading six two-histidine designs — backed by textbook chemistry — for single-histidine ones chosen on our own unvalidated correlate. Not replacing means knowingly leaving in designs whose histidines provably cannot contribute. The strongest part of the case for replacing does not depend on the shaky chain at all: a histidine with zero burial cannot help, which is geometry rather than prediction, and the replacements are also better on *measured* binding in six of the families.
 
 ---
 
