@@ -15,8 +15,13 @@ import csv, os, sys
 
 SRC = sys.argv[1]
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "submission")
-N_SLOTS = 10
+TOTAL_SLOTS = 20
+N_SWITCH = 12
 MIN_MOUSE_ONSITE = 5
+# A control's only job is to make a pH response attributable. A twin that carries a
+# native histidine of its own cannot serve as a pH-inert baseline, so it does not earn
+# a slot - the slot goes to another switch instead, which can at least win objective 1.
+# Controls therefore go to the highest-ranked switches whose twin is histidine-free.
 
 ctl, var = {}, {}
 for row in open(SRC, encoding="utf-8"):
@@ -93,14 +98,23 @@ for p, vs in clean.items():
     chosen[p] = max(vs, key=rank_variant)
 
 order = sorted(chosen.values(), key=rank_variant, reverse=True)
-picked, bench = order[:N_SLOTS], order[N_SLOTS:]
+picked, bench = order[:N_SWITCH], order[N_SWITCH:]
+
+n_controls = TOTAL_SLOTS - len(picked)
+clean_twin = [v for v in picked if "H" not in ctl[v["parent"]]["seq"]]
+with_controls = {v["parent"] for v in clean_twin[:n_controls]}
+if len(clean_twin) < n_controls:
+    raise SystemExit("only %d histidine-free twins available, %d control slots to fill - "
+                     "decide explicitly rather than silently pairing a compromised twin"
+                     % (len(clean_twin), n_controls))
 
 # ---- write
 os.makedirs(OUT, exist_ok=True)
 des_rows, met_rows = [], []
 for i, v in enumerate(picked, 1):
     c = ctl[v["parent"]]
-    sw, ct = "tnf_sw_%02d" % i, "tnf_ct_%02d" % i
+    sw = "tnf_sw_%02d" % i
+    ct = "tnf_ct_%02d" % i if v["parent"] in with_controls else ""
     des_rows.append((sw, v["seq"], "single_chain"))
     met_rows.append(dict(name=sw, role="switch", paired_with=ct, internal_id=v["parent"],
                          length=len(v["seq"]), n_his=v["n_his"], his_substitutions=v["his"],
@@ -112,6 +126,8 @@ for i, v in enumerate(picked, 1):
                          parent_human_i_ptm=c["parent_h"], parent_mouse_i_ptm=c["parent_m"],
                          control_has_native_his=int("H" in c["seq"])))
 for i, v in enumerate(picked, 1):
+    if v["parent"] not in with_controls:
+        continue
     c = ctl[v["parent"]]
     sw, ct = "tnf_sw_%02d" % i, "tnf_ct_%02d" % i
     des_rows.append((ct, c["seq"], "single_chain"))
@@ -144,22 +160,26 @@ else:
     print("  every variant differs from its control at the named histidines and nowhere else")
 print("  %d parents with at least one verified placement; %d verified placements total"
       % (len(clean), sum(len(v) for v in clean.values())))
-print("\nSELECTED (10 switch + 10 control = 20 designs)")
-print("%-4s %-14s %-12s %3s %3s %6s %6s %6s %5s  %s"
-      % ("slot", "lineage", "histidines", "nH", "anc", "human", "mouse", "min", "site", "control His?"))
+print("\nSELECTED (%d switch + %d control = %d designs)"
+      % (len(picked), n_controls, len(des_rows)))
+print("%-5s %-14s %-12s %3s %3s %6s %6s %6s %5s  %s"
+      % ("slot", "lineage", "histidines", "nH", "anc", "human", "mouse", "min", "site", "twin"))
 for i, v in enumerate(picked, 1):
     c = ctl[v["parent"]]
+    twin = ("ct_%02d" % i if v["parent"] in with_controls
+            else "none - twin has native H")
     print("sw_%02d %-14s %-12s %3d %3d %6.3f %6.3f %6.3f %5d  %s"
           % (i, v["parent"], v["his"], v["n_his"], v["n_anchor"], v["h"], v["m"],
-             min(v["h"], v["m"]), v["mo"], "YES - native H" if "H" in c["seq"] else "no"))
-print("\nNOT SELECTED (verified, but outside the ten slots)")
+             min(v["h"], v["m"]), v["mo"], twin))
+print("\nNOT SELECTED (verified, but outside the switch slots)")
 for v in bench:
     print("      %-14s %-12s %3d %3d %6.3f %6.3f %6.3f %5d"
           % (v["parent"], v["his"], v["n_his"], v["n_anchor"], v["h"], v["m"],
              min(v["h"], v["m"]), v["mo"]))
 nh2 = sum(1 for v in picked if v["n_his"] == 2)
-hisctl = sum(1 for v in picked if "H" in ctl[v["parent"]]["seq"])
+hisctl = sum(1 for v in des_rows
+             if v[0].startswith("tnf_ct_") and "H" in v[1])
 print("\n%d of %d switches carry two histidines; %d of %d controls carry a native histidine"
-      % (nh2, len(picked), hisctl, len(picked)))
+      % (nh2, len(picked), hisctl, n_controls))
 print("lowest mouse i_ptm in the set: %.3f; lowest mouse-site contacts: %d"
       % (min(v["m"] for v in picked), min(v["mo"] for v in picked)))

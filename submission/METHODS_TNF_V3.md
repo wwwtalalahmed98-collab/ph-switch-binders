@@ -1,17 +1,20 @@
 # Challenge 2 (TNF-α) — methods
 
-**Track 3. Twenty single-chain de novo designs, 56–78 aa: ten acid-OFF pH switches, each
-with its own histidine-free twin as a paired control.** Ranked switch-first, per the
-challenge's stated order.
+**Track 3. Twenty single-chain de novo designs, 56–80 aa: twelve acid-OFF pH switches and
+eight histidine-free controls, each control the exact twin of one switch.** Ranked
+switch-first, per the challenge's stated order.
 
 ## Summary
 
 The binders are AfDesign hallucinations against the receptor-binding site at the
 protomer interface of human TNF-α. The pH switch is a histidine placed within reach of a
 target arginine or lysine: neutral imidazole is tolerated at pH 7.4, imidazolium clashes
-with the cation at pH 6.0 and pushes the binder off. Each switch is submitted alongside
-a twin that is identical except for the histidine positions, so that a pH response
-measured in the lab can be attributed to the histidines rather than to the scaffold.
+with the cation at pH 6.0 and pushes the binder off. Eight of the twelve switches are submitted alongside a twin that is identical except for
+the histidine positions, so that a pH response measured in the lab can be attributed to
+the histidines rather than to the scaffold. The other four lineages carry a native
+histidine in the parent sequence, so their twin could not serve as a pH-inert baseline;
+rather than spend slots on controls that cannot do the job, those slots went to further
+switches, which can at least address objective 1.
 
 The substantive methodological point of this submission is negative and is described in
 full below: **we used sequence conservation as a proxy for mouse cross-reactivity, and it
@@ -61,8 +64,8 @@ Applied in the order the challenge ranks the objectives:
    human-only and objective 2 would be met at pH 7.4 but not mechanistically shared.
 3. **Higher worse-species i_ptm**, i.e. `min(human, mouse)`.
 
-Six of the ten switches carry two histidines. Every switch binds mouse at i_ptm ≥ 0.480
-with at least 6 on-site mouse contacts.
+Six of the twelve switches carry two histidines. Every switch binds mouse at i_ptm ≥ 0.480
+with at least 6 on-site mouse contacts. All eight controls are histidine-free.
 
 ## The finding we think is worth reporting
 
@@ -106,9 +109,9 @@ one thing we would tell another team to do differently.
 - **The pH switch has not been computed, only reasoned.** No calculation in this project
   models pH or protonation. The switch rests on measured interatomic geometry plus
   textbook histidine chemistry. It is the part of this submission most likely to fail.
-- **Two of the ten controls carry a native histidine** (pairs sw_07 and sw_10); their
-  parent sequences already contained one. For those two pairs a pH response cannot be
-  attributed to our added histidine alone. The other eight controls are histidine-free.
+- **Four of the twelve switches have no paired control** (sw_07, sw_10, sw_11, sw_12),
+  because their parent sequence already contains a histidine. For those four, a pH
+  response cannot be cleanly attributed to the histidine we added.
 - **The selection rule trades measured binding for an unvalidated switch argument.**
   Preferring two histidines cost real predicted binding in several lineages — sw_05 gives
   up 0.561→0.503 on human and 0.587→0.480 on mouse against its own single-histidine
@@ -125,6 +128,34 @@ one thing we would tell another team to do differently.
   one from 0.469 to 0.177 on six. We had assumed the repetitive-stretch substitutions
   were the costly part and built a revertible repair to address them; that assumption was
   wrong, and the fix did not recover either lineage.
+- **Predicted fold confidence is low by the standards of this field.** Median pLDDT across
+  the 20 submitted designs is 0.693 and none exceeds 0.80. Published de novo minibinder
+  campaigns normally filter at pLDDT > 0.85 and i_pTM > 0.8 before ordering anything. We
+  are submitting below that bar and say so plainly.
+- **No ProteinMPNN resequencing was applied.** A redesign pass is the standard step that
+  raises fold confidence and expression without necessarily costing interface quality. We
+  tested it earlier in this competition, applied it incorrectly (without the target in
+  context), saw it destroy interfaces, and set it aside. Re-running it properly would
+  regenerate every sequence and invalidate all 35 switch measurements, which we could not
+  redo in the time available. This is the largest known gap in the pipeline.
+- **Every design carries a sequence-composition liability**: poly-Ile/Leu faces, lysine or
+  glutamine runs, alternating low-complexity repeats, and hydrophobic stretches up to 14
+  residues. These are characteristic hallucination artifacts and are a plausible cause of
+  poor expression independent of binding.
+- **Our own repair step introduced one of those liabilities.** Breaking a poly-glutamine
+  run with Q->N substitutions produced an alternating QNQNQN repeat, which is no easier to
+  synthesise than what it replaced. Reported as a defect in our method, not a fix.
+- **All reported i_ptm values are single predictions from one parameter set, with no error
+  bars.** Across-model spread for this quantity is typically +/-0.05 to 0.10, which is the
+  same size as several of the margins our ranking depends on. Some of our ordering is
+  therefore noise, and we cannot currently say which part.
+- **Trimer avidity works against objective 1.** The assay presents three equivalent
+  epitopes, so a partial affinity loss at pH 6.0 can be rescued into "still detectable".
+  Reading as *no detectable binding* requires a steeper drop than a monovalent analysis
+  implies. This is the reasoning behind preferring two histidines, and it is also why we
+  think the right next architecture is a tandem bivalent binder spanning two epitopes,
+  where avidity is superlinear and a modest monovalent drop becomes a large one. We did
+  not have time to build it.
 - **Affinity is assayed against the soluble trimer**, which presents three copies of the
   epitope; designs were made against a two-chain crop of one interface. Avidity effects
   are not modelled.
