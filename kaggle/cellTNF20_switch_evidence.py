@@ -122,23 +122,42 @@ log("this worker takes %d of %d designs: %s"
 from colabdesign import mk_afdesign_model, clear_mem
 _c = {}
 
+def _build(species, L):
+    # ColabDesign loads only num_models parameter sets, default 1. Asking predict() for
+    # models=[1] against a single loaded set is what killed the whole of run 1 with an
+    # IndexError, so the count is requested up front AND verified below, never assumed.
+    def mk(**extra):
+        if species == "alone":
+            return mk_afdesign_model(protocol="hallucination", length=L,
+                                     data_dir="/kaggle/working", **extra)
+        af = mk_afdesign_model(protocol="binder", data_dir="/kaggle/working", **extra)
+        af.prep_inputs(pdb_filename=HT if species == "human" else MT, chain="A,B",
+                       binder_len=L,
+                       hotspot=H_HOTSPOT if species == "human" else M_HOTSPOT)
+        return af
+    try:
+        return mk(num_models=N_MODELS)
+    except TypeError:
+        return mk()
+
 def _model(species, L):
     key = (species, L)
     if _c.get("key") != key:
         clear_mem()
-        if species == "alone":
-            af = mk_afdesign_model(protocol="hallucination", length=L,
-                                   data_dir="/kaggle/working")
-        else:
-            af = mk_afdesign_model(protocol="binder", data_dir="/kaggle/working")
-            af.prep_inputs(pdb_filename=HT if species == "human" else MT, chain="A,B",
-                           binder_len=L,
-                           hotspot=H_HOTSPOT if species == "human" else M_HOTSPOT)
-        _c["key"], _c["af"] = key, af
+        af = _build(species, L)
+        n = len(getattr(af, "_model_params", None) or [])
+        _c["key"], _c["af"], _c["n_models"] = key, af, n
+        log("built %s model for length %d with %d parameter set(s) loaded"
+            % (species, L, n))
     return _c["af"]
+
+def n_models_available():
+    return _c.get("n_models", 0)
 
 def predict(seq, species, out_pdb=None, model=None):
     af = _model(species, len(seq))
+    if model is not None and model >= max(1, n_models_available()):
+        return None                # this parameter set is not loaded; not an error
     kw = dict(seq=seq, num_recycles=3, verbose=False)
     if model is not None:
         kw["models"] = [model]
@@ -150,6 +169,8 @@ def predict(seq, species, out_pdb=None, model=None):
         af.predict(**kw)
         if model is not None:
             return None            # per-model selection unavailable in this build
+    except IndexError:
+        return None                # model index rejected; caller keeps what it has
     lg = af.aux["log"]
     if out_pdb:
         af.save_pdb(out_pdb)
@@ -248,78 +269,108 @@ for j in mine:
     seq, L = j["seq"], len(j["seq"])
     rec = dict(slot=j["slot"], role=j["role"], parent=j["parent"], length=L,
                his=j["his"], ref_human_i_ptm=j["ref_h"], ref_mouse_i_ptm=j["ref_m"])
-    try:
-        # --- 2. error bars, human then mouse
+    pdb0 = "/kaggle/working/ev_pdb/%s_human.pdb" % j["slot"]
+
+    # Run 1 put the OPTIONAL measurement first and let it take down the irreplaceable
+    # one: a model-index IndexError in the error-bar loop killed every design before the
+    # charge test ran, and Kaggle still reported "Successfully ran". So the order is now
+    # most-important-first, and every step is isolated - one failure costs that step
+    # only, and whatever succeeded is still emitted.
+    def step(name, fn):
+        try:
+            fn()
+        except Exception as e:
+            rec["%s_error" % name] = "%s %s" % (type(e).__name__, str(e)[:160])
+            log("%s %s FAILED %s" % (j["slot"], name, rec["%s_error" % name]))
+
+    # --- 0. baseline, single model, and the complex structure burial needs
+    def _baseline():
+        h = predict(seq, "human", out_pdb=pdb0)
+        m = predict(seq, "mouse")
+        rec["human_i_ptm"], rec["human_plddt"] = h
+        rec["mouse_i_ptm"], rec["mouse_plddt"] = m
+        log("%s baseline human %.3f mouse %.3f (switch5 said %.3f/%.3f)"
+            % (j["slot"], h[0], m[0], j["ref_h"], j["ref_m"]))
+    step("baseline", _baseline)
+
+    hidx = []
+    if j["role"] == "switch" and j["his"]:
+        hidx = [int(s[1:-1]) - 1 for s in j["his"].split(",")]
+
+    # --- 1. charge sensitivity: the only falsifiable test of objective 1 we have
+    def _charge():
+        probes = []
+        for pos in hidx:
+            if seq[pos] != "H":
+                raise ValueError("expected H at %d, found %s" % (pos + 1, seq[pos]))
+            for aa, label in (("Q", "neutral"), ("K", "charged")):
+                mut = seq[:pos] + aa + seq[pos+1:]
+                hp = predict(mut, "human")
+                mp = predict(mut, "mouse")
+                probes.append(dict(position=pos+1, residue=aa, kind=label,
+                                   human_i_ptm=hp[0], mouse_i_ptm=mp[0]))
+        rec["charge_probes"] = probes
+        for pos in hidx:
+            q = next((p for p in probes if p["position"] == pos+1 and p["residue"] == "Q"), None)
+            kk = next((p for p in probes if p["position"] == pos+1 and p["residue"] == "K"), None)
+            if q and kk:
+                d = round(kk["human_i_ptm"] - q["human_i_ptm"], 3)
+                rec.setdefault("charge_sensitivity", {})["H%d" % (pos+1)] = d
+                log("%s H%d charge test: Gln %.3f, Lys %.3f -> %+.3f %s"
+                    % (j["slot"], pos+1, q["human_i_ptm"], kk["human_i_ptm"], d,
+                       "punishes positive charge" if d <= -0.10
+                       else "tolerates positive charge - switch UNSUPPORTED"))
+    if hidx:
+        step("charge", _charge)
+
+    # --- 2. burial on binding: the variable we should have filtered on
+    def _burial():
+        rec["burial"] = {("H%d" % (k+1)): v for k, v in burial(pdb0, L, hidx).items()}
+        for k, v in rec["burial"].items():
+            log("%s %s burial: free %.3f -> bound %.3f (buried %.3f), nearest cation "
+                "%s at %s A, screened %s kcal/mol"
+                % (j["slot"], k, v["rel_sasa_free"], v["rel_sasa_bound"],
+                   v["buried_on_binding"], v["nearest_cation"], v["cation_dist"],
+                   v["screened_coulomb_kcal"]))
+    if hidx:
+        step("burial", _burial)
+
+    # --- 3. does it fold without the target
+    def _alone():
+        a = predict(seq, "alone")
+        if a:
+            rec["alone_plddt"] = a[1]
+            if "human_plddt" in rec:
+                rec["plddt_drop_alone"] = round(rec["human_plddt"] - a[1], 3)
+            log("%s alone pLDDT %.3f vs %.3f bound (drop %s)"
+                % (j["slot"], a[1], rec.get("human_plddt", 0),
+                   rec.get("plddt_drop_alone")))
+    step("alone", _alone)
+
+    # --- 4. error bars, last because it is the one we can afford to lose
+    def _ensemble():
         for species in ("human", "mouse"):
             vals = []
             for k in range(N_MODELS):
-                out = "/kaggle/working/ev_pdb/%s_%s_m%d.pdb" % (j["slot"], species, k)
-                r = predict(seq, species, out_pdb=out if k == 0 else None, model=k)
+                r = predict(seq, species, model=k)
                 if r is None:
-                    rec["%s_models" % species] = "per-model selection unavailable"
                     break
                 vals.append(r)
-            if vals:
+            if len(vals) > 1:
                 ip = [v[0] for v in vals]
                 rec["%s_i_ptm_mean" % species] = round(float(np.mean(ip)), 3)
                 rec["%s_i_ptm_sd" % species] = round(float(np.std(ip)), 3)
                 rec["%s_i_ptm_all" % species] = ip
-                rec["%s_plddt_mean" % species] = round(float(np.mean([v[1] for v in vals])), 3)
-        log("%s human %.3f+/-%.3f  mouse %.3f+/-%.3f (ref %.3f/%.3f)"
-            % (j["slot"], rec.get("human_i_ptm_mean", 0), rec.get("human_i_ptm_sd", 0),
-               rec.get("mouse_i_ptm_mean", 0), rec.get("mouse_i_ptm_sd", 0),
-               j["ref_h"], j["ref_m"]))
-
-        # --- 3. does it fold on its own
-        try:
-            alone = predict(seq, "alone")
-            if alone:
-                rec["alone_plddt"] = alone[1]
-                rec["plddt_drop_alone"] = round(rec.get("human_plddt_mean", 0) - alone[1], 3)
-                log("%s alone pLDDT %.3f vs %.3f in complex (drop %.3f)"
-                    % (j["slot"], alone[1], rec.get("human_plddt_mean", 0),
-                       rec["plddt_drop_alone"]))
-        except Exception as e:
-            rec["alone_error"] = "%s %s" % (type(e).__name__, str(e)[:120])
-
-        # --- 1. charge sensitivity, and 4. burial - switches only
-        if j["role"] == "switch" and j["his"]:
-            hidx = [int(s[1:-1]) - 1 for s in j["his"].split(",")]
-            probes = []
-            for pos in hidx:
-                assert seq[pos] == "H", "%s expected H at %d" % (j["slot"], pos + 1)
-                for aa, label in (("Q", "neutral"), ("K", "charged")):
-                    mut = seq[:pos] + aa + seq[pos+1:]
-                    hp = predict(mut, "human")
-                    mp = predict(mut, "mouse")
-                    probes.append(dict(position=pos+1, residue=aa, kind=label,
-                                       human_i_ptm=hp[0], mouse_i_ptm=mp[0]))
-            rec["charge_probes"] = probes
-            for pos in hidx:
-                q = next((p for p in probes if p["position"] == pos+1 and p["residue"] == "Q"), None)
-                kk = next((p for p in probes if p["position"] == pos+1 and p["residue"] == "K"), None)
-                if q and kk:
-                    d = round(kk["human_i_ptm"] - q["human_i_ptm"], 3)
-                    rec.setdefault("charge_sensitivity", {})["H%d" % (pos+1)] = d
-                    log("%s H%d charge test: Gln %.3f, Lys %.3f -> %+.3f %s"
-                        % (j["slot"], pos+1, q["human_i_ptm"], kk["human_i_ptm"], d,
-                           "punishes positive charge" if d <= -0.10
-                           else "tolerates positive charge - switch unsupported"))
-            try:
-                pdb0 = "/kaggle/working/ev_pdb/%s_human_m0.pdb" % j["slot"]
-                rec["burial"] = {("H%d" % (k+1)): v
-                                 for k, v in burial(pdb0, L, hidx).items()}
-                for k, v in rec["burial"].items():
-                    log("%s %s burial: free %.3f -> bound %.3f (buried %.3f), "
-                        "nearest cation %s at %.2f A, screened %.3f kcal/mol"
-                        % (j["slot"], k, v["rel_sasa_free"], v["rel_sasa_bound"],
-                           v["buried_on_binding"], v["nearest_cation"],
-                           v["cation_dist"] or -1, v["screened_coulomb_kcal"] or 0))
-            except Exception as e:
-                rec["burial_error"] = "%s %s" % (type(e).__name__, str(e)[:160])
-    except Exception as e:
-        rec["error"] = "%s %s" % (type(e).__name__, str(e)[:200])
-        log("%s FAILED %s" % (j["slot"], rec["error"]))
+            elif vals:
+                rec["%s_models_note" % species] = (
+                    "only %d parameter set loaded, no spread available"
+                    % n_models_available())
+        if "human_i_ptm_sd" in rec:
+            log("%s spread over %d models: human %.3f+/-%.3f  mouse %.3f+/-%.3f"
+                % (j["slot"], len(rec.get("human_i_ptm_all", [])),
+                   rec.get("human_i_ptm_mean", 0), rec.get("human_i_ptm_sd", 0),
+                   rec.get("mouse_i_ptm_mean", 0), rec.get("mouse_i_ptm_sd", 0)))
+    step("ensemble", _ensemble)
     emit(rec)
 log("worker done")
 """
@@ -369,16 +420,33 @@ if not rows:
     raise SystemExit("nothing was measured - read the worker log above, do not read an "
                      "empty table as 'the switch does not work'")
 
-print("\n==== ERROR BARS ON THE SUBMITTED SET ====")
-print("%-6s %-8s %14s %14s %8s %8s"
-      % ("slot", "role", "human mean+/-sd", "mouse mean+/-sd", "alone", "drop"))
+# Run 1 printed twenty rows of 0.000 under a green "Successfully ran". A cell that
+# measured nothing must say so by failing, not by printing an empty table.
+measured = [r for r in rows if "human_i_ptm" in r]
+charged = [r for r in rows if r.get("charge_sensitivity")]
+if not measured:
+    raise SystemExit("no design was scored at all - every baseline failed. Read the "
+                     "per-design *_error fields above. Do NOT read this as a result.")
+print("\n==== BASELINE AND FOLD WITHOUT THE TARGET ====")
+print("%-6s %-8s %8s %8s %8s %8s %8s %-14s"
+      % ("slot", "role", "human", "mouse", "pLDDT", "alone", "drop", "spread h"))
 for r in rows:
-    print("%-6s %-8s %8.3f+/-%.3f %8.3f+/-%.3f %8s %8s"
-          % (r.get("slot"), r.get("role", ""), r.get("human_i_ptm_mean", 0),
-             r.get("human_i_ptm_sd", 0), r.get("mouse_i_ptm_mean", 0),
-             r.get("mouse_i_ptm_sd", 0),
+    sd = ("+/-%.3f" % r["human_i_ptm_sd"]) if "human_i_ptm_sd" in r else "-"
+    print("%-6s %-8s %8s %8s %8s %8s %8s %-14s"
+          % (r.get("slot"), r.get("role", ""),
+             ("%.3f" % r["human_i_ptm"]) if "human_i_ptm" in r else "FAILED",
+             ("%.3f" % r["mouse_i_ptm"]) if "mouse_i_ptm" in r else "-",
+             ("%.3f" % r["human_plddt"]) if "human_plddt" in r else "-",
              ("%.3f" % r["alone_plddt"]) if "alone_plddt" in r else "-",
-             ("%+.3f" % r["plddt_drop_alone"]) if "plddt_drop_alone" in r else "-"))
+             ("%+.3f" % r["plddt_drop_alone"]) if "plddt_drop_alone" in r else "-",
+             sd))
+drops = [r["plddt_drop_alone"] for r in rows if "plddt_drop_alone" in r]
+if drops:
+    drops.sort()
+    print("\npLDDT drop when the target is removed: median %+.3f over %d designs"
+          % (drops[len(drops)//2], len(drops)))
+    print("A large positive drop means the binder needs the target to hold its shape,")
+    print("which is a poor sign for expressing it on its own.")
 
 print("\n==== CHARGE SENSITIVITY: does the position punish a positive charge? ====")
 print("A negative number means Lys costs more than Gln at that position, i.e. the")
@@ -402,6 +470,15 @@ print("\n%d histidine positions punish a positive charge; %d tolerate it"
 if unsupported:
     print("switch claim NOT supported at: %s"
           % ", ".join("%s %s" % (s, k) for s, k, _ in unsupported))
+by_slot = {}
+for s, k, d in supported + unsupported:
+    by_slot.setdefault(s, []).append(d <= -0.10)
+clean = sorted(s for s, v in by_slot.items() if all(v))
+print("designs where EVERY histidine rejects positive charge: %s"
+      % (", ".join(clean) if clean else "none"))
+if not charged:
+    print("\nWARNING: not one charge test completed. Objective 1 is still untested and "
+          "nothing below should be read as evidence about the switch.")
 
 print("\n==== BURIAL ON BINDING (the variable we should have filtered on) ====")
 print("%-6s %6s %8s %8s %8s %12s %7s %9s"
