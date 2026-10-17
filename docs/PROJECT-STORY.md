@@ -4,8 +4,118 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 3. 2026-10-17 — Submitted, then asked what is actually weak
+
+### Where we are
+
+The designs are submitted and counting, and we have started measuring the one thing we had never measured: whether the acidity switch works at all.
+
+### What this project is for
+
+Anthropic's protein design competition, Challenge 2, Track 3. A small protein that grabs human TNF-alpha at normal body acidity, lets go when slightly acidic, and does the same on the mouse version. Up to 20 designs, ranked on switch first, mouse second, binding strength third.
+
+### Why this step
+
+Last checkpoint the set was built but blocked at the upload. This step banked it, then asked the harder question: not "is the set internally consistent" but "is this good science, and will any of it work in the lab".
+
+### What we actually did
+
+**Changed the set before sending it.** We had 10 switches plus 10 histidine-free twins. A twin exists so that if the lab sees an acidity response we can prove our histidine caused it — but a twin can never win the top-ranked objective itself. Four of our twins carried a histidine of their own, so they could not serve as a clean baseline anyway. We gave those four slots to more switches. Result: **12 switches and 8 controls**, and the number of compromised controls went from 2 to **0**. More shots at the thing that matters most, and cleaner evidence.
+
+**Submitted.** All 20 passed the portal's automatic novelty check. The entry is marked DESIGNATED, so it is the one that counts and it replaces the earlier set in which six of ten switches failed the mouse objective.
+
+**Then looked hard at quality.** Honest summary: the designs are weak as folds. Median pLDDT 0.693, and **none of the 20 reaches 0.80**. Published work in this field filters at 0.85 before ordering anything. Every single design also carries a sequence flaw — long runs of one amino acid, big greasy stretches, repetitive patches — which are the fingerprints of the generator we used and a plausible cause of the protein simply not being manufacturable.
+
+**Found that one of those flaws was ours.** Our cleanup step breaks up runs of repeated amino acids. On one design it turned a run of Q into an alternating QNQNQN pattern. That is not a fix; it is the same problem wearing a different hat.
+
+**The portal handed us a free experiment.** Proteinbase runs its own structure prediction, and reported confidence of 55 to 63 where ours said 60 to 77 for the same designs. The most likely explanation is that it predicted the binder **on its own** while we predicted it **stuck to the target**. If so, our designs may only hold their shape when TNF-alpha is there to hold them — which is a poor sign for making them at all. We did not take this on trust; the run now going measures it directly.
+
+### The bad news
+
+**We have never tested the switch. Not once.** Everything measured so far is binding at normal acidity against two species. No calculation in this project touches acidity. The top-ranked objective has been supported entirely by "we put a histidine near an arginine".
+
+**And the rule we used for that was the wrong rule.** We accepted any histidine between 3.0 and 8.8 angstroms from a positive charge. At the far end of that range, in salt water, the repulsion is a fraction of the energy needed to matter. The quantity that actually predicts the switch is how much *binding buries* the histidine — because in the free binder it is exposed and picks up its charge happily at pH 6, and it is burying that charge against the target that costs the binding. We filtered on the wrong variable, and we are now computing the right one.
+
+**Our whole ranking has no error bars.** Every number is a single prediction. The spread across model versions is normally about the same size as the margins our ranking depends on, so some of our ordering is noise and we cannot yet say which part.
+
+**The biggest known fix is one we chose not to attempt.** A redesign pass (ProteinMPNN) is the standard step that raises fold quality. We tried it earlier in the competition, used it wrongly, saw it wreck the interfaces, and dropped it. Doing it properly now would regenerate every sequence and throw away all 35 switch measurements, with a day left. We named it in the submitted methods as the largest gap rather than hiding it.
+
+**Honest odds.** My estimate, and it is only an estimate: a few percent that any one design binds at all; if it binds, maybe one in four that the switch is clean. Across twelve switches, perhaps a one-in-five to one-in-four chance of a single real hit. That is roughly what the organisers expect — they screen hundreds knowing most fail — but it means our realistic route to mattering is the method and the honest negative result, not raw binding strength.
+
+### How it works
+
+Keep the hand-and-ball picture: the binder is a hand gripping a ball, the switch is a spring-loaded spike on one finger, flat normally and popped out in acid.
+
+The correction this time is about *where* the spike has to sit. We had been measuring how close the spike is to a bump on the ball. What actually matters is whether closing the hand **traps** the spike with nowhere to go. A spike sticking out into open air can pop out freely and the hand keeps gripping. A spike that the grip itself presses into a tight pocket cannot pop out without forcing the hand open. That trapping is what we should have been measuring, and now are.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[10 switches + 10 twins] -->|4 twins had their own<br/>histidine, so could not<br/>serve as a baseline| B[12 switches + 8 clean twins]
+    B -->|all 20 pass<br/>novelty check| C[Submitted and DESIGNATED]
+    C --> D{But is any of it good?}
+    D -->|folds are weak:<br/>0 of 20 above 0.80| E[Named in the methods]
+    D -->|switch never tested| F[Run now measuring it]
+    F -->|histidine as neutral<br/>vs as charged| G[Does the spot reject<br/>a positive charge?]
+    F -->|buried by binding?| H[The right variable<br/>at last]
+    style F fill:#2563eb,stroke:#1e40af,color:#ffffff
+    style C fill:#15803d,stroke:#14532d,color:#ffffff
+```
+
+"Submitted" (green) is banked and counting. "Run now measuring it" (blue) is where we are.
+
+### What you have now
+
+**Things that work and have produced results:**
+
+- [tnf/results/SWITCH5_RESULTS.md](../tnf/results/SWITCH5_RESULTS.md) — the run behind the submitted set, and what it replaced.
+- [submission/METHODS_TNF_V3.md](../submission/METHODS_TNF_V3.md) — what reviewers read. Open it to see the limitations stated plainly, including the ones found this turn.
+- [tnf/build_submission_v3.py](../tnf/build_submission_v3.py) — rebuilds the exact 20 from the run output and refuses any switch that differs from its twin anywhere but the histidines.
+
+**Submitted and counting:** 12 switches and 8 controls on Proteinbase, marked DESIGNATED. The design files stay out of the public repository until the competition closes.
+
+**Running now:** [kaggle/cellTNF20_switch_evidence.py](../kaggle/cellTNF20_switch_evidence.py), measuring four things — whether each histidine position rejects a positive charge, error bars over five model versions, whether each binder folds on its own, and how much binding buries the histidine.
+
+**Not done:** the redesign pass that would fix fold quality.
+
+### Decisions made, and why
+
+| We chose | Instead of | Because |
+|---|---|---|
+| 12 switches + 8 controls | 10 + 10 | A twin cannot win objective 1, and four of ours carried a histidine so could not even serve as a baseline |
+| Submitting before running the new tests | Waiting for better numbers | The banked set had six of ten failing mouse. Banking an improvement costs nothing, and the portal allows another submission in 24 hours |
+| Testing the histidine as neutral vs as charged | Trusting the geometric argument | It is the only falsifiable test of objective 1 available, and it can tell us a design's switch claim is unsupported |
+| Measuring burial on binding | Keeping the 3.0-8.8 angstrom distance rule | At the far end of that window the repulsion is too small to matter; burial is the quantity that actually drives the switch |
+| Not attempting the redesign pass | Fixing fold quality properly | It regenerates every sequence and invalidates all 35 switch measurements, with a day left. Named as the largest gap instead |
+| Stating the weaknesses in the submitted methods | Presenting the set at its best | A Claude-based workflow reads these when choosing what to make, and an undisclosed flaw a reviewer can spot is worse than a disclosed one |
+
+### Jargon decoder
+
+- **pLDDT** — the prediction model's confidence in the shape it drew, 0 to 1. Below about 0.8 for a designed miniprotein is a warning sign.
+- **i_ptm** — confidence that two proteins stick together. A confidence score, not a measured strength.
+- **ProteinMPNN** — a tool that rewrites a protein's sequence to fit a shape better. The standard quality step we skipped.
+- **Novelty check** — the portal's automatic test that a design is genuinely new rather than a copy of a known protein. Needs 3 of 4; all 20 passed.
+- **DESIGNATED** — the portal's label for which of several submissions actually counts.
+- **Debye screening** — salt in water cancels out electrical attraction and repulsion over distance. Why a charge 8.8 angstroms away does almost nothing.
+- **Avidity** — grabbing something in several places at once is much stronger than the sum of the grips. Works against us here, because partial loss of grip in acid may still read as "still holding".
+
+### What is next, and what could go wrong
+
+**Next:** read the run, then decide whether it changes the set. The portal allows one more submission in about 24 hours, and the deadline is Sunday 18 October 23:59 AoE, so there is comfortable room for one upgrade.
+
+**What could go wrong:**
+
+- **The charge test could come back negative across the board.** If histidine positions turn out to tolerate a positive charge, our switch claim is unsupported and we would have to say so. That is the point of running it, but it is a real possible outcome.
+- **The test is weak.** The prediction model is not a reliable energy calculator, so only large effects mean anything. A small shift tells us nothing either way.
+- **The monomer result could confirm the bad reading** — that our binders do not fold without the target. We would then know our designs are unlikely to express, with no time to fix it.
+- **Everything from the previous checkpoints still stands**, led by the fact that the acidity switch is reasoned rather than computed, and that nothing has been physically tested.
 
 ---
 
