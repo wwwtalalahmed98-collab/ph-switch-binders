@@ -4,14 +4,14 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
-| 4 | 2026-10-18 | One good histidine out of thirty-five |
+| 4 | 2026-10-17 | One good histidine out of thirty-five |
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
 
-## 4. 2026-10-18 — One good histidine out of thirty-five
+## 4. 2026-10-17 — One good histidine out of thirty-five
 
 ### Where we are
 
