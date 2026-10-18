@@ -4,10 +4,77 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 5 | 2026-10-18 | Submitted, and what we would tell the next person |
 | 4 | 2026-10-17 | One good histidine out of thirty-five |
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 5. 2026-10-18 — Submitted, and what we would tell the next person
+
+### Where we are
+
+The final set is in, it is the one that counts, and the competition is done from our side.
+
+### What was submitted
+
+**Submission 3**, marked DESIGNATED so it supersedes the two before it: twelve acid-OFF switches and eight histidine-free controls, all twenty passing the portal's automatic novelty check. Alongside it went the methods write-up and four results files, including the raw tables behind both negative findings.
+
+The set differs from what we had banked in eight of its twelve switch sequences. Every chosen histidine now faces one of the two anchor points that exist in *both* human and mouse, and **none of them sits in open solvent** — against four of twelve in the previous entry, where the histidine had nothing to push against and could not have worked.
+
+### The honest shape of what we are entering
+
+We are entering a set of designs we believe will mostly fail, with an account of why that is informative anyway.
+
+**The designs are weak.** Median fold confidence 0.693, none above 0.80, where this field normally throws away anything below 0.85 before ordering. Every one carries a sequence flaw of the kind that predicts poor manufacturing. We skipped the standard clean-up step that would have fixed this, because doing it properly would have thrown away every measurement we had made, with a day left.
+
+**The switch is still not proven.** Across all 35 ways we knew how to build it, one placement showed a clear effect and 34 did not. The chain from what we measured to an actual acid-release has two unproven links in it. We said so in the submission rather than letting the numbers imply more than they support.
+
+**My honest estimate of the odds** has not changed: a few percent that any single design binds, and if it binds, perhaps one in four that the switch is clean. Across twelve, maybe a one-in-five chance of one real hit.
+
+### What we would actually tell someone doing this next
+
+Two findings, both negative, both the same shape — a cheap proxy we were trusting turned out to carry almost no information:
+
+1. **Sequence similarity does not predict cross-species binding.** We ranked mouse compatibility by how similar the contact points looked between species. Correlation with the real thing: +0.272. The design it ranked first had the worst actual mouse binding in the set.
+
+2. **Distance does not predict the acid switch.** We placed histidines by how close they sat to a positive spot on the target. Correlation with whether that spot actually rejects a positive charge: +0.24. Whether *gripping buries* the histidine: −0.58. We had been selecting on the wrong variable the whole time.
+
+The second one only came to light because we went looking for evidence that our own method worked, and did not find it.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[89 designs generated] -->|31 strong on human| B[Tested on mouse directly]
+    B -->|20 of 31 bind both| C[35 switch placements<br/>that hold both species]
+    C -->|does the spot reject<br/>a positive charge?| D[1 of 35 clears the noise]
+    C -->|does gripping bury<br/>the histidine?| E[Rank on this instead]
+    E --> F[12 switches + 8 controls<br/>SUBMITTED, designated]
+    D -.->|informs, does not decide| F
+    style F fill:#15803d,stroke:#14532d,color:#ffffff
+    style D fill:#b45309,stroke:#78350f,color:#ffffff
+```
+
+Green is in and counting. Amber is the uncomfortable number we reported rather than hid.
+
+### Decisions made, and why
+
+| We chose | Instead of | Because |
+|---|---|---|
+| Replacing the banked set | Leaving it alone | 10 of 12 placements were beaten by another position in the same design, and 4 had a histidine that could not work |
+| Twelve single histidines | Six pairs | Every pair had a dead partner, so the two-histidine chemistry argument did not apply to any of them |
+| Passing over two higher-burial placements | Taking the top of the ranking | They faced a cation with no mouse equivalent, and mouse ranks above affinity |
+| Leading the write-up with two negative results | Leading with the designs | They are the most transferable thing we produced, and method novelty is a selection criterion |
+| Stopping measuring | Spending the last day on more runs | The remaining questions needed work that would invalidate what we had, not add to it |
+
+### What is next, and what could go wrong
+
+**Nothing from us.** Submissions close 19 October 11:59 UTC. Selection happens afterwards, by a Claude-based workflow reading the methods alongside the designs, and any chosen designs go to Adaptyv's lab. Every measurement, including the failures, gets published.
+
+**What could still go wrong:** all of it, in the ordinary way. The designs may not express, may not bind, and the switch may not fire. We have said as much in the submission. The part we would stand behind regardless is the two correlations — those are measurements, and they would hold whether or not a single one of our designs works.
 
 ---
 
