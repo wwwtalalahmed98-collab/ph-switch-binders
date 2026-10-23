@@ -24,3 +24,4 @@ __pycache__/
 # therefore not covered and got committed.
 tnf/results/*sequences*.csv
 submission/challenge2_*
+data/glp1r/
