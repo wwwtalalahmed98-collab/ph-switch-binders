@@ -20,7 +20,10 @@
 # file says so in those words.
 import os, subprocess, sys, textwrap, time
 
-TIME_BUDGET_MIN = 390          # 6.5 h; leaves headroom in the weekly GPU quota
+TIME_BUDGET_MIN = 480          # 8 h. The quota reads 23 h remaining, not the 16 I
+                               # assumed: Kaggle bills a dual-T4 session at one quota-hour
+                               # per wall-clock hour, not two. Wall clock, not quota, is the
+                               # constraint now, and 8 h still lands well before the deadline.
 SOFT, TEMP, HARD = 90, 40, 20
 
 WORKER = r'''
