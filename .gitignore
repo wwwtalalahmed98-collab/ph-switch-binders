@@ -18,10 +18,16 @@ __pycache__/
 *.pyc
 .venv/
 
-# Challenge 2 design sequences - withheld until the submission window closes.
+# Design sequences - withheld until each submission window closes.
 # Matched by PATTERN, not by name: the list below once named each file
 # individually, and a newly created third file (round2_sequences.csv) was
 # therefore not covered and got committed.
+#
+# The same mistake nearly repeated on 24 Oct: "submission/challenge2_*" named a
+# single challenge, so the first challenge 3 file written was not covered. Any
+# future challenge is matched now, whatever it is numbered.
 tnf/results/*sequences*.csv
-submission/challenge2_*
+submission/challenge*
+glp1r/results/*sequences*.csv
 data/glp1r/
+incoming/
