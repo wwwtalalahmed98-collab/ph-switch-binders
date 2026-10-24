@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 7 | 2026-10-24 | The optimiser found the hole in our target before it found the binding site |
 | 6 | 2026-10-23 | Depth is not the signal, and we have never once looked at a design |
 | 5 | 2026-10-18 | Submitted, and what we would tell the next person |
 | 4 | 2026-10-17 | One good histidine out of thirty-five |
@@ -12,6 +13,140 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 7. 2026-10-24 - The optimiser found the hole in our target before it found the binding site
+
+### Where we are
+
+The easy half of challenge 3 worked and the hard half failed, for a reason that is our
+fault and fixable. We have about a day and a half and one more run's worth of GPU, and I
+want to spend it on the design nobody has tried rather than on more of what already works.
+
+### What this project is for
+
+Design small proteins that stick to a chosen human protein, submit at most 20 per
+challenge, and have a laboratory test whether they really stick. Challenge 3 is the GLP-1
+receptor and it has two requirements, not one: the design must BIND the receptor and it
+must ACTIVATE it. A design that binds but does not activate fails the second objective,
+and the winner has to meet both.
+
+### Why this step
+
+Two jobs ran overnight on separate GPUs.
+
+The **landing-pad binders** worked: 28 designs, confidence 0.57-0.72, almost all contacting
+the groove we aimed at, none of them greasy. These are good molecules.
+
+The **threaders** failed: 1 of 11 is usable. And the way they failed matters more than the
+fact that they did.
+
+### What we actually did, and what we found
+
+To make the receptor affordable to design against, we cropped it - kept the part near the
+hormone and threw the rest away. Below about 45 angstroms of depth, our cropped target
+holds **4 atoms where the real receptor holds 211**. We left a hole.
+
+Ten of the eleven threading designs found that hole and dived into it. In the real
+receptor that space is solid protein and those designs would collide with it.
+
+The number worth remembering: across the 11 designs, the model's own confidence correlated
+**-0.963** with landing on the residues the natural hormone actually touches. Every design
+scoring above 0.66 touched at most 3 of them. The only two that landed correctly scored the
+two LOWEST confidences in the set. Ranking by confidence - the obvious thing to do - would
+have picked six wrong designs and thrown away the one that works.
+
+This is not the prediction model being unreliable. It did exactly what we asked: find a
+sequence that packs confidently against *the target we gave it*. An empty cavity is the
+easiest place in any target to pack confidently. We built the flaw; it found it.
+
+### The thing we never tried
+
+Looking at why the natural hormone succeeds: it gets its **grip** from the extracellular
+domain and its **activation** from threading the channel. One molecule, two jobs.
+
+We built either/or. Short threaders aimed only at the channel. Folded binders aimed only at
+the groove. Nobody required that separation - I introduced it, and it is why our binders
+cannot activate and our threaders cannot grip.
+
+The design that matches the mechanism is a longer chain aimed at **both** sites at once.
+It has not been attempted, by us or, as far as the published brief suggests, as the
+recommended approach.
+
+### The diagram
+
+The rendered diagram in chat shows the receptor drawn three times with the three design
+shapes against it: a groove binder that can only bind, a threader that can only reach, and
+a two-domain design that does both. The third panel is what the remaining GPU is for.
+
+```mermaid
+flowchart TD
+    A[GLP-1R: must bind AND activate] --> B[Groove binder<br/>28 made, working]
+    A --> C[Threader<br/>1 of 11 usable]
+    A --> D[Two-domain design<br/>not yet attempted]
+    B --> E[Objective 1 only<br/>this is exendin 9-39]
+    C --> F[Failed: 10 of 11 fell<br/>into a hole in our crop]
+    F --> G[Seal the target:<br/>192 to 283 residues]
+    D --> G
+    G --> H[One more run,<br/>both jobs, sealed target]
+    style G fill:#993C1D,stroke:#712B13,color:#ffffff
+    style H fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+"Now" is the blue box.
+
+### What you have now
+
+Working:
+
+- 28 landing-pad binders, measured and filtered. These are the floor: even if everything
+  else fails, we have a submittable set.
+- [glp1r/results/THREADER_FAILURE.md](glp1r/results/THREADER_FAILURE.md) - the full table,
+  the depth-band comparison, and the -0.963 correlation.
+- [glp1r/build_submission.py](glp1r/build_submission.py) - the selection rule, written
+  before the designs existed, with its one amendment dated and explained.
+- Two interactive viewers, in incoming/, for looking at designs rather than reading tables.
+- The repository is public and presentable: README with a figure, licence, citation.
+
+Not done:
+
+- The two-domain designs do not exist. Nothing below has been run yet.
+- No GLP-1R design has been novelty-checked.
+- Nothing tests whether any design ACTIVATES the receptor. Nothing we have can.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Seal the target and re-run | Filter around the hole and accept 1 threader | The hole caused the failure; filtering treats the symptom and leaves objective 2 unaddressed |
+| Spend the last GPU on two-domain designs | More landing-pad binders | We already have 28 and need ~10. More of them adds no diversity and cannot activate |
+| Validate the sealed target before using it | Launch the long run directly | Twice now a 15-minute check has saved a multi-hour run. The crop change could break the docking it is meant to fix |
+| Keep the 28 binders as the floor | Bet everything on the new run | If the two-domain job fails we submit what we would have submitted anyway, minus nothing |
+| Re-run threaders on the sealed target | Drop threaders entirely | Same job, two targets, one variable changed - that is a controlled experiment, and the result is worth reporting either way |
+
+### Jargon decoder
+
+- **crop** - cutting a large protein down to the part you need, so the computation is affordable.
+- **two-domain mechanism** - the hormone grips one part of the receptor and pushes into another; both are needed.
+- **objective 1 / objective 2** - the challenge's two requirements: bind, and activate.
+- **confidence (i_ptm)** - the model's own estimate that two molecules fit together. Not a measurement, and this week it pointed the wrong way.
+- **correlation** - how reliably two numbers move together. +1 perfectly together, 0 unrelated, -1 perfectly opposite. Ours was -0.963: almost perfectly opposite.
+- **on-site** - how many of the receptor residues the real hormone touches are also touched by a design.
+
+### What is next, and what could go wrong
+
+Seal the target, check it still works, then run two jobs overnight: two-domain agonists and
+threaders. Select in the morning across three design classes, inspect them in the viewer,
+check novelty, write the methods, submit.
+
+What could go wrong, honestly:
+
+- The two-domain designs may simply not fold or dock. It is a harder problem than either
+  half, and we will have one attempt at it.
+- Sealing the target may disturb the groove docking that currently works. The validation
+  step exists to catch that, and if it fails we stop and submit the binders.
+- Even a perfect two-domain design is unscreened for activation. We cannot test the thing
+  the challenge is actually asking for; we can only build the shape that makes it possible.
+- The GPU budget allows one run. There is no second attempt before the deadline.
 
 ## 6. 2026-10-23 - Depth is not the signal, and we have never once looked at a design
 
