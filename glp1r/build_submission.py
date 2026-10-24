@@ -17,7 +17,11 @@
 #     rank: i_ptm, then on_site
 #
 #   CHANNEL THREADERS - 6 slots. Reach into the helical bundle, which is what actually
-#   activates the receptor. Declared long shots.
+#   activates the receptor. Declared long shots. Their justification is the challenge's
+#   own objective 2, which is explicit: "The binder has to be an agonist... A design that
+#   binds the receptor but does not activate it does not meet this objective", and the
+#   winner must meet both objectives. It is NOT, as previously claimed here, that the
+#   selection prompt rewards long shots - the published prompt says no such thing.
 #     pass: threaded (N-terminus is the deep end), i_ptm >= 0.40, tm_contacts >= 5,
 #           hydropathy <= 0.5
 #     rank: tm_contacts, then i_ptm
@@ -29,10 +33,16 @@
 #     them to the easier job's bar would simply empty that population.
 #   on_site counts intended contacts actually made. Below 8 of 22 the design has drifted
 #     off the groove and is binding somewhere we did not choose.
-#   hydropathy is mean Kyte-Doolittle, one of the three screens the competition records.
-#     <= 0.0 means not greasy. Threaders are allowed to 0.5 because a peptide that
-#     threads a partly buried channel cannot be as polar as a surface binder; this is a
-#     stated concession, not an oversight.
+#   hydropathy is mean Kyte-Doolittle. CORRECTION, 24 Oct: this was previously justified
+#     here as "one of the three screens the competition records". That is not true. The
+#     published selection prompt was checked and contains no mention of pLDDT, ipSAE or
+#     hydropathy anywhere; it weighs method novelty, design diversity and an unspecified
+#     "small set of confidence metrics". The filter stays because it is defensible on its
+#     own terms - a greasy de novo binder is an aggregation and solubility risk, and the
+#     assay immobilises the design and flows detergent-solubilised receptor over it - but
+#     it is OUR criterion, not the organisers'. <= 0.0 means not greasy. Threaders are
+#     allowed to 0.5 because a chain that threads a partly buried channel cannot be as
+#     polar as a surface binder; a stated concession, not an oversight.
 #   threaded is the ONLY mechanism screen we have, and it is a weak one. Depth magnitude
 #     was tested on 23 Oct and failed: the real hormone reached 34.1 A, the blocker-shaped
 #     truncation 33.3 A, and a scrambled nonsense sequence 37.0 A. What did separate was
@@ -179,11 +189,13 @@ def main(path):
             tag = "glp1r_ecd_%02d" if mode == "ecd" else "glp1r_thr_%02d"
             n = sum(1 for m, _ in chosen[:i] if m == mode)
             r["sub_name"] = tag % n
-            # a 30-45 residue threader is a peptide, not a folded single chain; the
-            # competition records nine molecule classes and the wrong one misdescribes
-            # what the lab is being asked to make
-            w.writerow([r["sub_name"], r["sequence"],
-                        "single_chain" if mode == "ecd" else "peptide"])
+            # CORRECTION, 24 Oct: threaders were being written as molecule_class
+            # "peptide". The challenge page allows exactly four formats - single chain
+            # protein, nanobody, scFv, Fab - and "peptide" is not one of them, so that
+            # would have been an invalid submission for six of the twenty slots. A
+            # 30-45 residue chain is a single chain protein; the stated length range is
+            # 10-250 amino acids, so it qualifies on length too.
+            w.writerow([r["sub_name"], r["sequence"], "single_chain"])
     with open(mets, "w", newline="", encoding="utf-8") as fh:
         cols = ["sub_name", "name", "mode", "length", "true_iptm", "design_iptm", "plddt",
                 "hydropathy", "helicity", "n_on_site", "tm_contacts", "ecd_contacts",
