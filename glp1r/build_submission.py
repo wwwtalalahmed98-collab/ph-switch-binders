@@ -50,7 +50,29 @@ N_ECD, N_THREAD = 14, 6
 MAX_IDENT = 0.80          # near-duplicates waste a slot; keep the better one
 
 ECD = dict(i_ptm=0.50, on_site=8, kd=0.0)
-THR = dict(i_ptm=0.40, tm=5, kd=0.5)
+THR = dict(i_ptm=0.40, tm=5, kd=0.5, on_site=5, max_deep=40.0)
+
+# AMENDMENT, 24 Oct, made after seeing 2 of ~12 threaders and recorded as an amendment
+# rather than quietly folded into the rule above.
+#
+# glp1r_thread_001 came back with i_ptm 0.800 - the highest number this project has ever
+# produced - reaching 47.4 A with its N-terminus at 46.6 A. The native hormone stops at
+# 34.2 A. Measuring our own target explained it:
+#
+#     depth band      atoms in our crop      atoms in the intact receptor
+#     33.2-40.0 A           259                        284   (we kept 91%)
+#     40.0-45.0 A           107                        195   (we kept 55%)
+#     45.0-50.0 A             4                        211   (we kept  2%)
+#
+# Our crop ends at 46.8 A. The design is threading into a hole that exists only because
+# we cut the bottom off the receptor; in the intact protein that space is solid helix and
+# the design would clash into it. It is an artifact of target preparation, not a find.
+#
+# Hence a depth ceiling of 40 A, where the crop still represents at least half of the
+# real receptor, and a requirement to contact at least 5 residues the hormone itself uses
+# - thread_001 contacted 2. This amendment REMOVES the best-scoring design we have, which
+# is the opposite direction from tuning a rule to flatter the results, but it is still an
+# amendment made with data in hand and should be read as one.
 
 
 def ident(a, b):
@@ -93,6 +115,12 @@ def screen(recs, mode):
                 why.append("tm_contacts %d < %d" % (r.get("tm_contacts", 0), THR["tm"]))
             if kd is None or kd > THR["kd"]:
                 why.append("hydropathy %+.2f > %+.2f" % (kd or 0, THR["kd"]))
+            if len(r.get("on_site", [])) < THR["on_site"]:
+                why.append("touches only %d residues the hormone itself uses, needs %d"
+                           % (len(r.get("on_site", [])), THR["on_site"]))
+            if (r.get("deepest") or 0) > THR["max_deep"]:
+                why.append("deepest %.1f A > %.1f - past where our crop still represents "
+                           "the real receptor" % (r.get("deepest") or 0, THR["max_deep"]))
         (failed if why else passed).append((r, why))
     return [p[0] for p in passed], failed
 
