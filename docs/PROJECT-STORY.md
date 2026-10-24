@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 6 | 2026-10-23 | Depth is not the signal, and we have never once looked at a design |
 | 5 | 2026-10-18 | Submitted, and what we would tell the next person |
 | 4 | 2026-10-17 | One good histidine out of thirty-five |
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
@@ -11,6 +12,157 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 6. 2026-10-23 - Depth is not the signal, and we have never once looked at a design
+
+### Where we are
+
+Challenge 3 opened, we tested our idea before building on it, and the test said the idea
+does not work the way we hoped. Separately: we have produced roughly 250 predicted
+structures across this project and not once put one on screen.
+
+### What this project is for
+
+Design small proteins that stick to a chosen human protein, submit at most 20 per
+challenge, and have a laboratory test whether they really stick. Challenge 2 (TNF-alpha)
+is submitted and closed from our side. Challenge 3 is the GLP-1 receptor, closing
+Sunday 25 October 23:59 AoE - about two and a half days from now.
+
+### Why this step
+
+GLP-1R is not like the previous targets. It is a receptor that has to be switched ON, and
+the switch is mechanical. The hormone's back half grips a landing pad on the outside
+(the *extracellular domain*); its first eight residues then thread about 40 angstroms down
+a channel into the body of the receptor, and that threading is what fires it. Cut those
+eight residues off and you get exendin(9-39) - a real drug that grips the landing pad
+perfectly and switches the receptor OFF.
+
+So the obvious design, and the one the challenge page suggests, is a blocker. The thing
+that wins is a threader. That meant we needed a way to tell threaders from blockers
+before spending the window designing any.
+
+In the TNF challenge we picked our designs using a geometric rule nobody had checked, and
+only afterwards measured that the rule pointed +0.24 the wrong way. So this time the check
+came first.
+
+### What we actually did
+
+Nature has already run the experiment for us, so we re-ran it in the computer. We fed the
+prediction program four peptides against the receptor and measured how deep each one
+reached:
+
+| Peptide | What it is in real life | Depth reached | Confidence |
+|---|---|---|---|
+| GLP-1(7-36) | the real hormone, switches it ON | 34.1 A | 0.73 |
+| GLP-1(9-36) | the shape of a drug that switches it OFF | 33.3 A | 0.70 |
+| scrambled | same amino acids, shuffled: meaningless | 37.0 A | 0.35 |
+| poly-alanine | 30 identical residues: a floor | 30.4 A | 0.18 |
+
+The reference depth measured from the real crystal structure is 33.2 A, so the program did
+reproduce the deep binding mode. But it put the blocker in the same place as the hormone -
+0.8 A apart, when the measurement noise between two identical re-runs in the TNF work was
+up to 0.3 units on a similar score. And the scrambled nonsense sequence reached *deeper
+than the real hormone*.
+
+**So depth is not a usable selection rule.** It does not separate on from off, and it does
+not even separate sense from nonsense. Confidence does separate sense from nonsense
+(0.73 and 0.70, against 0.35 and 0.18), which tells us the model is not broken - it is
+simply indifferent to the thing this challenge is about. That is the expected behaviour
+of a structure predictor: it has no notion of a receptor being switched on.
+
+This is the second time a geometric proxy of ours has failed a validation test. The
+difference is that this time it failed before we spent twenty submission slots on it.
+
+### The second thing: we have no pictures
+
+A separate gap, raised this session. Every structure we have predicted - the 20 submitted
+TNF designs, the 35 histidine placements, the GLP-1 controls - exists only inside a Kaggle
+notebook's temporary output. Nothing has been downloaded, and nobody has looked at a single
+one. We have been selecting designs entirely from numbers in tables.
+
+That is a real weakness, not just a presentation problem. Looking at a structure catches
+things a table hides: a binder gripping with a floppy tail instead of a helix, an interface
+that is one contact pretending to be ten, a histidine we called "buried" sitting in a gap
+full of water.
+
+### The diagram
+
+The rendered diagram in chat shows the three test peptides in the receptor channel, all
+landing at the same depth. The point of the picture is that the three bars end level
+with each other while their confidence numbers are far apart.
+
+```mermaid
+flowchart TD
+    A[GLP-1 receptor<br/>two-part mechanism] -->|grip the landing pad| B[Extracellular binder]
+    A -->|thread the channel| C[Activating agonist]
+    B --> D[Blocks the receptor<br/>this is exendin 9-39]
+    C --> E[Switches it on<br/>what actually wins]
+    F{Can the predictor<br/>tell B from C?} -->|tested 23 Oct| G[No: 0.8 A apart,<br/>and nonsense scored deeper]
+    G --> H[Depth cannot be our<br/>selection rule]
+    style G fill:#993C1D,stroke:#712B13,color:#ffffff
+    style H fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+"Now" is the blue box: we know what we cannot select on, and have not yet decided what
+replaces it.
+
+### What you have now
+
+Working:
+
+- [kaggle/cellGLP1_setup.py](kaggle/cellGLP1_setup.py) - builds the receptor target. Ran
+  clean: 192 residues kept, all 52 hormone contact points retained, in 1.9 minutes.
+- [kaggle/cellGLP2_control.py](kaggle/cellGLP2_control.py) - the four-peptide control test
+  above. Open it to see the decision rule written down *before* the numbers came in, which
+  is why the PARTIAL verdict is trustworthy rather than reasoning backwards from results.
+- [glp1r/scope_6x18.py](glp1r/scope_6x18.py) - measures the hormone's depth profile and
+  contact split (30 contacts inside the bundle, 22 on the landing pad) from the real
+  structure.
+
+Not done, and not started:
+
+- No GLP-1R designs exist. Zero of 20 slots filled, with two and a half days left.
+- No design structure has ever been downloaded or viewed.
+- No physics has been applied to anything in this project. Every number we have is either
+  a prediction confidence or a geometric measurement.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Validate the depth proxy first | Design 13 agonists and validate later | Exactly the TNF mistake; one 5-minute run avoided repeating it |
+| Nature's own control (hormone vs truncated drug) | A synthetic benchmark | The on/off pair exists as real molecules, so the test is about reality, not our assumptions |
+| Report PARTIAL as a failure of the proxy | Report "deep mode recovered" as a success | Both are true; the useful half is that it cannot rank candidates |
+| Keep the scrambled and poly-alanine floors in the test | Just the two real peptides | The scrambled result is what proves depth is unusable; without it we would have called 0.8 A "a small but real separation" |
+
+### Jargon decoder
+
+- **agonist** - something that switches a receptor on.
+- **antagonist / blocker** - something that occupies the site and switches it off.
+- **extracellular domain** - the part of the receptor sticking out of the cell; the landing pad.
+- **seven-helix bundle** - the part buried in the cell membrane; the channel that must be threaded.
+- **exendin(9-39)** - an actual drug: the hormone with its first eight residues removed, which binds and blocks.
+- **confidence (i_ptm)** - the predictor's own estimate of whether the two molecules really fit together. Not a measured affinity.
+- **angstrom (A)** - a ten-billionth of a metre. The channel is about 40 of them deep.
+- **proxy** - a number we can compute standing in for the thing we actually want, which we cannot compute.
+
+### What is next, and what could go wrong
+
+Two decisions are open and they compete for the same two and a half days.
+
+1. **What to submit for Challenge 3.** Depth cannot rank agonist attempts, so any agonist
+   we submit is an argued long shot, not a screened candidate. The honest options are a
+   majority of landing-pad binders (which our pipeline does well and which will measure
+   reliably in the lab) plus a declared minority of threading attempts, or dropping the
+   agonist idea entirely.
+2. **Whether to spend time on seeing and simulating the designs.** Costs no GPU for the
+   viewing part, and it is overdue. The simulation part does cost GPU, and we need the GPU
+   for Challenge 3 this week.
+
+What could go wrong: the agonist attempts will almost certainly not activate anything. The
+argument for submitting a few anyway is that the selection prompt rewards well-argued long
+shots and untested methods - but that is a judgement about the judging, not about biology,
+and it should be stated as such.
 
 ## 5. 2026-10-18 — Submitted, and what we would tell the next person
 

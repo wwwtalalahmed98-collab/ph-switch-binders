@@ -139,6 +139,41 @@ open("/kaggle/working/glp1r_ecd_hotspot.txt", "w").write(ECD_HOT)
 print("activation hotspots (transmembrane): %d" % len(TM_HOT.split(",")), flush=True)
 print("binding hotspots (extracellular)   : %d" % len(ECD_HOT.split(",")), flush=True)
 
+# A second, much smaller target for the BINDING job. A design that only grips the
+# extracellular landing pad never sees the helical bundle, so making it carry 192
+# residues is paying for geometry it cannot touch. Measured on 6X18: an extracellular-only
+# shell at 12 A keeps 76 residues in 5 segments and retains all 22 contacts the hormone
+# makes there - smaller than the 122-residue TNF target, so these runs are cheap.
+ECD_RADIUS = 12.0
+ekeep = sorted(k for k, v in mind.items() if v <= ECD_RADIUS and k <= ECD_END)
+efilled = set(ekeep)
+for a, b in zip(ekeep, ekeep[1:]):
+    if 1 < b - a <= MAXGAP + 1 and all(x in present for x in range(a + 1, b)):
+        efilled.update(range(a + 1, b))
+ecd_contacts = sorted(x for x in contacts if x <= ECD_END)
+elost = [x for x in ecd_contacts if x not in efilled]
+if elost:
+    raise SystemExit("extracellular crop drops contacts %s - widen ECD_RADIUS" % elost)
+
+
+class KeepECD(Select):
+    def accept_chain(self, c): return c.id == "R"
+    def accept_residue(self, r): return r.id[0] == " " and r.id[1] in efilled
+    def accept_atom(self, a): return a.element != "H"
+
+
+ECD_TARGET = "/kaggle/working/targets/GLP1R_ecd_crop.pdb"
+io2 = PDBIO(); io2.set_structure(mdl); io2.save(ECD_TARGET, KeepECD())
+ecd_order = [dict(uniprot=r.id[1], aa=T31.get(r.get_resname(), "X"),
+                  contact=r.id[1] in contacts)
+             for r in rec if r.id[1] in efilled]
+json.dump(dict(order=ecd_order, radius=ECD_RADIUS, ecd_end=ECD_END,
+               contacts=ecd_contacts,
+               seq="".join(d["aa"] for d in ecd_order)),
+          open("/kaggle/working/glp1r_ecd_map.json", "w"), indent=1)
+print("extracellular-only target: %d residues, all %d of its contacts retained"
+      % (len(efilled), len(ecd_contacts)), flush=True)
+
 PROBE = ("python -c \"import jax, jax.lib; assert hasattr(jax.lib,'xla_bridge'); "
          "print(jax.__version__)\"")
 r = subprocess.run(PROBE, shell=True, capture_output=True, text=True)
