@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="430" viewBox="0 0 820 430" role="img" aria-labelledby="t d">
+<title id="t">Depth does not separate an activating peptide from a blocking one</title>
+<desc id="d">Three peptides predicted against the GLP-1 receptor reach almost the same depth. The real hormone reaches 34.1 angstroms, the blocker-shaped truncation 33.3, and a scrambled nonsense sequence 37.0 — deeper than either. Only the confidence score separates sense from nonsense.</desc>
+<rect width="820" height="430" fill="#faf9f7"/>
+
+<text x="40" y="44" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="17" font-weight="500" fill="#23231f">Depth cannot tell an agonist from an antagonist</text>
+<text x="40" y="68" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="13" fill="#6b6a64">GLP-1 receptor, AlphaFold2 at 3 recycles. Measured 23 Oct 2026, before any design was made.</text>
+
+<line x1="120" y1="100" x2="120" y2="330" stroke="#b4b2a9" stroke-width="1"/>
+<line x1="114" y1="100" x2="126" y2="100" stroke="#b4b2a9" stroke-width="1"/>
+<text x="106" y="105" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">0 Å</text>
+<line x1="114" y1="294" x2="126" y2="294" stroke="#b4b2a9" stroke-width="1"/>
+<text x="106" y="299" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">34 Å</text>
+<line x1="114" y1="328" x2="126" y2="328" stroke="#b4b2a9" stroke-width="1"/>
+<text x="106" y="333" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">40 Å</text>
+
+<rect x="180" y="100" width="90" height="194" rx="6" fill="#9fe1cb" stroke="#0f6e56" stroke-width="1"/>
+<rect x="330" y="100" width="90" height="190" rx="6" fill="#fac775" stroke="#854f0b" stroke-width="1"/>
+<rect x="480" y="100" width="90" height="207" rx="6" fill="#f5c4b3" stroke="#993c1d" stroke-width="1"/>
+
+<text x="225" y="326" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="500" fill="#23231f">Real hormone</text>
+<text x="225" y="346" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">34.1 Å</text>
+<text x="225" y="364" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#0f6e56">confidence 0.73</text>
+
+<text x="375" y="326" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="500" fill="#23231f">Blocker shape</text>
+<text x="375" y="346" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">33.3 Å</text>
+<text x="375" y="364" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#854f0b">confidence 0.70</text>
+
+<text x="525" y="326" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="500" fill="#23231f">Scrambled nonsense</text>
+<text x="525" y="346" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">37.0 Å — deeper than both</text>
+<text x="525" y="364" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#993c1d">confidence 0.35</text>
+
+<rect x="610" y="100" width="172" height="207" rx="8" fill="#ffffff" stroke="#e2e0d9" stroke-width="1"/>
+<text x="626" y="126" font-family="system-ui, sans-serif" font-size="12" font-weight="500" fill="#23231f">What this rules out</text>
+<text x="626" y="150" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">Ranking designs by how</text>
+<text x="626" y="168" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">deep they reach. A rule</text>
+<text x="626" y="186" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">that nonsense passes is</text>
+<text x="626" y="204" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">not a rule.</text>
+<text x="626" y="236" font-family="system-ui, sans-serif" font-size="12" font-weight="500" fill="#23231f">What survived</text>
+<text x="626" y="260" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">Polarity. Both real</text>
+<text x="626" y="278" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">peptides put their N-end</text>
+<text x="626" y="296" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">deepest; nonsense did not.</text>
+
+<text x="40" y="400" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">Bars show the deepest atom of each peptide along the receptor axis. Confidence is i_ptm from an independent re-prediction,</text>
+<text x="40" y="418" font-family="system-ui, sans-serif" font-size="12" fill="#6b6a64">never the optimiser's own score. The crystal reference for the hormone is 33.2 Å, so the deep binding mode was reproduced.</text>
+</svg>

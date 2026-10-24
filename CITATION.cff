@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "De novo conditional protein binders for the Anthropic x Adaptyv Protein Design Competition 2026"
+abstract: >-
+  Design and selection of small proteins that bind a chosen human target under a
+  condition: a pH window, cross-species reactivity, or receptor activation. Includes
+  the measured negative results - a geometric proxy that correlated with the wrong
+  sign, a depth metric that could not separate an agonist from an antagonist, and a
+  cropped target that manufactured a false winner.
+authors:
+  - family-names: Ahmed
+    given-names: Talal
+version: "1.0.0"
+date-released: "2026-10-24"
+license: MIT
+repository-code: "https://github.com/wwwtalalahmed98-collab/ph-switch-binders"
+keywords:
+  - protein design
+  - de novo binders
+  - AlphaFold
+  - pH-switchable
+  - GPCR
