@@ -81,6 +81,13 @@ that depth our crop held **4 atoms against the intact receptor's 211**. The thre
 highest-confidence threading designs all dived into it, including one scoring i_ptm 0.800
 — the best number this project has produced, and an artifact.
 
+**A model's confidence can anti-correlate with being right.** Across 11 designs aimed into
+the GLP-1R helical bundle, predicted-interface confidence correlated **−0.963** with
+touching the residues the natural hormone actually uses. Every design above 0.66 touched at
+most 3 of them; the only two that landed on the hormone's site scored the two *lowest*
+confidences. Selecting on confidence would have picked six wrong designs and rejected the
+one that works — see [glp1r/results/THREADER_FAILURE.md](glp1r/results/THREADER_FAILURE.md).
+
 **Check residue numbering against the structure, not against your own map.** A target
 chain renumbered 1–322 with gaps is not indexable by ordinal. The same class of error
 appeared three times here; the one that survived longest "passed" a check that compared a
