@@ -1,0 +1,58 @@
+# === PACKAGE THE GLP1R CONTROL STRUCTURES FOR DOWNLOAD (CPU ONLY, NO GPU QUOTA) ===
+#
+# The four control peptides from the 23 Oct validation run, bound to the cropped receptor:
+# the real hormone, the blocker-shaped truncation, a scrambled sequence and poly-alanine.
+# These are what proved depth magnitude useless as a selection rule, and they are the only
+# GLP1R complexes that exist on disk until the design run commits.
+#
+# Pulling them now does two jobs: it tests the viewer against real data before the designs
+# arrive, and it lets the scrambled control be SEEN going in backwards rather than taken on
+# trust from a number.
+#
+# Searches by name across all attached inputs rather than assuming where Kaggle mounts a
+# notebook output. A wrong guess would produce an empty zip that looks like a clean run.
+import glob, json, os, shutil, zipfile
+
+WANT_JSON = ("glp1r_map.json", "glp1r_control.json")
+out = "/kaggle/working/glp1r_viewer"
+if os.path.exists(out):
+    shutil.rmtree(out)
+os.makedirs(out)
+
+copied, seen = [], {}
+for path in glob.glob("/kaggle/input/**/*.pdb", recursive=True):
+    base = os.path.basename(path)
+    parent = os.path.basename(os.path.dirname(path))
+    # the four controls live in ctrl_pdb/; the cropped receptor in targets/
+    if parent == "ctrl_pdb" or base == "GLP1R_crop.pdb" or base == "GLP1R_ecd_crop.pdb":
+        if base not in seen or os.path.getsize(path) > os.path.getsize(seen[base]):
+            seen[base] = path
+for base, path in sorted(seen.items()):
+    shutil.copy(path, os.path.join(out, base))
+    copied.append((base, os.path.getsize(path)))
+
+jsons = []
+for path in glob.glob("/kaggle/input/**/*.json", recursive=True):
+    base = os.path.basename(path)
+    if base in WANT_JSON and not os.path.exists(os.path.join(out, base)):
+        shutil.copy(path, os.path.join(out, base))
+        jsons.append(base)
+
+print("structures copied:")
+for base, n in copied:
+    print("   %-28s %8d bytes" % (base, n))
+print("json copied: %s" % (", ".join(jsons) if jsons else "NONE"))
+
+if not copied:
+    raise SystemExit("no structures found. Check which notebook output is attached - "
+                     "this needs glp1r_scope, which wrote ctrl_pdb/ and targets/.")
+missing = [j for j in WANT_JSON if j not in jsons]
+if missing:
+    print("\nWARNING: missing %s. The viewer needs glp1r_map.json for the depth axis; "
+          "without it depths cannot be drawn." % ", ".join(missing))
+
+zpath = "/kaggle/working/glp1r_structures.zip"
+with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
+    for f in sorted(os.listdir(out)):
+        z.write(os.path.join(out, f), f)
+print("\nwrote %s  (%.2f MB)" % (zpath, os.path.getsize(zpath) / 1e6))
