@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 10 | 2026-10-25 | Sequences retrieved, 20 chosen, and a liability I never checked |
 | 9 | 2026-10-25 | The whole project so far, all three challenges, in plain English |
 | 8 | 2026-10-25 | The competition published its own tool, and it told us where we stand |
 | 7 | 2026-10-24 | The optimiser found the hole in our target before it found the binding site |
@@ -15,6 +16,141 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 10. 2026-10-25 - Sequences retrieved, 20 chosen, and a liability I never checked
+
+### Where we are
+
+The 20 Challenge 3 designs are picked and written to a file. Nothing is submitted, and I
+found a problem with 13 of them that you need to decide about.
+
+### Why this step
+
+Last night's run finished but the sequences were still sitting on Kaggle. Without them
+there is nothing to submit. The plan was: retrieve, select, check novelty, write methods.
+All four are now done. The novelty check turned up nothing worrying. A check I had never
+run turned up something.
+
+### What we actually did
+
+**The download failed, so we took a different route.** The Kaggle output archive is about
+4 GB, because the notebook's working folder contains the AlphaFold parameter files. The
+download died partway and left nothing. Instead I read the sequences straight out of the
+notebook logs, where the run prints them deliberately at the end. Faster and it worked.
+The 4 GB was never needed.
+
+**Two corrections to what I told you last night.** The run produced **15** designs, not
+14 - a final one completed after I last looked. And **4** designs grip the groove, reach
+into the channel, and point the right way round, not 3. One of the four
+(`glp1r_thread2_008`) came from the channel-only class I had just written off, so my line
+"all three are two-domain, none are threaders" was wrong. The class still gets no reserved
+slots; that design earned its place on its measurements.
+
+**Selection ran, and came up one short.** The two-domain pool filled 4 of its 5 slots. The
+options were to leave a slot empty or pad the pool with a design that failed its own
+filter. I did neither: the spare slot went to the groove pool, whose rule is the only one
+here written before any design existed. That is now a stated rule in the code, not a
+quiet edit to a number.
+
+**Novelty: clean.** Every design was compared against 9 natural peptides of this receptor
+family - GLP-1, exendin-4, exendin(9-39), glucagon, GIP and others. The closest any design
+comes to any of them is **0.45** identity over the best-matching stretch. Nothing is an
+accidental copy. Caveat below.
+
+**And the thing I had not checked.** Adaptyv has to actually build these in a cell.
+Two sequence features make that go wrong: lots of **cysteines** (they form wrong bonds
+with each other and the protein tangles) and long runs of the same amino acid repeated
+(they clump). I checked for the first time:
+
+- **13 of 20** designs have 4 or more cysteines, or a run of 5+ identical residues.
+- The worst is a groove design with **11 leucines in a row**. Another has **8 cysteines**.
+- The 4 agonist candidates are mostly fine. The damage is concentrated in the groove pool.
+
+This was never in any of our selection rules, in this challenge or the previous two.
+
+### The diagram
+
+The rendered diagram in chat shows the 65 designs splitting into the groove pool and the
+channel pool, then into the three selected populations, then into the 20. The blue box at
+the bottom is "now": 20 ready, none submitted, 13 carrying a build liability.
+
+```mermaid
+flowchart TD
+    A[65 designs made] --> B[35 groove-targeted]
+    A --> C[30 channel-targeted]
+    B -->|i_ptm, contacts, hydropathy| D[13 landing-pad<br/>blockers by mechanism]
+    C -->|grip + reach + right way round| E[4 two-domain<br/>the agonist candidates]
+    C -->|both sites, wrong end leads| F[3 reversed<br/>blockers by mechanism]
+    D --> G[20 ready, none submitted<br/>13 carry a build liability]
+    E --> G
+    F --> G
+    style E fill:#993C1D,stroke:#712B13,color:#ffffff
+    style G fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+### What you have now
+
+Works now:
+
+- [submission/challenge3_proposed.csv](submission/challenge3_proposed.csv) - the 20
+  designs, ready to upload. Three columns: name, sequence, molecule_class.
+- [submission/challenge3_metrics.csv](submission/challenge3_metrics.csv) - every
+  measurement for each of the 20, with which population it came from.
+- [submission/METHODS_GLP1R.md](submission/METHODS_GLP1R.md) - the write-up. Opens with a
+  section headed ACTIVATION IS UNSCREENED, because that is the honest headline.
+- [data/glp1r/glp1r_designs.json](data/glp1r/glp1r_designs.json) and
+  [data/glp1r/glp1r_designs2.json](data/glp1r/glp1r_designs2.json) - all 65 design
+  records, now in the repository rather than only on Kaggle.
+- [glp1r/select_v2.py](glp1r/select_v2.py) - the selection rule, which prints every pass
+  and every failure when it runs.
+
+Not done:
+
+- **Nothing is submitted.** The deadline is tomorrow afternoon.
+- **The 13 build liabilities are not filtered.** That is the decision in front of you.
+- The novelty check is **not a database search**. It compares against 9 sequences I chose
+  as the plausible accidental-copy targets. A real BLAST against a sequence database was
+  not run, and running one would mean sending our designs to NCBI.
+- **No laboratory result exists for anything in this project**, in any challenge.
+- Nothing tests whether a design activates the receptor. Nothing we have can.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Read sequences out of the notebook log | Re-download the 4 GB archive | The log prints them on purpose; the archive is mostly AlphaFold weights |
+| Roll the spare slot into the groove pool | Leave 19, or pad the two-domain pool | Padding means submitting a design that failed its own filter |
+| Keep `thread2_008` in the two-domain pool | Exclude it for coming from the failed class | Its measurements qualify it; the class got no reserved slots either way |
+| Report the cysteine problem rather than silently re-filter | Quietly add a filter and hand you 20 | A filter invented after seeing the data, applied without telling you, is how a number stops meaning anything |
+| Keep the low-confidence agonist candidates | Apply a confidence floor | Confidence has anti-correlated with correctness on two separate targets |
+
+### Jargon decoder
+
+- **cysteine** - the amino acid that forms chemical bridges to other cysteines. Useful in
+  moderation, a tangle when there are many.
+- **homopolymer run** - the same amino acid repeated several times in a row. Tends to make
+  proteins clump rather than fold.
+- **expression** - actually making the protein in a living cell. A design can be perfect on
+  paper and unbuildable in practice.
+- **BLAST** - the standard database search for "has anyone seen this sequence before".
+- **identity** - how much two sequences match, 0 to 1. 0.45 means under half.
+- **slot rollover** - giving an unfilled place in one group to another group.
+
+### What is next, and what could go wrong
+
+One decision from you, then submit. The options and their cost are in chat.
+
+Honestly:
+
+- A filter for cysteines and repeats would be invented after seeing the data, same as two
+  of the three selection rules already are. It is defensible because it screens
+  buildability rather than the thing we are trying to predict, but it is still post-hoc
+  and the methods file will say so.
+- A strict version of that filter leaves only **11** designs instead of 20. We would be
+  submitting fewer, better-behaved designs.
+- The agonist candidates remain the interesting part of this submission and they are all
+  low-confidence, poorly folded designs. If the organisers filter on confidence before
+  building, they get dropped first.
 
 ## 9. 2026-10-25 - The whole project so far, all three challenges, in plain English
 
