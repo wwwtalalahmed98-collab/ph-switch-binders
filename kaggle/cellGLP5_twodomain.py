@@ -53,11 +53,17 @@ TSEQ = "".join(d["aa"] for d in ORDER)
 
 if MODE == "both":
     HOTSPOT = open("/kaggle/working/hot_both.txt").read().strip()
-    # Was 45-70, and every draw above ~55 ran the T4 out of memory on the sealed
-    # target. 45-70 was over-generous anyway: GLP-1 itself grips the groove AND
-    # reaches 33 A down the channel in 31 residues, so 40-50 is already longer than
-    # the molecule we are imitating. Nothing is given up by capping it here.
-    LEN_MIN, LEN_MAX = 40, 50
+    # Third attempt at this length. 45-70 OOMed on every design; 40-50 OOMed on
+    # every design too, asking 6.6-7.0 GB against the 7.4-8.2 GB before, so the cap
+    # moved the request ~10% and the ceiling is below both. Meanwhile the thread2
+    # worker runs fine on the SAME target at 30-45, which puts the ceiling between
+    # 328 and 333 total residues.
+    #
+    # 30-38 sits inside the range that is empirically working. It is also the size
+    # nature uses: GLP-1 grips the groove and reaches 33 A down the channel in 31
+    # residues. Every earlier choice here was longer than the molecule being
+    # imitated, for no stated reason.
+    LEN_MIN, LEN_MAX = 30, 38
 else:
     HOTSPOT = open("/kaggle/working/hot_tm.txt").read().strip()
     LEN_MIN, LEN_MAX = 30, 45
