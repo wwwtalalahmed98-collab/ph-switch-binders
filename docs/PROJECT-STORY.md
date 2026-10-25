@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 8 | 2026-10-25 | The competition published its own tool, and it told us where we stand |
 | 7 | 2026-10-24 | The optimiser found the hole in our target before it found the binding site |
 | 6 | 2026-10-23 | Depth is not the signal, and we have never once looked at a design |
 | 5 | 2026-10-18 | Submitted, and what we would tell the next person |
@@ -13,6 +14,168 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 8. 2026-10-25 - The competition published its own tool, and it told us where we stand
+
+### Where we are
+
+The organisers released a one-click design tool for this exact challenge, and checking
+our work against it showed we are aiming at the right place - and showed us where the
+crowd will be.
+
+### What this project is for
+
+Design small proteins that stick to a chosen human protein, submit at most 20 per
+challenge, and have a laboratory test whether they really stick. Challenge 3 is the
+GLP-1 receptor and it asks for two things: the design must BIND the receptor and it must
+ACTIVATE it. Binding alone is a blocker drug, not an Ozempic-like one.
+
+### Why this step
+
+Adaptyv's CEO posted a link to design-a-protein.com - "design an Ozempic-like drug... in
+just a few clicks" - and said they will synthesise and test **1000+** designs,
+"including whether they actually activate the cell receptor".
+
+Three things in that are worth money to us, and only one of them is good news.
+
+### What we actually did, and what we found
+
+**1. The official tool aims at a smaller receptor than we do.**
+
+It offers exactly one GLP-1R target: a structure called 3IOL, which is the receptor's
+**outer grip only** - the extracellular domain - with the hormone sitting in it. We used
+6X18: the whole receptor, outer grip plus the channel through the cell membrane.
+
+So we compared the two. Which receptor residues does the hormone actually touch?
+
+| | residues touched |
+|---|---|
+| ours, from 6X18 | 22 |
+| theirs, from 3IOL | 17 |
+| **in both** | **16** |
+
+**16 of their 17 are in our set.** Not one of the 16 shared positions disagrees about
+which amino acid lives there. We are aiming where the official route aims, and then six
+residues further - and five of those six are the little stalk that runs from the outer
+grip down toward the channel, which **only exists in a full-length structure**. 3IOL is
+cut off before it. Anyone designing from the official tool cannot see that stalk. It
+sits on the path a two-domain molecule has to travel.
+
+The zero disagreements are a second result. This project has had three residue-numbering
+bugs. Two structures deposited years apart, agreeing residue for residue on 16
+positions, says our numbering is finally right.
+
+**2. The crowd will be making the molecule we already have 35 of.**
+
+A few-clicks tool pointed at the outer grip produces outer-grip caps. Those bind and
+they cannot activate - that is the shape of exendin(9-39), a real blocker drug. If 1000+
+designs get tested, a large share of them will be exactly that. Our 35 landing-pad
+binders are mainstream, not special. The two-domain design is where we are not standing
+in a crowd.
+
+**3. 1000+ get tested, not a handful.**
+
+I had been selecting as if lab slots were brutally scarce. They are less scarce than
+that. Diversity is worth more than I was pricing it at, and a well-argued long shot
+costs less than I assumed.
+
+### The bad news from the overnight run
+
+The sealed target **passed its gate**: it docks the natural hormone at confidence 0.761
+on 26 of the hormone's own contacts, and the floor beneath it is now 100/100/96/74%
+solid where the old crop was 91/55/2/0%. The target is fixed.
+
+Then the two-domain job **ran out of graphics memory on every single design**. Two
+attempts, both dead, 7.4 and 8.2 gigabytes requested and refused. The reason is plain:
+the sealed target is 283 residues against the old 192, memory grows with the square of
+the total length, and I had set the binder at 45-70 residues on top of that. Half our
+remaining compute was going to produce nothing for eight hours.
+
+I caught it 11 minutes in rather than 13 hours in, which is the only good thing about it.
+
+**The fix gives up nothing.** GLP-1 itself grips the groove and reaches 33 angstroms down
+the channel in **31 residues**. Asking for 45-70 was never justified. Capped at 40-50 -
+still longer than the molecule we are imitating - the job fits. I also told the maths
+library to stop reserving one large block of memory up front.
+
+Relaunched as glp1r_twodomain3. Quota checked: 22 hours left, we are spending 8.
+
+### The diagram
+
+The rendered diagram in chat shows both routes into the receptor: the official one-click
+route, which reaches the grip and stops, and ours, which reaches the grip at the same
+place and keeps going. "Now" is the blue box.
+
+```mermaid
+flowchart TD
+    A[Adaptyv one-click tool<br/>design-a-protein.com] -->|target is 3IOL:<br/>outer grip only| B[Outer-grip caps<br/>the crowd design]
+    B -->|yes| C[Binds the receptor]
+    B -.->|cannot reach<br/>the channel| D[Does NOT activate<br/>this is a blocker drug]
+    E[Our route<br/>6X18, whole receptor] -->|16 of their 17<br/>contacts are in our 22| C
+    E -->|plus the stalk<br/>3IOL cannot show| F[Two-domain design<br/>grip AND thread]
+    F --> C
+    F -->|possible, and<br/>we cannot test it| G[Might activate]
+    style F fill:#2563eb,stroke:#1e40af,color:#ffffff
+    style D fill:#993C1D,stroke:#712B13,color:#ffffff
+```
+
+### What you have now
+
+Works now:
+
+- [glp1r/results/EPITOPE_CROSSCHECK.md](glp1r/results/EPITOPE_CROSSCHECK.md) - the
+  comparison above, with every residue listed. Open it to see the three lists.
+- [glp1r/crosscheck_3iol.py](glp1r/crosscheck_3iol.py) - re-runs it in a few seconds.
+- 35 landing-pad binders and 15 threaders from the first run, measured. The floor.
+- A sealed target that passed its gate.
+
+Running, not finished:
+
+- glp1r_twodomain3 on Kaggle, 8 hours, two jobs. It has started and is executing. I have
+  not yet seen it produce a design, and I will not claim it has until I do.
+
+Not done:
+
+- No GLP-1R design has been novelty-checked.
+- Nothing tests activation. Nothing we have can. This is the challenge's second
+  requirement and we can only build the shape that permits it.
+- The final 20 are not chosen.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Kill the running job 11 minutes in | Let it finish | Half of it was producing nothing with certainty; restarting cost one design's worth of time |
+| Cap the two-domain binder at 40-50 | Shrink the sealed target instead | The target cannot shrink much - 283 down to 253 at best - and nature does the whole job in 31 residues, so the length was the wrong thing, not the target |
+| Keep the iteration counts unchanged | Halve them for more designs | The threader re-run is a controlled experiment against last night's. Changing two variables would have cost us the answer |
+| Cross-check against 3IOL | Trust our own epitope reasoning | It cost ten minutes and it is independent of us, which is the only kind of check worth having |
+| Stay on AfDesign | Switch to RFD4-Proteina, the tool they recommend | One day left. Retooling now would mean submitting something untested by us |
+
+### Jargon decoder
+
+- **extracellular domain / outer grip (ECD)** - the part of the receptor outside the cell, where the hormone's tail is held.
+- **3IOL / 6X18** - two experimentally solved structures of this receptor. 3IOL is the outer grip alone; 6X18 is the whole thing.
+- **epitope** - the exact patch on a target that something binds to.
+- **Jaccard overlap** - how much two sets share. 1.0 identical, 0 nothing in common. Ours was 0.70.
+- **exendin(9-39)** - a real drug: the hormone with its first eight residues removed. It binds the receptor and switches nothing on. The thing we must not accidentally reinvent.
+- **out of memory** - the graphics card was asked for more memory than it has, and refused.
+- **gate** - a cheap check run before an expensive job, which stops the job if its assumption is false.
+
+### What is next, and what could go wrong
+
+Watch the run reach its first designs, then: select 20 across the three classes, look at
+them in the viewer, check novelty, write the methods file, submit before 17:00 tomorrow.
+
+Honestly:
+
+- The two-domain designs may still not fold or dock well. The memory fix lets them run;
+  it does not make them good.
+- At the speed this target runs, the night may yield roughly seven designs per job, not
+  dozens. Thin.
+- Everything about activation remains unscreened and will be stated as such in the
+  methods file rather than implied away.
+- We now know the crowd's design. We do not know how many entrants will also have
+  noticed the two-domain gap.
 
 ## 7. 2026-10-24 - The optimiser found the hole in our target before it found the binding site
 
