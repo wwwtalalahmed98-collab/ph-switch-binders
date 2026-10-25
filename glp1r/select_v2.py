@@ -32,6 +32,13 @@ THE THREE POPULATIONS
    pass: ecd_on >= 5, tm_on >= 15, NOT threaded
    rank: tm_on + ecd_on
 
+UNFILLED SLOTS ROLL OVER TO POPULATION 1. The two-domain pool came up one short of
+its 5 slots. The choice was: leave a slot empty, or pad the two-domain pool with a design
+that failed its own filter. Neither helps. Instead the spare goes to the landing-pad pool,
+which has 25 designs passing a rule written before any design existed. This costs us one
+agonist-shaped slot and buys one more design screened by the only rule here with
+pre-registered thresholds. It is stated as a rule rather than done by editing N_ECD.
+
 THREADERS GET ZERO SLOTS, and that is the one decision here with pre-registered
 evidence behind it. The sealed-target run was set up as a controlled experiment: same
 job, same method, one variable changed (the hole in the target closed). Threaders failed
@@ -153,9 +160,17 @@ def main(paths):
     print("\n%d groove-targeted, %d channel-targeted\n" % (len(groove_pool),
                                                            len(channel_pool)))
 
+    # Populations 2 and 3 are screened first so any slots they cannot fill roll over to
+    # population 1, whose rule is the pre-registered one. See the header.
     chosen = []
-    for pop, label, want, rank, tag in POPS:
+    shortfall = 0
+    for pop, label, want, rank, tag in reversed(POPS):
         pool = groove_pool if pop == "ecd" else channel_pool
+        if pop == "ecd":
+            want += shortfall
+            if shortfall:
+                print("=== %d slot(s) rolled over from the channel populations ==="
+                      % shortfall)
         ok, bad = screen(pool, pop)
         ok.sort(key=rank, reverse=True)
         kept, dropped = dedupe(ok)
@@ -165,6 +180,8 @@ def main(paths):
         if len(take) < want:
             print("  SHORT by %d. Not padding with designs that failed our own filters."
                   % (want - len(take)))
+            if pop != "ecd":
+                shortfall += want - len(take)
         for r in take:
             print("  %-18s len %3d  i_ptm %.3f  pLDDT %.3f  kd %+5.2f  hlx %.2f  "
                   "groove %2d  channel %2d  deep %5.1f"
