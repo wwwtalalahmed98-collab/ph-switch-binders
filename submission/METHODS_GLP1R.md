@@ -95,10 +95,33 @@ design existed and is the one pre-registered rule here.
 | population | slots | rule | written |
 |---|---|---|---|
 | landing-pad (groove) | 13 | i_ptm >= 0.50, groove >= 8 of 22, hydropathy <= 0.0 | before any design existed |
+| all three | - | buildability gate: <= 6 cysteines, no run > 6 identical residues | **after** seeing the designs |
 | two-domain | 4 (of 5) | groove >= 4, channel >= 5, N-terminus leading, hydropathy <= 0.5 | **after** seeing the designs |
 | dual-site reversed | 3 | groove >= 5, channel >= 15, C-terminus leading | **after** seeing the designs |
 
 Near-duplicates above 80% sequence identity were collapsed; none were found.
+
+### Buildability gate
+
+These molecules have to be expressed in cells. Two sequence features reliably prevent
+that: many free cysteines, which pair with each other so the chain mis-folds, and long
+single-residue runs, which aggregate. **This was not screened in this challenge or in the
+two before it.** When it was finally checked, 13 of the first 20 designs selected tripped
+it - one groove design carried **eleven consecutive leucines**, another **eight
+cysteines**.
+
+The gate applied is at most 6 cysteines and no run longer than 6 identical residues. It
+is deliberately loose: it removes the designs that are obviously unbuildable while still
+filling all 20 slots. Exactly 13 of 35 groove designs now pass both the pre-registered
+rule and the gate, which is the 13 slots with nothing spare. A strict version (3
+cysteines, run of 4) would leave only 4 groove designs and an 11-design submission.
+
+The gate removes none of the 4 agonist candidates and none of the 3 reversed designs.
+
+It is a filter invented after seeing the data, the same weakness as the two-domain and
+reversed thresholds. It is more defensible than those only because it screens whether a
+molecule can be **made**, not whether it does the thing we are trying to predict. In the
+final 20, the maximum cysteine count is 6 and the longest run is 6.
 
 The two-domain pool filled 4 of its 5 slots. The spare slot was given to the groove
 population rather than filled with a design that failed the two-domain filter. That costs
@@ -136,8 +159,13 @@ database was run.
   closely (33.2 A) has helicity 0.14 and pLDDT 0.458 and may simply not fold. It was kept
   rather than cut, because cutting on it would remove the best geometric match. Per-design
   values are in `submission/challenge3_metrics.csv`.
-- **Two of the three selection rules were written after seeing the data**, which makes
-  them weaker than the groove rule. Marked as such in the table above and in the code.
+- **Two of the three selection rules, plus the buildability gate, were written after
+  seeing the data**, which makes them weaker than the groove rule. Marked as such in the
+  table above and in the code.
+- **The buildability gate caught a class of problem we had not screened for at all** in
+  this challenge or the two before it. The EGFR and TNF-alpha submissions were never
+  checked against it and may contain the same liability. That is not fixable now - those
+  are closed.
 - **`design_iptm` is blank for the 13 groove designs** in the metrics CSV. The value
   exists in the run log; it was not carried across when the records were transcribed, and
   it was not used for selection.

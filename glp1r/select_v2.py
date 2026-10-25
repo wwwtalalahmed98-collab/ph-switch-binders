@@ -55,6 +55,24 @@ channel residues; the lowest touches 19. An i_ptm floor would delete the designs
 and keep the ones we do not. Direct geometric measurement of the thing we actually care
 about beats a proxy that has now pointed the wrong way twice.
 
+BUILDABILITY GATE, added 25 Oct, AFTER the designs existed. Adaptyv expresses these in
+cells, and two sequence features reliably stop that working: many free cysteines (they
+pair with each other and the chain mis-folds) and long single-residue runs (they
+aggregate). This was not screened in this challenge or the previous two, and 13 of the
+first 20 selected designs tripped it - one groove design carried ELEVEN consecutive
+leucines, another EIGHT cysteines.
+
+The gate is deliberately loose: at most 6 cysteines and no run longer than 6. That removes
+the designs that are obviously unbuildable while still filling all 20 slots from the 25
+groove designs that passed the pre-registered rule. A strict version (3 Cys, run 4) would
+leave only 4 groove designs and an 11-design submission.
+
+Being honest about what this is: a filter invented after seeing the data, which is the same
+weakness as the two-domain and reversed thresholds. It is more defensible than those only
+because it screens whether a molecule can be MADE, not whether it does what we are trying
+to predict. It is applied to every population, including the agonist candidates - none of
+which it removes.
+
 WHAT IS NOT SCREENED. Activation. Nothing available to us tests whether any design
 switches the receptor on. We can build the shape that permits it; we cannot test it.
 Foldability is also NOT filtered: the best-placed design (both_007) has helicity 0.14 and
@@ -72,9 +90,26 @@ OUT = os.path.abspath(os.path.join(HERE, "..", "submission"))
 N_ECD, N_TWO, N_REV = 12, 5, 3
 MAX_IDENT = 0.80
 
+MAX_CYS, MAX_RUN = 6, 6
 ECD = dict(i_ptm=0.50, on_site=8, kd=0.0)
 TWO = dict(ecd=4, tm=5, kd=0.5)
 REV = dict(ecd=5, tm=15)
+
+
+def buildable(seq):
+    """None if fine, else why not. See the BUILDABILITY GATE note in the header."""
+    cys = seq.count("C")
+    run, best = 1, 1
+    for i in range(1, len(seq)):
+        run = run + 1 if seq[i] == seq[i - 1] else 1
+        best = max(best, run)
+    run = best
+    why = []
+    if cys > MAX_CYS:
+        why.append("%d cysteines > %d" % (cys, MAX_CYS))
+    if run > MAX_RUN:
+        why.append("run of %d identical > %d" % (run, MAX_RUN))
+    return "; ".join(why) or None
 
 
 def ident(a, b):
@@ -107,6 +142,9 @@ def screen(recs, pop):
     passed, failed = [], []
     for r in recs:
         why = []
+        bad_build = buildable(r["sequence"])
+        if bad_build:
+            why.append(bad_build)
         kd = r.get("hydropathy")
         ip = r.get("true_iptm")
         if pop == "ecd":
