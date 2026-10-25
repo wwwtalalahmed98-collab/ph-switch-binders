@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 9 | 2026-10-25 | The whole project so far, all three challenges, in plain English |
 | 8 | 2026-10-25 | The competition published its own tool, and it told us where we stand |
 | 7 | 2026-10-24 | The optimiser found the hole in our target before it found the binding site |
 | 6 | 2026-10-23 | Depth is not the signal, and we have never once looked at a design |
@@ -14,6 +15,174 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 9. 2026-10-25 - The whole project so far, all three challenges, in plain English
+
+This is a re-telling of the whole arc rather than a report on one step. Checkpoints 1-8
+are the running account; this one exists to be readable on its own.
+
+### Where we are
+
+Two challenges submitted, the third closing tomorrow afternoon with its designs made and
+the final twenty being chosen.
+
+### What this project is for
+
+A company called Adaptyv builds and tests proteins in an automated laboratory. Anthropic
+and Adaptyv set three design challenges. In each one you design a small protein from
+scratch - not copied from anything in nature - that sticks to one chosen human protein.
+You submit at most twenty per challenge and they make them for real.
+
+Think of each design as a custom-made hand built to grip one specific handle on one
+specific protein. Designing a hand that grips at all is the basic job. What makes this
+competition hard is that every challenge adds a condition on WHEN or HOW the hand grips.
+
+### The three challenges
+
+**Challenge 1 - EGFR. "Grip only when it is sour."**
+
+EGFR sits on the surface of many cancer cells. Tumours are more acidic than healthy
+tissue. The ask: a gripper that holds on at tumour acidity (pH 6.5) and lets go in normal
+tissue (pH 7.4), so a drug would act only where the disease is.
+
+How: we chose the patch to grip BEFORE designing anything, picking one that is identical
+in humans and mice so a mouse experiment would mean something. Then we placed
+**histidines** across the interface - the one amino acid whose electrical charge flips in
+exactly that pH window, so the grip tightens as things turn acidic. Five designs
+submitted, 17 October.
+
+**Challenge 2 - TNF-alpha. "Let go when it is sour, and grip the mouse version too."**
+
+TNF-alpha drives inflammation. The condition was reversed - grip at normal pH, release
+when acidic - with a second requirement that the design also grip the mouse protein.
+
+How: the same histidine trick, run backwards. Twenty designs submitted, 18 October.
+
+The honest part: we first ranked designs by the distance from each histidine to a nearby
+positive charge. Afterwards we checked whether that number actually predicted the pH
+effect. It did not. It correlated **+0.24** - the wrong sign entirely. A different
+measurement did work (how buried the histidine becomes on binding, **-0.58**) and we
+rebuilt the set on that before submitting. We also learned that two histidines are not
+twice one: in every pair measured, one partner was doing no work, so the second only cost
+us grip at normal pH.
+
+**Challenge 3 - GLP-1R. "Grip the handle AND turn it."** (closing 26 October)
+
+This is the receptor behind Ozempic. The design must BIND the receptor and SWITCH IT ON.
+A design that binds without activating is a blocker, and a blocker already exists as a
+real drug - exendin(9-39) - so making one again wins nothing.
+
+Why it is hard: the natural hormone does two jobs at once. Its back half grips a groove
+on the outside of the receptor. Its first eight residues thread about **33 angstrom** down
+a channel through the cell membrane, and that threading is what flips the switch. Grip
+without thread is a blocker. Thread without grip has nothing holding it on.
+
+What we did, including the wrong turn: we split the job in two. Groove-grippers worked -
+35 of them. Channel-threaders failed - 1 of 11 usable. Then we found out why. To make the
+receptor cheap enough to compute against we had cut the bottom off it, and the designs
+were diving into **the hole we had made**. At the depth they were reaching, the real
+receptor has 211 atoms and our cut-down copy had 4.
+
+So we rebuilt the receptor with the floor sealed, checked that the real hormone still
+docked into it correctly before spending a night on it, and designed the molecule we had
+never attempted: one chain that grips the groove AND threads the channel, the way the
+real hormone does. That run finished tonight: 14 designs, no failures. Three grip, reach,
+and go in the right way round, and one of them reaches 33.2 angstrom - the native
+hormone's depth to the decimal.
+
+### The finding worth more than the designs
+
+**The model's own confidence points the wrong way on this problem.** Twice now, on two
+different versions of the receptor, the designs the AI rated highest touched the fewest of
+the residues the real hormone uses, and the ones it rated lowest landed correctly.
+Measured: **-0.963** across 11 designs on the first target, **-0.651** across 14 on the
+sealed one, and **-0.804** among the two-domain designs alone. In tonight's batch the
+highest-confidence design touches **1** of 30 channel residues; the lowest-confidence
+touches **19**.
+
+Sorting by confidence is the obvious thing anyone would do, and here it picks the wrong
+designs. So for this challenge we are deliberately not filtering on confidence and are
+selecting on direct geometric measurement instead.
+
+### The diagram
+
+The rendered diagram in chat shows the three challenges side by side: the target, the
+condition each one adds, and what was submitted. "Now" is the blue box - Challenge 3,
+choosing twenty.
+
+```mermaid
+flowchart TD
+    A[Design a gripper from scratch] --> B[Challenge 1: EGFR]
+    A --> C[Challenge 2: TNF-alpha]
+    A --> D[Challenge 3: GLP-1R]
+    B -->|grip only when sour| E[5 submitted]
+    C -->|let go when sour,<br/>and grip mouse too| F[20 submitted]
+    D -->|grip AND switch on| G[Groove gripper<br/>= blocker, not enough]
+    D --> H[Two-domain design:<br/>grip and thread]
+    H --> I[Choosing 20 now]
+    style H fill:#2563eb,stroke:#1e40af,color:#ffffff
+    style G fill:#993C1D,stroke:#712B13,color:#ffffff
+```
+
+### What you have now
+
+Works now:
+
+- 25 designs submitted and locked: 5 for EGFR, 20 for TNF-alpha.
+- 35 groove-gripping GLP-1R binders and 14 sealed-target designs, all measured.
+- [glp1r/select_v2.py](glp1r/select_v2.py) - the three-population selection rule.
+- [glp1r/results/THREADER_FAILURE.md](glp1r/results/THREADER_FAILURE.md) and
+  [glp1r/results/EPITOPE_CROSSCHECK.md](glp1r/results/EPITOPE_CROSSCHECK.md) - the two
+  write-ups a stranger could reuse.
+- Interactive viewers for looking at designs instead of reading tables.
+
+Not done:
+
+- Challenge 3 is NOT submitted. Sequences are still being retrieved.
+- No novelty check has been run on any GLP-1R design.
+- The methods file is not written.
+- **No laboratory result exists for anything, in any challenge.** Every number in this
+  project is a prediction or a geometric measurement.
+- Nothing tests whether a GLP-1R design ACTIVATES the receptor. Nothing we have can.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Choose the binding patch before designing | Let the optimiser pick | A site chosen by the optimiser is chosen for being easy, not for being useful |
+| Score with a fresh independent prediction | The optimiser's own score | The optimiser's number is optimistic by construction |
+| Rebuild the TNF set on burial | Ship the distance-ranked set | The distance measure correlated +0.24 - the wrong sign |
+| Seal the receptor and re-run | Filter around the hole | The hole caused the failure; filtering treats the symptom |
+| One chain that grips and threads | Keep grippers and threaders separate | The separation was my choice, never a requirement, and it is why neither half could do the whole job |
+| Drop threaders from the submission entirely | Keep a few as long shots | Failed twice, the second time as a controlled experiment |
+| Select on geometry, not confidence | Rank by i_ptm | Confidence has anti-correlated with correctness on two targets |
+| Stay on our own pipeline | Switch to RFD4-Proteina | One day left; retooling means submitting something we never tested |
+
+### Jargon decoder
+
+- **binder** - a small protein designed to stick to a chosen target.
+- **epitope** - the exact patch on the target that a binder grips.
+- **histidine** - the amino acid whose charge flips around pH 6-7, which is what makes a pH switch possible at all.
+- **pH** - how acidic something is. Lower is more acidic. Tumours sit lower than healthy tissue.
+- **angstrom** - a ten-billionth of a metre. The hormone threads 33 of them into the receptor.
+- **crop** - cutting a big protein down to the part you need so the computation is affordable. Cutting too much is how we made the hole.
+- **confidence / i_ptm** - the model's own guess that two molecules fit together. Not a measurement, and on this problem it has pointed the wrong way twice.
+- **agonist / antagonist** - switches the receptor on / blocks it without switching it on.
+- **controlled experiment** - same job, one variable changed, so the result means something either way.
+
+### What is next, and what could go wrong
+
+Retrieve the sequences, run the selection, check the designs are not accidental copies of
+known proteins, write the methods file, submit before 17:00 tomorrow.
+
+Honestly:
+
+- The best-placed design is largely unstructured (helicity 0.14) and may simply not fold
+  when it is built. That is a real risk and it is not screened out.
+- Activation is untested and untestable with what we have.
+- The two-domain thresholds were set after seeing the designs, unlike the earlier rules
+  that were written first. That makes them weaker and the file says so.
+- Nothing is submitted yet. The deadline is real and the sequences are still in transit.
 
 ## 8. 2026-10-25 - The competition published its own tool, and it told us where we stand
 
