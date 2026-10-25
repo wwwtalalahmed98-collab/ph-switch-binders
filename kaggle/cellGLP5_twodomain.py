@@ -30,6 +30,12 @@ WORKER = r'''
 import json, os, random, sys, time
 GPU, MODE, BUDGET = sys.argv[1], sys.argv[2], float(sys.argv[3])
 os.environ["CUDA_VISIBLE_DEVICES"] = GPU          # must precede the jax import
+# The sealed target is 283 residues against the old crop's 192, and AF2's memory grows
+# with the square of the total chain length. The first attempt died with
+# RESOURCE_EXHAUSTED on every design. Defaulting to the platform allocator stops jax
+# grabbing one large block up front and then fragmenting; it is slower and it fits.
+os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
 SOFT, TEMP, HARD = int(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6])
 
 t0 = time.time()
@@ -47,7 +53,11 @@ TSEQ = "".join(d["aa"] for d in ORDER)
 
 if MODE == "both":
     HOTSPOT = open("/kaggle/working/hot_both.txt").read().strip()
-    LEN_MIN, LEN_MAX = 45, 70
+    # Was 45-70, and every draw above ~55 ran the T4 out of memory on the sealed
+    # target. 45-70 was over-generous anyway: GLP-1 itself grips the groove AND
+    # reaches 33 A down the channel in 31 residues, so 40-50 is already longer than
+    # the molecule we are imitating. Nothing is given up by capping it here.
+    LEN_MIN, LEN_MAX = 40, 50
 else:
     HOTSPOT = open("/kaggle/working/hot_tm.txt").read().strip()
     LEN_MIN, LEN_MAX = 30, 45
