@@ -20,6 +20,17 @@
 import glob, json, os, shutil, subprocess, sys, time
 t0 = time.time()
 
+# THIS is why the two-domain worker died 20+ times across three attempts, and it was
+# never the binder length. The gate below runs AlphaFold IN THIS PROCESS, and this
+# process does not exit - it goes on to launch the workers and wait on them. With jax's
+# default allocator that gate permanently reserves most of GPU 0. The worker handed
+# GPU 0 then has ~6 GB of headroom and asks for 6-7 GB; the worker on the untouched
+# GPU 1 has the whole card and runs fine. Identical target, overlapping binder lengths,
+# one fails always and one never does, and every failure names "device ordinal 0".
+# Shrinking the binder from 45-70 to 40-50 to 30-38 could not fix a fixed deficit.
+os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
+
 
 def sh(cmd, check=False):
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
@@ -266,4 +277,15 @@ if fail:
 
 print("\nGATE PASSED. The sealed target still docks the natural hormone correctly, and "
       "the floor below it is solid. Generation may proceed.", flush=True)
+
+# Hand the cards back before the workers start, and SAY what is actually free on each.
+# Three attempts were spent inferring a memory problem from design failures; one line of
+# nvidia-smi here would have shown it in the first minute.
+clear_mem()
+import gc
+gc.collect()
+print("\nGPU state handed to the workers (index, used, free):")
+print(subprocess.run("nvidia-smi --query-gpu=index,memory.used,memory.free "
+                     "--format=csv,noheader", shell=True,
+                     capture_output=True, text=True).stdout.strip(), flush=True)
 print("SEALED SETUP DONE in %.1f min" % ((time.time() - t0) / 60))

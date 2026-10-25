@@ -53,17 +53,18 @@ TSEQ = "".join(d["aa"] for d in ORDER)
 
 if MODE == "both":
     HOTSPOT = open("/kaggle/working/hot_both.txt").read().strip()
-    # Third attempt at this length. 45-70 OOMed on every design; 40-50 OOMed on
-    # every design too, asking 6.6-7.0 GB against the 7.4-8.2 GB before, so the cap
-    # moved the request ~10% and the ceiling is below both. Meanwhile the thread2
-    # worker runs fine on the SAME target at 30-45, which puts the ceiling between
-    # 328 and 333 total residues.
+    # Back to a real two-domain range. I cut this three times - 45-70, then 40-50,
+    # then 30-38 - each time blaming the binder length for out-of-memory failures,
+    # and each time it failed identically. The cause was the gate in the previous
+    # cell holding most of GPU 0 for the whole run (see the note at the top of
+    # cellGLP4). Length was never implicated: the worker on the untouched GPU 1 ran
+    # fine at an overlapping length throughout.
     #
-    # 30-38 sits inside the range that is empirically working. It is also the size
-    # nature uses: GLP-1 grips the groove and reaches 33 A down the channel in 31
-    # residues. Every earlier choice here was longer than the molecule being
-    # imitated, for no stated reason.
-    LEN_MIN, LEN_MAX = 30, 38
+    # So the original 45-70 would most likely have worked on a clean card, and my
+    # "over-generous" comment about it was wrong. 40-60 keeps the largest request
+    # near 8 GB, which fits a clean 15 GB T4 with room, and it is long enough to
+    # hold a folded grip plus a threading arm.
+    LEN_MIN, LEN_MAX = 40, 60
 else:
     HOTSPOT = open("/kaggle/working/hot_tm.txt").read().strip()
     LEN_MIN, LEN_MAX = 30, 45
@@ -187,6 +188,11 @@ for d in ("both", "thread2"):
     os.makedirs("/kaggle/working/glp1r_%s" % d, exist_ok=True)
 with open("/kaggle/working/glp1r_worker2.py", "w") as fh:
     fh.write(textwrap.dedent(WORKER))
+
+print("GPU state at worker launch (index, used, free):")
+print(subprocess.run("nvidia-smi --query-gpu=index,memory.used,memory.free "
+                     "--format=csv,noheader", shell=True,
+                     capture_output=True, text=True).stdout.strip(), flush=True)
 
 procs = []
 for gpu, mode in (("0", "both"), ("1", "thread2")):
