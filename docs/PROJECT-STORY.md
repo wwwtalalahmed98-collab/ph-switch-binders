@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 11 | 2026-10-26 | Challenge 4 plan: the pH switch becomes a calculation |
 | 10 | 2026-10-25 | Sequences retrieved, 20 chosen, and a liability I never checked |
 | 9 | 2026-10-25 | The whole project so far, all three challenges, in plain English |
 | 8 | 2026-10-25 | The competition published its own tool, and it told us where we stand |
@@ -16,6 +17,176 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 11. 2026-10-26 - Challenge 4 plan: the pH switch becomes a calculation
+
+### Where we are
+
+Challenge 3 closed this afternoon. Challenge 4 (TfR1) is open for six more days, and this
+entry is the plan for it, written before any design work starts.
+
+### What Challenge 4 asks
+
+TfR1 is the receptor that carries iron into cells and is the main route for getting drugs
+across the blood-brain barrier. The ask is the **same three conditions as Challenge 2**,
+on a harder target:
+
+1. Bind human TfR1 at pH 7.4, with **no detectable binding at pH 6.0**.
+2. Bind mouse TfR1 about as well as human.
+3. Bind tightly.
+
+And the rule that shapes everything: **the winner has to clear all three.** Not best of
+three. All three, with ties broken in that order.
+
+### Why this one is harder than it looks
+
+The organizers recommend targeting the **apical domain** - the tip of the receptor, where
+brain-shuttle antibodies bind. But their own page says the human and mouse apical patch
+**differs at six of nine positions**, while the two receptors are 78% identical overall.
+
+So the recommended site is the single worst place to meet requirement 2. That conflict is
+the main strategic decision in this challenge, and we have to make it deliberately rather
+than drift into it.
+
+### The idea this plan is built on
+
+Until now our pH switch has been: place histidines, then rank designs by a geometric proxy
+and hope the proxy means something. In Challenge 2 the first proxy we chose turned out to
+have **the wrong sign** (+0.24), and we only found out because we checked.
+
+This time the switch becomes a direct calculation. **Histidine is the only amino acid that
+changes electrical charge in the 6-to-7.4 window, and the pH at which it flips (its pKa)
+can be computed from a structure.** The quantity that actually controls pH-dependent
+binding is how much that flip point MOVES between the bound and the free state. Compute it
+in both states, subtract, and you get a prediction of how much weaker the binding gets at
+pH 6.0 - in the same units the lab measures.
+
+That replaces a proxy with the thing itself.
+
+### The arithmetic that sets the design target
+
+The organizers state the physics in their own selection prompt: **one titratable site
+changes affinity at most tenfold per pH unit.** From pH 7.4 to 6.0 is 1.4 units, so one
+histidine buys at most about **25x**. "No detectable binding" needs roughly **100x or
+more**. So a single histidine cannot do this job. Two working histidines give about 600x,
+which is comfortable.
+
+But in Challenge 2 we measured that in **every** histidine pair, one partner was doing no
+work. A patent on pH-switch nanobodies says why: **adjacent histidines shift each other's
+flip point**, so a pair placed close together silences one of its members. That is a
+mechanistic explanation for a finding we made empirically and could not explain at the
+time.
+
+It converts directly into a design rule: **space the histidines apart**, and check each one
+separately rather than counting them.
+
+### Direction matters, and it is easy to get backwards
+
+We want the binder to let go in acid. So each histidine must sit where **gaining a positive
+charge makes binding worse**: buried against a neutral or oily surface, or facing one of
+the target's own positive residues so the two repel. A histidine paired with an acidic
+residue across the interface does the **opposite** - it binds tighter in acid. Challenge 1
+wanted exactly that, so the same machinery runs either way, but pointed the wrong direction
+it produces a confident, well-made failure.
+
+### The diagram
+
+The rendered diagram in chat shows the pipeline. The blue box is the new step. The teal and
+coral boxes are the epitope decision that is still open.
+
+```mermaid
+flowchart TD
+    A[TfR1 ectodomain<br/>human and mouse] --> B[Conservation map<br/>78% identical overall]
+    B --> C[Conserved patch<br/>mouse binding plausible]
+    B --> D[Apical domain<br/>6 of 9 positions differ]
+    C --> E[Design two ways<br/>histidines placed by rule]
+    D --> E
+    E --> F[pKa, bound vs free<br/>predicts the switch directly]
+    F --> G[Co-fold score<br/>ipSAE, pLDDT, hydropathy]
+    F --> H[Buildability<br/>cell-free expression first]
+    G --> I[20 ranked designs<br/>submitted a day early]
+    H --> I
+    style F fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+### What we learned from the organizers' own rubric
+
+The competition publishes the prompt used to pick which designs reach the lab. Reading it
+changed several things:
+
+- **Expression comes first.** The first thing it looks for is "a real chance to express
+  (cell-free) and bind". Our buildability gate, which we bolted on in the last hour of
+  Challenge 3, should be a primary filter from the start. Cell-free makes cysteines worse,
+  not better.
+- **A weak but clearly pH-sensitive binder beats a strong insensitive one.** Said in those
+  words. So the pH mechanism is worth more than affinity.
+- **They check the mechanism is physically possible** - that is where the tenfold-per-unit
+  figure comes from. A design claiming a 10,000x switch from one histidine would be marked
+  down.
+- **Name your epitope**, or they infer it from a predicted structure.
+- **Three specific screens** are recorded per design: pLDDT, **ipSAE**, and mean
+  Kyte-Doolittle hydropathy. We report the first and third; ipSAE is new to us and we
+  should compute it.
+- **A failed screen never removes a participant's ranked top pick.** Our number one slot is
+  protected, so the boldest design belongs there - and only the first 20, in our order,
+  count at all.
+
+### What you have now
+
+Works now:
+
+- Nothing new has been built for Challenge 4. This is a plan, not a result.
+- The pipeline from Challenges 1-3 runs: design, independent re-prediction, contact and
+  hydropathy measurement, the buildability gate, the selection script.
+
+Planned, not done:
+
+- The conservation map of human vs mouse TfR1. Not started.
+- The pKa calculation, in either state. Not written, not validated.
+- ipSAE. Not installed, never computed.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Make the pH switch a calculation | Another geometric proxy | The last proxy had the wrong sign and we nearly shipped it |
+| Validate the pKa method on published pH-switch complexes first | Trust it and design straight away | We have no lab data of our own; borrowed ground truth is the only honest check available |
+| Treat buildability as a first filter | Apply it at the end again | The organizers' rubric puts expression first, and ours was an afterthought last time |
+| Space histidines deliberately | Add more histidines | Crowded histidines silence each other; this explains our own Challenge 2 result |
+| Submit a day early | Submit on deadline day | Challenge 3 went to the wire with one submission allowed per 24 hours |
+
+### Jargon decoder
+
+- **pKa** - the pH at which a group is half charged. Histidine's sits near 6, which is why
+  it is the only useful switch in this range.
+- **titratable site** - a spot on the protein that gains or loses charge as pH changes.
+- **apical domain** - the tip of the TfR1 ectodomain, where brain-shuttle antibodies bind.
+- **ectodomain** - the part of a receptor outside the cell. Here it is supplied as a soluble
+  pair of subunits.
+- **cell-free expression** - making the protein in a tube rather than in a living cell.
+  Less forgiving of cysteines.
+- **ipSAE** - a newer score for how confident a model is about the contact surface between
+  two proteins, specifically. The organizers record it.
+- **KD** - binding strength. Smaller is tighter.
+- **cross-reactivity** - one binder working on both the human and the mouse version.
+
+### What is next, and what could go wrong
+
+Next: build the conservation map, then make the epitope call, then validate the pKa method
+before spending GPU time on designs.
+
+Honestly:
+
+- **The pKa method is unvalidated and may not work.** Published error for histidine pKa is
+  about one pH unit, which is the same size as the effect we are trying to engineer. If the
+  validation step fails, we fall back to the Challenge 2 burial metric and say so.
+- **We may not be able to satisfy requirement 2 and 3 at once.** If the conserved patches
+  turn out to be flat, featureless or buried in the dimer interface, cross-reactivity and
+  affinity may be genuinely in conflict, and the plan will have to pick one.
+- **Six days, one 30 GPU-hour weekly budget, and a method we have not written yet.** The
+  schedule has no slack for a second wrong turn.
+- **I do not know whether Challenge 3 was submitted.** The browser session was reset
+  overnight and the filled-in form is gone. That needs confirming, not assuming.
 
 ## 10. 2026-10-25 - Sequences retrieved, 20 chosen, and a liability I never checked
 
