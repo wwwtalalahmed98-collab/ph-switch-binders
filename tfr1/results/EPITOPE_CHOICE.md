@@ -98,3 +98,88 @@ likely overlap the transferrin site.
   a patch that looks open here may be shadowed by sugar in the real assay. Not checked.
 - Nothing here says anything about the pH switch. That is a separate piece of work and it
   is not written yet.
+
+---
+
+# REVISION, same day: the mouse check moved the primary site
+
+Everything above ranked patches on human/mouse **sequence identity**. This section adds the
+structural check and **changes the recommendation**. Reproduce with:
+
+    python tfr1/mouse_check.py
+
+## Method
+
+Mouse structure is the AlphaFold DB model for Q62351 (v6, the current version - the URL
+was read from the API rather than guessed, and v4 and v5 both 404). Human is 11QC chain A.
+Global superposition over 638 ectodomain CA pairs gives **RMSD 1.41 A**, so the two
+proteins are closely similar overall and per-patch differences mean something.
+
+Each patch is then superposed **on its own CAs alone**, so the RMSD reported measures
+whether the patch is the same *shape*, independent of where it sits.
+
+Substitutions are classified by chemistry (+ / - / polar / hydrophobic / special). A swap
+inside a class, such as Lys to Arg, keeps the chemistry a binder sees; a swap across
+classes does not. "Functional conservation" counts only the across-class ones as changes.
+
+Mouse model confidence (pLDDT) is reported per patch. Everything below is 86-94, so the
+model is confident at every site discussed and none of these rows is weak for that reason.
+
+## Results
+
+| patch | n | identity | functional | patch RMSD | pLDDT | substitutions |
+|---|---|---|---|---|---|---|
+| **R732** | 14 | 86% | **100%** | 0.63 | 94 | K633R, E634D - both inside class |
+| **S706** | 17 | 94% | 94% | 0.56 | 92 | P710S |
+| E559 | 13 | 85% | 92% | **0.48** | 91 | T561A, R579K |
+| G751 | 15 | 93% | 93% | 1.14 | 88 | D755N |
+| T729 | 12 | 92% | 92% | 0.93 | 93 | G724T |
+| R325 (apical shoulder) | 14 | 86% | 93% | 1.18 | 86 | **R325Q**, K693R |
+| E714 | 19 | 84% | 84% | 0.79 | 93 | P710S, K720Q, Q721K |
+| apical tip (recommended) | 9 | 33% | **33%** | 1.17 | 91 | D204Q, R208N, Y211D, L212P, N348K, K371Q |
+
+None of these patches is occluded by the other subunit: dimer-context and monomer exposure
+agree to within 0.05 everywhere, so the dimer does not bury any of them.
+
+## What changed, and why
+
+**The apical shoulder (R325) is demoted from primary.** It looked good on identity alone
+(86%) but the structural check is unkind to it: the centre residue itself is **R325Q**, a
+loss of positive charge at the middle of the patch, and it has the worst shape agreement
+(1.18 A) and the lowest mouse-model confidence (86) of any conserved candidate. A binder
+designed around an arginine at the centre of its epitope has nothing to grip in the mouse.
+
+**The new primary is the R732 patch**: every substitution preserves chemistry class
+(Lys to Arg, Glu to Asp), the shape is reproduced to 0.63 A, and the mouse model is
+confident there. On what a binder actually contacts, this patch is effectively identical
+between the two species.
+
+**S706 stays strong** and is the largest of the good patches at 17 residues, with the
+single substitution P710S.
+
+**The apical tip is confirmed as a bad bet for objective 2** and not merely a weak one. Its
+six substitutions include two losses of positive charge (R208N, K371Q) and a polar-to-acid
+flip (Y211D) - a charge-reversing surface, not a conservative drift.
+
+## Revised plan
+
+| rank | site | why |
+|---|---|---|
+| primary | **R732 patch** | 100% functional conservation, 0.63 A shape agreement |
+| secondary | **S706 patch** | 94%, largest usable patch, 0.56 A |
+| third | **E559 patch** | best shape agreement anywhere (0.48 A), 92% |
+| diversity | R325 apical shoulder | keeps an apical-domain epitope in the submission; rubric rewards epitope diversity and functional sites |
+| declared long shots | apical tip | best functional story, worst cross-species odds; submitted as such |
+
+The first three sit in one broad conserved region of the helical domain, 46 residues
+spanning 35 x 32 x 53 A and 85% conserved. That is a large target area, which gives the
+design runs room to find their own sub-sites rather than forcing one fixed footprint.
+
+## What this still does not establish
+
+- The mouse structure is **a prediction**. Confident (pLDDT 86-94) but not an experiment.
+- **Glycans are still ignored.** TfR1 is glycosylated and sequons differ between species;
+  a patch that is open in both models could be shadowed in one and not the other. Not
+  checked, and it is the most likely way this analysis is wrong.
+- Conservation says a binder *could* cross-react. It does not say one *will*.
+- Still nothing here about the pH switch.
