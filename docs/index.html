@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conditional binder design — interactive viewers</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F5F7F9; --surface:#FFFFFF; --fg:#141A21; --muted:#5A6676; --line:#DCE3EA;
+  --accent:#0F6E8C; --signal-soft:#FAF0DF;
+  --display:"Spectral",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif;
+  --data:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0D1116; --surface:#151B22; --fg:#E4E9EF; --muted:#94A1B2; --line:#242C36;
+  --accent:#55B9D6; --signal-soft:#2A2113; color-scheme:dark;
+}}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);line-height:1.65;margin:0;font-size:16px}
+.wrap{max-width:760px;margin:0 auto;padding:3.5rem 16px 4rem}
+h1{font-family:var(--display);font-weight:600;font-size:clamp(1.9rem,5vw,2.6rem);margin:.6rem 0 0;line-height:1.2;text-wrap:balance}
+h2{font-family:var(--display);font-weight:600;font-size:1.35rem;margin:3rem 0 .5rem}
+p{margin:0 0 1rem}
+a{color:var(--accent)}
+.eyebrow{font-family:var(--data);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0}
+.lede{color:var(--muted);font-size:1.08rem;max-width:62ch}
+.note{background:var(--signal-soft);border:1px solid var(--line);border-radius:10px;padding:.85rem 1.05rem;font-size:.93rem;margin:1.5rem 0}
+.cards{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-top:1.25rem}
+.card{display:block;background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:1.1rem 1.15rem;text-decoration:none;color:inherit;min-width:0}
+.card:hover{border-color:var(--accent)}
+.card h3{font-family:var(--body);font-size:1.02rem;font-weight:500;margin:0 0 .3rem}
+.card p{color:var(--muted);font-size:.9rem;margin:0}
+.card .tag{font-family:var(--data);font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.45rem}
+ul{padding-left:1.1rem}
+li{margin-bottom:.4rem}
+footer{margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Anthropic × Adaptyv 2026 · Track 3</p>
+  <h1>Conditional binder design</h1>
+  <p class="lede">Small proteins designed to bind a chosen human target <em>and</em> obey a
+  constraint on top of binding — a pH window, a second species, or a mechanism. These are the
+  interactive viewers; the analysis and code live in the repository.</p>
+
+  <div class="note">No experimental results exist yet. Everything shown here is a predicted
+  structure or a geometric measurement on one. Lab characterisation is pending.</div>
+
+  <h2>Viewers</h2>
+  <div class="cards">
+    <a class="card" href="viewers/glp1r.html">
+      <span class="tag">Challenge 3</span>
+      <h3>GLP-1R, and how deep things reach</h3>
+      <p>The natural hormone against designed binders, with the depth each one reaches into the
+      receptor. Rotate, compare, and see why a groove binder is a blocker.</p>
+    </a>
+    <a class="card" href="viewers/tnf.html">
+      <span class="tag">Challenge 2</span>
+      <h3>TNF-α designs, as predicted</h3>
+      <p>The twenty submitted designs coloured by per-residue confidence, with every histidine
+      and the residue it was placed to face.</p>
+    </a>
+    <a class="card" href="viewers/ph-switch.html">
+      <span class="tag">Mechanism</span>
+      <h3>The titration bench</h3>
+      <p>Pull the pH dial and watch the designed switch fire: histidines take on charge, collide
+      with a nearby arginine, and the interface gives way.</p>
+    </a>
+  </div>
+
+  <h2>What the project found</h2>
+  <ul>
+    <li>Predicted interface confidence <strong>anti-correlates</strong> with reaching the residues
+    that matter on GLP-1R — r = −0.96 (n = 11) and −0.67 (n = 15) on two separate targets.</li>
+    <li>Cropping a membrane receptor for tractability <strong>invented a binding cavity</strong>:
+    211 atoms in the real receptor against 4 in the crop, at the depth designs were reaching.</li>
+    <li>A pH ranking metric correlated <strong>+0.24</strong> — the wrong sign — and was rebuilt on
+    interface burial (−0.58) before anything was submitted.</li>
+  </ul>
+
+  <footer>
+    <p><a href="https://github.com/wwwtalalahmed98-collab/ph-switch-binders">Repository, scripts and
+    write-ups</a> · <a href="PROJECT-STORY.md">Project history</a>, kept as a running record
+    including the reversals.</p>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acid-OFF Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: single instrument column — a live titration panel on top, evidence stacked beneath. */
+:root{
+  --paper:#eef1f6;
+  --surface:#ffffff;
+  --surface-2:#f7f9fc;
+  --ink:#0f141d;
+  --ink-soft:#5b6678;
+  --rule:#d5dce8;
+  --bound:#0b6f6a;        /* neutral imidazole, interface intact */
+  --released:#bb4415;     /* imidazolium, interface giving way */
+  --cation:#2550c8;       /* target Arg / Lys */
+  --dead:#9aa5b5;         /* histidine out of reach */
+  --font-display:"Spectral",Georgia,"Times New Roman",serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#090d13;--surface:#121823;--surface-2:#0e141d;--ink:#e9eef6;--ink-soft:#8d9aae;
+    --rule:#212b3a;--bound:#2fd4c6;--released:#ff8a4c;--cation:#6f9bff;--dead:#5d6878;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#090d13;--surface:#121823;--surface-2:#0e141d;--ink:#e9eef6;--ink-soft:#8d9aae;
+  --rule:#212b3a;--bound:#2fd4c6;--released:#ff8a4c;--cation:#6f9bff;--dead:#5d6878;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-body);
+  font-size:15px;line-height:1.6;margin:0}
+.wrap{max-width:860px;margin:0 auto;padding-block:40px 72px;padding-left:20px;padding-right:20px}
+h1{font-family:var(--font-display);font-weight:600;font-size:clamp(34px,6.4vw,58px);
+  line-height:1.06;margin:0 0 14px;text-wrap:balance;letter-spacing:-.016em}
+h2{font-family:var(--font-display);font-weight:600;font-size:clamp(23px,3.7vw,31px);
+  line-height:1.16;margin:0 0 6px;text-wrap:balance;letter-spacing:-.01em}
+h3{font-size:14px;font-weight:600;margin:0 0 8px}
+p{margin:0 0 14px;max-width:66ch}
+.lede{font-size:17px;color:var(--ink-soft);max-width:60ch;margin-bottom:0}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-soft);margin:0 0 10px}
+section{margin-top:56px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:4px;
+  padding:20px;margin-top:18px}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.note{font-size:12.5px;color:var(--ink-soft);max-width:70ch;line-height:1.5}
+
+/* ---- instrument ---- */
+.stage{background:var(--surface);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+.stage svg{display:block;width:100%;height:auto;max-width:100%}
+.ctrl{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+  padding:16px 18px;border-top:1px solid var(--rule);background:var(--surface-2)}
+.ctrl label{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-soft)}
+input[type=range]{width:100%;accent-color:var(--released);min-width:0}
+.phread{font-family:var(--font-mono);font-size:26px;font-weight:600;min-width:3.6ch;
+  text-align:right;font-variant-numeric:tabular-nums}
+.readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
+  gap:1px;background:var(--rule);border-top:1px solid var(--rule)}
+.ro{background:var(--surface);padding:12px 14px;min-width:0}
+.ro .k{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-soft);display:block;margin-bottom:3px}
+.ro .v{font-family:var(--font-mono);font-size:19px;font-weight:600;
+  font-variant-numeric:tabular-nums}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+button{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.07em;
+  text-transform:uppercase;padding:9px 14px;border:1px solid var(--rule);
+  background:var(--surface);color:var(--ink);border-radius:3px;cursor:pointer}
+button:hover{border-color:var(--ink-soft)}
+button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--cation);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.chip{font-family:var(--font-mono);font-size:11px;padding:6px 9px;border:1px solid var(--rule);
+  background:var(--surface);color:var(--ink-soft);border-radius:3px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--bound);border-color:var(--bound);color:#fff}
+:root[data-theme="dark"] .chip[aria-pressed="true"],
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip[aria-pressed="true"]{color:#06201e}}
+
+/* ---- tables & bars ---- */
+.tblwrap{overflow-x:auto;margin-top:16px;border:1px solid var(--rule);border-radius:4px}
+table{border-collapse:collapse;width:100%;font-family:var(--font-mono);font-size:12.5px;
+  font-variant-numeric:tabular-nums;background:var(--surface)}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);
+  font-weight:500;background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:none}
+.funnel{display:grid;gap:7px;margin-top:18px}
+.frow{display:grid;grid-template-columns:148px 1fr 56px;gap:12px;align-items:center;font-size:13px}
+.frow .lbl{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);min-width:0}
+.fbar{height:24px;border-radius:2px;background:var(--bound);opacity:.82}
+.frow .n{font-family:var(--font-mono);font-weight:600;text-align:right;
+  font-variant-numeric:tabular-nums}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:18px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:16px;min-width:0}
+.card .big{font-family:var(--font-mono);font-size:27px;font-weight:600;line-height:1.1;
+  color:var(--released);display:block;margin-bottom:6px}
+.card p{font-size:13px;margin:0;color:var(--ink-soft)}
+.card strong{color:var(--ink);font-weight:600}
+footer{margin-top:64px;padding-top:20px;border-top:1px solid var(--rule);
+  font-size:12.5px;color:var(--ink-soft)}
+@media (max-width:520px){
+  .ctrl{grid-template-columns:1fr auto;row-gap:8px}
+  .ctrl label{grid-column:1/-1}
+  .frow{grid-template-columns:106px 1fr 44px;gap:8px}
+}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+
+<p class="eyebrow">Anthropic × Adaptyv 2026 · Challenge 2 · TNF-α</p>
+<h1>Binders that let go when the pH drops</h1>
+<p class="lede">Twenty designed proteins, built to grip TNF-α at blood pH and release it inside an acidifying tumour. Pull the dial and watch the mechanism fire.</p>
+
+<section>
+  <h2>The titration bench</h2>
+  <p class="note">The binder is drawn where the model actually puts it: every histidine below sits at its measured distance from the target residue it was designed to face. Drag the pH — or run the titration — and the imidazoles take on charge, collide with the arginine already there, and the interface gives way.</p>
+
+  <div class="stage" style="margin-top:18px">
+    <svg id="scene" viewBox="0 0 640 390" role="img" aria-labelledby="sceneTitle">
+      <title id="sceneTitle">Schematic of the designed binder releasing TNF-alpha as pH falls</title>
+      <defs>
+        <linearGradient id="tnfg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--cation)" stop-opacity=".20"/>
+          <stop offset="100%" stop-color="var(--cation)" stop-opacity=".06"/>
+        </linearGradient>
+      </defs>
+
+      <!-- target -->
+      <path d="M0 268 C 90 240, 190 252, 262 266 C 300 273, 340 273, 378 266 C 450 252, 550 240, 640 268 L640 390 L0 390 Z"
+            fill="url(#tnfg)" stroke="var(--cation)" stroke-opacity=".5" stroke-width="1.5"/>
+      <line x1="320" y1="272" x2="320" y2="390" stroke="var(--cation)" stroke-opacity=".3"
+            stroke-width="1" stroke-dasharray="3 4"/>
+      <text x="150" y="318" text-anchor="middle" font-family="var(--font-mono)" font-size="11"
+            letter-spacing="1.4" fill="var(--cation)" opacity=".85">TNF-α · CHAIN A</text>
+      <text x="492" y="318" text-anchor="middle" font-family="var(--font-mono)" font-size="11"
+            letter-spacing="1.4" fill="var(--cation)" opacity=".85">CHAIN B</text>
+      <text x="320" y="356" text-anchor="middle" font-family="var(--font-mono)" font-size="10"
+            letter-spacing="1.2" fill="var(--ink-soft)">RECEPTOR SITE · 25 RESIDUES RETAINED IN THE 122-RESIDUE CROP</text>
+
+      <g id="cations"></g>
+      <g id="binderG">
+        <path id="binderBody"
+              d="M168 104 C 168 86, 184 78, 206 78 L 436 78 C 458 78, 472 86, 472 104
+                 L 472 150 C 472 170, 456 180, 434 180 L 206 180 C 184 180, 168 170, 168 150 Z"
+              fill="var(--surface-2)" stroke="var(--bound)" stroke-width="2"/>
+        <text id="binderLabel" x="320" y="124" text-anchor="middle" font-family="var(--font-mono)"
+              font-size="13" font-weight="600" fill="var(--ink)">tnf2_w1_001_sw</text>
+        <text id="binderSub" x="320" y="146" text-anchor="middle" font-family="var(--font-mono)"
+              font-size="10.5" letter-spacing="1" fill="var(--ink-soft)">64 aa · DE NOVO</text>
+        <g id="hisG"></g>
+      </g>
+      <g id="arcs"></g>
+      <text id="verdict" x="320" y="40" text-anchor="middle" font-family="var(--font-display)"
+            font-size="28" font-weight="600" letter-spacing="0.5" fill="var(--bound)">BOUND</text>
+      <text id="verdictSub" x="320" y="60" text-anchor="middle" font-family="var(--font-mono)"
+            font-size="10.5" letter-spacing="1.6" fill="var(--ink-soft)">INTERFACE INTACT</text>
+    </svg>
+
+    <div class="ctrl">
+      <label for="ph">pH</label>
+      <input id="ph" type="range" min="5.4" max="8" step="0.02" value="7.4"
+             aria-describedby="phHint">
+      <span class="phread mono" id="phVal">7.40</span>
+    </div>
+
+    <div class="readouts">
+      <div class="ro"><span class="k">His protonated</span><span class="v mono" id="roF">3.8%</span></div>
+      <div class="ro"><span class="k">Any His charged</span><span class="v mono" id="roAny">7.5%</span></div>
+      <div class="ro"><span class="k">Closest contact</span><span class="v mono" id="roD">6.31 Å</span></div>
+      <div class="ro"><span class="k">Predicted i_ptm</span><span class="v mono" id="roI">0.553</span></div>
+    </div>
+  </div>
+
+  <div class="btnrow">
+    <button id="runBtn" type="button">▶ Run titration 7.4 → 6.0</button>
+    <button id="b74" type="button">Blood · pH 7.4</button>
+    <button id="b60" type="button">Tumour · pH 6.0</button>
+  </div>
+
+  <p class="eyebrow" style="margin-top:24px">Pick a design — the geometry is its own</p>
+  <div class="chips" id="chips"></div>
+
+  <p class="note" id="phHint" style="margin-top:18px">Histidine is the only amino acid whose side chain titrates near physiological pH: free imidazole has a pKa of about 6.0, so it is 3.8% charged at 7.4 and 50% charged at 6.0. Every other residue holds the same charge across that span. That thirteen-fold swing is the entire mechanism, and the reason the design places histidines and nothing else.</p>
+  <p class="note"><strong>What is real here and what is not.</strong> Each histidine's distance to its partner is measured from the predicted complex, and the i_ptm is the re-predicted score of that exact sequence. The charge curve is the Henderson–Hasselbalch equation. The release is the designed mechanism, not a simulation: AlphaFold has no concept of protonation state, so no model used in this project can show the binder letting go. That is what the wet-lab assay is for.</p>
+</section>
+
+<section>
+  <h2>Forty-three tries, twenty survivors</h2>
+  <p>Every design was scored by an independent re-prediction of its own sequence, never by the number the optimiser reported about itself. Each stage below threw work away on purpose.</p>
+  <div class="funnel" id="funnel"></div>
+  <p class="note" style="margin-top:16px">9.6 GPU-hours on two T4s. The widest cut is the first one: two thirds of generated designs never bind well enough to be worth anything downstream.</p>
+</section>
+
+<section>
+  <h2>Three things that nearly went wrong</h2>
+  <div class="cards">
+    <div class="card">
+      <span class="big mono">0.667</span>
+      <p><strong>A confident binder aimed at nothing.</strong> It scored second best of sixteen and touched 27 residues of TNF-α — none of them in the 25-residue target site. Score alone would have put it in the submission.</p>
+    </div>
+    <div class="card">
+      <span class="big mono">68%</span>
+      <p><strong>Histidines that moved the binder.</strong> One design kept just 68% of its epitope where its own histidine-free twin kept 92%. The twin is what made the cause provable. Dropped.</p>
+    </div>
+    <div class="card">
+      <span class="big mono">12/14</span>
+      <p><strong>Redesign that looked like an upgrade.</strong> On the first challenge, ProteinMPNN raised fold confidence and destroyed twelve of fourteen interfaces. We stopped redesigning and repaired single residues instead.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Fewer histidines, stronger grip</h2>
+  <p>The engine was allowed up to four histidines per design, on the assumption that more charge means a bigger pH response. Each one is also a mutation at a binding interface. Re-running the identical six designs with the cap lowered to two settled it.</p>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Design</th><th>Cap 4</th><th>Cap 2</th><th>Δ i_ptm</th></tr></thead>
+      <tbody id="capTbl"></tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top:14px">Every design improved. The top row is the control: it had only one histidine to begin with, so the lower cap could not touch it — and it returned the identical score, which rules out the gains being drift between runs. Three designs crossed the usability bar and went into the submission.</p>
+</section>
+
+<section>
+  <h2>Why a histidine next to an arginine does anything</h2>
+  <p>The placement rule came from measuring 557 contacts across 17 crystal structures, before any design was made.</p>
+  <div class="panel">
+    <svg id="calib" viewBox="0 0 620 190" role="img" aria-label="Histidine contact distances to carboxylates versus cations"></svg>
+  </div>
+  <p class="note" style="margin-top:14px">Nature packs a histidine within 4 Å of a negative carboxylate 22.3% of the time, and within 4 Å of a positive arginine or lysine only 9.7% of the time — 2.3× rarer. Close His–cation packing is something proteins avoid. Put a histidine there deliberately and protonation has to cost something. The same engine, run in reverse on an antibody–FcRn complex it had never seen, recovered both histidines of that textbook pH switch and did not fire in the wrong direction.</p>
+</section>
+
+<section>
+  <h2>The twenty</h2>
+  <p>Ten switches, each paired with its own histidine-free twin. The pair is the experiment: a drop in binding at pH 6.0 only means something if the twin, two or three residues apart, does not show it.</p>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Design</th><th>len</th><th>i_ptm</th><th>epitope</th><th>on site</th><th>His in reach</th></tr></thead>
+      <tbody id="finalTbl"></tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top:14px">Every switch here has an i_ptm reproduced across two independent runs, an epitope confirmed on its own predicted structure rather than its parent's, at least five contacts on the intended site, and histidines verified to still face a target cation after refolding. One design carries a histidine 10.2 Å from its partner — out of reach, and counted as such.</p>
+</section>
+
+<footer>
+  Schematic visualisation of a design campaign. Structures from PDB 1TNF; design with AfDesign / ColabDesign; scoring by AlphaFold2 i_ptm. No pH-dependent binding has been measured — that is what the assay will decide.
+</footer>
+</div>
+
+<script>
+(function(){
+  var PKA = 6.0;
+  var POSTS = { "K166A":{x:212,label:"K166"}, "R107B":{x:330,label:"R107"}, "R108B":{x:452,label:"R108"} };
+
+  var DESIGNS = [
+    {id:"tnf_w1_012_sw",  len:73, iptm:0.725, epi:93,  site:14, his:[{p:"R108B",d:4.92},{p:"K166A",d:8.30},{p:"R107B",d:4.41}]},
+    {id:"tnf_w0_011_sw",  len:60, iptm:0.651, epi:92,  site:5,  his:[{p:"R107B",d:8.77},{p:"R107B",d:7.14}]},
+    {id:"tnf_w0_012_sw",  len:73, iptm:0.622, epi:88,  site:12, his:[{p:"R108B",d:5.16},{p:"R108B",d:4.01}]},
+    {id:"tnf_w0_003_sw",  len:79, iptm:0.600, epi:96,  site:10, his:[{p:"R107B",d:4.35},{p:"R107B",d:8.11},{p:"R107B",d:3.11}]},
+    {id:"tnf2_w0_008_sw", len:64, iptm:0.598, epi:100, site:11, his:[{p:"R108B",d:5.79}]},
+    {id:"tnf2_w1_001_sw", len:64, iptm:0.553, epi:100, site:10, his:[{p:"R108B",d:6.31},{p:"R108B",d:6.93}]},
+    {id:"tnf_w0_008_sw",  len:63, iptm:0.544, epi:82,  site:5,  his:[{p:"R108B",d:6.54},{p:"R108B",d:10.20},{p:"R107B",d:5.10}]},
+    {id:"tnf_w1_004_sw",  len:80, iptm:0.489, epi:90,  site:10, his:[{p:"R108B",d:8.30},{p:"R108B",d:5.72}]},
+    {id:"tnf_w0_004_sw",  len:70, iptm:0.487, epi:88,  site:14, his:[{p:"R108B",d:4.74},{p:"R108B",d:5.58}]},
+    {id:"tnf2_w0_007_sw", len:75, iptm:0.487, epi:88,  site:14, his:[{p:"R108B",d:7.03},{p:"R108B",d:5.06}]}
+  ];
+  var REACH = 8.8;
+  var cur = DESIGNS[5], ph = 7.4;
+
+  var $ = function(id){ return document.getElementById(id); };
+  var NS = "http://www.w3.org/2000/svg";
+  function el(n,a){ var e=document.createElementNS(NS,n); for(var k in a) e.setAttribute(k,a[k]); return e; }
+  function frac(p){ return 1/(1+Math.pow(10,p-PKA)); }
+
+  // ---- static posts on the target ----
+  (function(){
+    var g=$("cations");
+    for(var k in POSTS){
+      var P=POSTS[k];
+      g.appendChild(el("line",{x1:P.x,y1:266,x2:P.x,y2:236,stroke:"var(--cation)","stroke-width":3,"stroke-linecap":"round"}));
+      g.appendChild(el("circle",{cx:P.x,cy:228,r:11,fill:"var(--cation)"}));
+      var t=el("text",{x:P.x,y:233,"text-anchor":"middle","font-family":"var(--font-mono)","font-size":14,"font-weight":600,fill:"#fff"});
+      t.textContent="+"; g.appendChild(t);
+      var l=el("text",{x:P.x,y:290,"text-anchor":"middle","font-family":"var(--font-mono)","font-size":10.5,fill:"var(--cation)"});
+      l.textContent=P.label; g.appendChild(l);
+    }
+  })();
+
+  // ---- chips ----
+  (function(){
+    var c=$("chips");
+    DESIGNS.forEach(function(d,i){
+      var b=document.createElement("button");
+      b.className="chip"; b.type="button"; b.textContent=d.id.replace(/_sw$/,"");
+      b.setAttribute("aria-pressed", d===cur?"true":"false");
+      b.addEventListener("click",function(){
+        cur=d;
+        Array.prototype.forEach.call(c.children,function(x,j){ x.setAttribute("aria-pressed", j===i?"true":"false"); });
+        build(); render();
+      });
+      c.appendChild(b);
+    });
+  })();
+
+  // ---- histidine sticks for the current design ----
+  function build(){
+    var g=$("hisG");
+    while(g.firstChild) g.removeChild(g.firstChild);
+    $("binderLabel").textContent = cur.id;
+    $("binderSub").textContent = cur.len + " aa · DE NOVO";
+    cur.his.forEach(function(h,i){
+      var P = POSTS[h.p] || POSTS.R108B;
+      var headY = 228 - Math.max(18, Math.min(74, h.d*6.4));
+      var anchorX = P.x + (i-(cur.his.length-1)/2)*26;
+      var g2 = el("g",{});
+      g2.appendChild(el("line",{x1:anchorX,y1:180,x2:P.x,y2:headY+9,stroke:"var(--rule)","stroke-width":2.5,"stroke-linecap":"round",class:"hstem"}));
+      g2.appendChild(el("circle",{cx:P.x,cy:headY,r:10,class:"hhead",fill:"var(--dead)"}));
+      var t=el("text",{x:P.x,y:headY+4.5,"text-anchor":"middle","font-family":"var(--font-mono)","font-size":11,"font-weight":600,fill:"#fff",class:"hchg"});
+      t.textContent="H"; g2.appendChild(t);
+      var dl=el("text",{x:P.x+17,y:headY+4,"font-family":"var(--font-mono)","font-size":10,fill:"var(--ink-soft)"});
+      dl.textContent=h.d.toFixed(2)+" Å"; g2.appendChild(dl);
+      g2.dataset.d = h.d; g2.dataset.hy = headY; g2.dataset.px = P.x;
+      g.appendChild(g2);
+    });
+  }
+
+  function render(){
+    var f = frac(ph);
+    var live = cur.his.filter(function(h){ return h.d<=REACH; }).length;
+    var any = live ? 1-Math.pow(1-f,live) : 0;
+    var lift = 62*any;
+
+    $("phVal").textContent = ph.toFixed(2);
+    $("roF").textContent = (100*f).toFixed(1)+"%";
+    $("roAny").textContent = (100*any).toFixed(1)+"%";
+    var dmin = Math.min.apply(null, cur.his.map(function(h){return h.d;}));
+    $("roD").textContent = dmin.toFixed(2)+" Å";
+    $("roI").textContent = cur.iptm.toFixed(3);
+
+    $("binderG").setAttribute("transform","translate(0,"+(-lift)+")");
+    $("binderBody").setAttribute("stroke", any>0.5 ? "var(--released)" : "var(--bound)");
+
+    var groups = $("hisG").children;
+    for(var i=0;i<groups.length;i++){
+      var g2=groups[i], d=parseFloat(g2.dataset.d), dead = d>REACH;
+      var head=g2.querySelector(".hhead"), stem=g2.querySelector(".hstem"), chg=g2.querySelector(".hchg");
+      head.setAttribute("fill", dead ? "var(--dead)" : (f>0.5 ? "var(--released)" : "var(--bound)"));
+      head.setAttribute("opacity", dead ? ".45" : "1");
+      stem.setAttribute("stroke", dead ? "var(--dead)" : (f>0.5 ? "var(--released)" : "var(--bound)"));
+      stem.setAttribute("opacity", dead ? ".4" : ".75");
+      chg.textContent = (!dead && f>0.5) ? "+" : "H";
+    }
+
+    var arcs=$("arcs");
+    while(arcs.firstChild) arcs.removeChild(arcs.firstChild);
+    if(f>0.25){
+      for(var j=0;j<groups.length;j++){
+        var G=groups[j]; if(parseFloat(G.dataset.d)>REACH) continue;
+        var px=parseFloat(G.dataset.px), hy=parseFloat(G.dataset.hy)-lift;
+        var mid=(hy+228)/2;
+        for(var k=-1;k<=1;k+=2){
+          arcs.appendChild(el("path",{
+            d:"M"+(px+k*13)+" "+mid+" q "+(k*11)+" "+((228-hy)/5)+" 0 "+((228-hy)/2.4),
+            fill:"none", stroke:"var(--released)", "stroke-width":2,
+            "stroke-linecap":"round", opacity:(f-0.25)*1.2
+          }));
+        }
+      }
+    }
+
+    var bound = any<0.5;
+    $("verdict").textContent = bound ? "BOUND" : "RELEASED";
+    $("verdict").setAttribute("fill", bound ? "var(--bound)" : "var(--released)");
+    $("verdictSub").textContent = bound ? "INTERFACE INTACT" : "CHARGE–CHARGE CLASH AT THE INTERFACE";
+  }
+
+  function setPh(v){ ph=v; $("ph").value=v; render(); }
+  $("ph").addEventListener("input",function(e){ ph=parseFloat(e.target.value); render(); });
+  $("b74").addEventListener("click",function(){ setPh(7.4); });
+  $("b60").addEventListener("click",function(){ setPh(6.0); });
+  $("runBtn").addEventListener("click",function(){
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(reduce){ setPh(6.0); return; }
+    var t0=null, from=7.4, to=6.0, dur=2600;
+    setPh(7.4);
+    function step(ts){
+      if(t0===null) t0=ts;
+      var u=Math.min(1,(ts-t0)/dur), e=u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
+      setPh(+(from+(to-from)*e).toFixed(2));
+      if(u<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+
+  // ---- funnel ----
+  (function(){
+    var rows=[["Trajectories run",43],["Bind at i_ptm ≥ 0.50",14],["Into switch placement",19],
+              ["Hold binding with His",12],["Confirmed on own structure",11],["Submitted (10 pairs)",20]];
+    var max=43, host=$("funnel");
+    rows.forEach(function(r){
+      var d=document.createElement("div"); d.className="frow";
+      var a=document.createElement("div"); a.className="lbl"; a.textContent=r[0];
+      var b=document.createElement("div");
+      var bar=document.createElement("div"); bar.className="fbar";
+      bar.style.width=Math.max(4,100*r[1]/max)+"%"; b.appendChild(bar);
+      var c=document.createElement("div"); c.className="n"; c.textContent=r[1];
+      d.appendChild(a); d.appendChild(b); d.appendChild(c); host.appendChild(d);
+    });
+  })();
+
+  // ---- cap comparison ----
+  (function(){
+    var rows=[["tnf2_w0_008","1 His · 0.598","1 His · 0.598","+0.000"],
+              ["tnf2_w1_001","3 His · 0.443","2 His · 0.553","+0.110"],
+              ["tnf2_w0_007","3 His · 0.414","2 His · 0.487","+0.073"],
+              ["tnf2_w0_001","3 His · 0.418","2 His · 0.470","+0.052"],
+              ["tnf2_w0_006","3 His · 0.286","2 His · 0.444","+0.158"],
+              ["tnf2_w1_003","4 His · 0.236","2 His · 0.253","+0.017"]];
+    var t=$("capTbl");
+    rows.forEach(function(r){
+      var tr=document.createElement("tr");
+      r.forEach(function(v,i){
+        var td=document.createElement("td"); td.textContent=v;
+        if(i===3) td.style.color="var(--bound)";
+        tr.appendChild(td);
+      });
+      t.appendChild(tr);
+    });
+  })();
+
+  // ---- calibration chart ----
+  (function(){
+    var s=$("calib"), X0=132, X1=572, Y=[52,120], MAXD=12;
+    function sx(d){ return X0+(X1-X0)*d/MAXD; }
+    for(var g=0; g<=12; g+=2){
+      s.appendChild(el("line",{x1:sx(g),y1:36,x2:sx(g),y2:150,stroke:"var(--rule)","stroke-width":1}));
+      var gt=el("text",{x:sx(g),y:168,"text-anchor":"middle","font-family":"var(--font-mono)","font-size":10,fill:"var(--ink-soft)"});
+      gt.textContent=g; s.appendChild(gt);
+    }
+    var ax=el("text",{x:(X0+X1)/2,y:186,"text-anchor":"middle","font-family":"var(--font-mono)","font-size":10,"letter-spacing":1,fill:"var(--ink-soft)"});
+    ax.textContent="CLOSEST SIDE-CHAIN APPROACH (Å)"; s.appendChild(ax);
+
+    var sets=[{n:"His → carboxylate",p5:2.81,med:5.93,c:"var(--bound)",pct:"22.3% within 4 Å"},
+              {n:"His → Arg / Lys",   p5:3.57,med:7.74,c:"var(--released)",pct:"9.7% within 4 Å"}];
+    sets.forEach(function(S,i){
+      var y=Y[i];
+      var lab=el("text",{x:X0-12,y:y+4,"text-anchor":"end","font-family":"var(--font-mono)","font-size":11,fill:"var(--ink)"});
+      lab.textContent=S.n; s.appendChild(lab);
+      s.appendChild(el("line",{x1:sx(S.p5),y1:y,x2:sx(MAXD),y2:y,stroke:S.c,"stroke-width":7,opacity:".22","stroke-linecap":"round"}));
+      s.appendChild(el("circle",{cx:sx(S.med),cy:y,r:7,fill:S.c}));
+      var mt=el("text",{x:sx(S.med),y:y-14,"text-anchor":"middle","font-family":"var(--font-mono)","font-size":10.5,"font-weight":600,fill:S.c});
+      mt.textContent="median "+S.med.toFixed(2); s.appendChild(mt);
+      var pt=el("text",{x:sx(MAXD),y:y+22,"text-anchor":"end","font-family":"var(--font-mono)","font-size":10,fill:"var(--ink-soft)"});
+      pt.textContent=S.pct; s.appendChild(pt);
+    });
+    s.appendChild(el("line",{x1:sx(4),y1:30,x2:sx(4),y2:152,stroke:"var(--ink-soft)","stroke-width":1,"stroke-dasharray":"4 4"}));
+    var c4=el("text",{x:sx(4),y:24,"text-anchor":"middle","font-family":"var(--font-mono)","font-size":10,"letter-spacing":1,fill:"var(--ink-soft)"});
+    c4.textContent="4 Å"; s.appendChild(c4);
+  })();
+
+  // ---- final table ----
+  (function(){
+    var t=$("finalTbl");
+    DESIGNS.forEach(function(d){
+      var live=d.his.filter(function(h){return h.d<=REACH;}).length;
+      var tr=document.createElement("tr");
+      [d.id.replace(/_sw$/,""), d.len, d.iptm.toFixed(3), d.epi+"%", d.site, live+"/"+d.his.length]
+        .forEach(function(v,i){
+          var td=document.createElement("td"); td.textContent=v;
+          if(i===2) td.style.fontWeight="600";
+          if(i===5 && live<d.his.length) td.style.color="var(--released)";
+          tr.appendChild(td);
+        });
+      t.appendChild(tr);
+    });
+  })();
+
+  build(); render();
+})();
+</script>
+
+</body>
+</html>

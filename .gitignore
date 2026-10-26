@@ -12,6 +12,7 @@ kaggle/serve_cors.py
 
 # Personal data - never publish
 cv_text.txt
+outreach/
 
 # Python
 __pycache__/

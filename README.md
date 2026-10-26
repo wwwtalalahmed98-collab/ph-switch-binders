@@ -5,7 +5,9 @@
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-1d9e75)](LICENSE)
 [![Competition](https://img.shields.io/badge/competition-Anthropic%20%C3%97%20Adaptyv%202026-534ab7)](https://proteinbase.com/competitions/anthropic-adaptyv-2026)
 [![Track](https://img.shields.io/badge/track-3%20(open)-888780)](https://proteinbase.com/competitions/anthropic-adaptyv-2026)
-[![Designs](https://img.shields.io/badge/designs%20submitted-25-185fa5)](#results)
+[![Designs](https://img.shields.io/badge/designs%20submitted-45-185fa5)](#results)
+
+**[Interactive viewers](https://wwwtalalahmed98-collab.github.io/ph-switch-binders/)** - rotate the designs in their targets, and pull the pH dial.
 
 Designing small proteins that bind a chosen human target **under a condition** — a pH
 window, a second species, or a mechanism — and submitting them for wet-lab testing.
