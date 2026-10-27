@@ -103,9 +103,16 @@ def main():
     sup.apply([a for r in mch[0] for a in r])
 
     sites = {}
-    pj = json.load(open(os.path.join(D, "tfr1_patches_r14.json")))
-    for p in pj[:8]:
-        sites["%s%d" % (p["centre_aa"], p["centre"])] = p["members"]
+    # Prefer the combined funnel (conservation + glycans + transferrin site) when it exists;
+    # ranking on conservation alone is what sent the earlier passes to sites that later
+    # turned out to be glycan-shadowed or on top of the transferrin footprint.
+    sl = os.path.join(D, "tfr1_epitope_shortlist.json")
+    if os.path.exists(sl):
+        for p in json.load(open(sl))["sites"][:10]:
+            sites["%s%d" % (p["centre_aa"], p["centre"])] = p["members"]
+    else:
+        for p in json.load(open(os.path.join(D, "tfr1_patches_r14.json")))[:8]:
+            sites["%s%d" % (p["centre_aa"], p["centre"])] = p["members"]
     sites["APICAL TIP (recommended)"] = json.load(
         open(os.path.join(D, "tfr1_patches.json")))["apical"]
 

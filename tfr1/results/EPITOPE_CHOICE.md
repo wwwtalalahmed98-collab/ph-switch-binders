@@ -183,3 +183,93 @@ design runs room to find their own sub-sites rather than forcing one fixed footp
   checked, and it is the most likely way this analysis is wrong.
 - Conservation says a binder *could* cross-react. It does not say one *will*.
 - Still nothing here about the pH switch.
+
+---
+
+# REVISION 2, 27 Oct: glycans move the site again, and this time all filters ran together
+
+Reproduce with:
+
+    python tfr1/glycan_check.py     # where the sugars are, in both species
+    python tfr1/rank_epitopes.py    # all three filters over every candidate patch
+    python tfr1/mouse_check.py      # structural species check on the survivors
+
+## Why the answer kept moving
+
+Three passes, three different primary sites. That is not thrashing; each pass tested
+something the previous one was blind to, and each was right about what it measured:
+
+1. **Sequence identity** promoted the apical shoulder (R325). Blind to shape.
+2. **Structural comparison** demoted it — R325Q loses a charge at the patch centre — and
+   promoted the helical-domain face (R732). Blind to post-translational modification.
+3. **Glycans** demoted that face: **N727 sits inside it.** R732 is 7 A from the attachment
+   point, T729 is 4 A, L730 5 A, S706 10 A, E714 9 A. An N-glycan reaches 20-25 A, so the
+   entire conserved helical face is probably under sugar.
+
+The lesson is about the order, not the sites. Filters applied one at a time give a
+provisional answer that the next filter overturns. `rank_epitopes.py` now applies all three
+to every candidate patch at once.
+
+## A second hazard that conservation cannot see
+
+Glycosylation sequons differ between the species. In the supplied ectodomain:
+
+| | sites, human numbering |
+|---|---|
+| both species | N251, N317, N727 |
+| human only | none |
+| **mouse only** | **N722** |
+
+N722 is a glycan the mouse has and the human does not, 12-19 A from every patch on that
+helical face. A binder could bind human TfR1 and be blocked on mouse by a sugar, with no
+patch residue differing at all. Identity scoring is structurally incapable of seeing this.
+
+## G751 was worse than reported
+
+Revision 1 listed G751 as 9 A from the transferrin footprint and "tight". Measured from the
+patch centroid it is **3 A**, and its members include D648, F650, R651, S654, R655, T657,
+T658, D659 - which *are* transferrin and HFE contact residues. It is not near the
+transferrin site, it is partly in it. Disqualified.
+
+## The funnel
+
+Over every exposed patch (14 A radius, >=12 exposed members): 34 too small,
+**84 hit the transferrin site**, **47 glycan-shadowed**, **82 survive**, collapsing to 15
+distinct sites.
+
+| site | n | identity | functional | RMSD | pLDDT | d(Tf) | d(glycan) | non-conservative |
+|---|---|---|---|---|---|---|---|---|
+| **E559** | 13 | 85% | 92% | 0.48 | 91 | 18 | **37** | T561A |
+| E156 | 16 | 69% | **94%** | 0.58 | 93 | 25 | 22 | T569R |
+| L537 | 14 | 79% | 93% | 0.81 | 92 | 21 | 23 | K261E |
+| N171 | 12 | 75% | 83% | **0.32** | **97** | 26 | 25 | L167Y, R174H |
+| E694 | 12 | 83% | 92% | 0.69 | 88 | 23 | 20 | R325Q |
+| apical tip | 9 | 33% | 33% | 1.17 | 91 | — | — | six, two charge-reversing |
+
+"Functional" counts only substitutions that cross chemistry class; Lys to Arg leaves a
+binder the same thing to grip. Distances in angstrom.
+
+## Decision
+
+| rank | site | why |
+|---|---|---|
+| **primary** | **E559** (K287, P289, K486, T491, S492, N493, K495, V517, E559, D560, T561, D562, R579) | the only site with both high conservation (85%) and real glycan margin (37 A, against 20-25 A for every other survivor); 92% functional, 0.48 A shape agreement, pLDDT 91, 18 A clear of the transferrin footprint |
+| secondary | E156 | highest functional conservation anywhere (94%, one non-conservative substitution in 16) |
+| third | L537 | 93% functional, 79% identity, comfortably clear on both exclusions |
+| diversity | N171 | best shape agreement (0.32 A) and highest mouse-model confidence (97) of any site |
+| declared long shots | apical tip | the recommended functional epitope; 33% conserved, so submitted as such |
+
+Excluded: E694, which is 20 A from N727 and carries the same R325Q charge loss that sank
+revision 1's site.
+
+## What this still does not establish
+
+- **No glycan geometry is modelled.** The 20 A reach is a literature figure applied as a
+  sphere. A glycan pointing away from a patch does not block it, and nothing here knows
+  which way any of them points. The distances are advisory.
+- The mouse structure remains **a prediction**, confident (pLDDT 84-97) but not an
+  experiment, and N722 is a sequon inferred from sequence, not an observed sugar.
+- Glycan occupancy is not all-or-nothing in reality; sites can be partially occupied, and
+  Adaptyv's expression system may glycosylate differently from native tissue.
+- Conservation and clearance say a binder *could* work on both species. Neither says one
+  will.
