@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 12 | 2026-10-27 | Sugar moved the target spot, and why it moved three times |
 | 11 | 2026-10-26 | Challenge 4 plan: the pH switch becomes a calculation |
 | 10 | 2026-10-25 | Sequences retrieved, 20 chosen, and a liability I never checked |
 | 9 | 2026-10-25 | The whole project so far, all three challenges, in plain English |
@@ -17,6 +18,138 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 12. 2026-10-27 - Sugar moved the target spot, and why it moved three times
+
+### Where we are
+
+We have picked the spot on TfR1 that the designs will aim at. It is the third spot we have
+picked in three days, and the reason each earlier one was wrong is the useful part.
+
+### Why this step
+
+Everything else depends on it. Design runs cost GPU time we only get 30 hours of per week,
+and a run aimed at the wrong spot is a wasted week with five days left. The spot had to be
+settled before anything was generated.
+
+### What we actually did
+
+Think of the receptor as a door handle we are designing a hand to grip. Three things can
+ruin a grip, and we checked them one at a time, which turned out to be the mistake.
+
+**Day one - is the handle the same shape in mice?** The competition wants one binder that
+works on both the human and the mouse receptor. We compared the two sequences letter by
+letter and picked the best-matching patch. It scored 86%.
+
+**Day two - is it the same SHAPE, not just the same letters?** Letters can match while the
+surface still differs. We fetched a predicted mouse structure and compared the two. Our
+day-one choice failed: the residue at the dead centre of the patch changes from arginine to
+glutamine in the mouse, which **loses a positive charge in the middle of the grip**. A hand
+built to grab that charge has nothing to grab. We moved to a different patch that scored
+100% once you count only substitutions that actually change the chemistry.
+
+**Day three - is it covered in sugar?** Receptors on cell surfaces are coated in sugar
+chains. They are big, they are invisible in the crystal structure we were working from, and
+they block binding. We looked up where they attach. **One of them, N727, sits inside the
+patch we chose yesterday** - 7 angstrom from the centre, and a sugar chain reaches 20 to 25.
+The whole patch is probably under sugar.
+
+So we stopped applying one filter at a time and applied all of them to every candidate at
+once. Of 213 candidate spots: 84 sit on the receptor's day job (carrying iron, which we must
+not block), 47 are under sugar, 34 are too small for a binder to grip, and **82 survive**,
+which collapse to 15 genuinely separate places.
+
+### The one we picked
+
+**E559.** It is the only survivor that is both well conserved between species (85% of
+residues identical, 92% once you count only chemistry-changing substitutions) **and** has a
+real margin from any sugar - 37 angstrom, against 20 to 25 for every other survivor. The
+shape agreement between human and mouse is 0.48 angstrom, which is very close, and the
+mouse model is confident there.
+
+### Two things a letter-by-letter comparison can never find
+
+**A sugar that only the mouse has.** N722 is a sugar attachment point present in mouse and
+absent in human, sitting 12 to 19 angstrom from every patch on yesterday's face. A binder
+could work perfectly on human TfR1 and be blocked on mouse by a sugar, **without a single
+patch residue differing**. No conservation score can see that.
+
+**A patch that is not near the forbidden zone but inside it.** Yesterday I recorded one
+candidate, G751, as 9 angstrom from the iron-carrier site and called it tight. Measured
+properly from the patch centre it is 3 angstrom, and its residues *are* iron-carrier contact
+residues. I had measured from the wrong point.
+
+### The diagram
+
+The rendered diagram in chat shows 213 spots going through the three filters, what each
+filter removed, and the one we picked. The blue box is the decision.
+
+```mermaid
+flowchart TD
+    A[213 candidate spots<br/>on the receptor surface] --> B[84 thrown out<br/>on the iron-carrier site]
+    A --> C[47 thrown out<br/>hidden under sugar]
+    A --> D[34 thrown out<br/>too small to grip]
+    B --> E[82 survive<br/>15 separate places]
+    C --> E
+    D --> E
+    E --> F[E559 chosen<br/>85% same in mouse, 37 A clear of sugar]
+    style F fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+### What you have now
+
+Works now:
+
+- [tfr1/glycan_check.py](tfr1/glycan_check.py) - where the sugars attach, in both species.
+- [tfr1/rank_epitopes.py](tfr1/rank_epitopes.py) - all filters over every candidate at once.
+- [tfr1/mouse_check.py](tfr1/mouse_check.py) - the species shape comparison.
+- [tfr1/results/EPITOPE_CHOICE.md](tfr1/results/EPITOPE_CHOICE.md) - the decision and both
+  reversals, written so someone else could reuse the reasoning.
+
+Not done:
+
+- **No design has been generated for this challenge.** This is still all target work.
+- The acid-release calculation is not written. That is the next job and the harder one.
+- Nothing is submitted.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Apply every filter at once | One filter per pass | Three passes gave three different answers; each filter was blind to the next |
+| E559 as the primary site | The helical face from yesterday | A sugar attaches inside yesterday's patch |
+| Keep three more sites as backups | Commit everything to one spot | Each remaining filter is advisory, so a single site is a single point of failure |
+| Treat the sugar reach as advisory | Treat it as a hard exclusion | We model no sugar geometry; a chain pointing away blocks nothing |
+| Keep a few designs at the recommended spot | Drop it entirely | It is 33% conserved and a bad bet, but the organizers reward epitope diversity |
+
+### Jargon decoder
+
+- **glycan / sugar chain** - a branched sugar attached to a protein surface. Large, common
+  on cell-surface receptors, usually invisible in crystal structures.
+- **sequon** - the three-letter pattern in a sequence that tells you a sugar attaches there.
+- **angstrom** - a ten-billionth of a metre. A sugar chain reaches 20 to 25 of them.
+- **conserved** - the same in both species.
+- **chemistry class** - whether a substitution keeps the same kind of chemistry. Lysine to
+  arginine keeps the positive charge, so a binder notices nothing.
+- **ectodomain** - the part of the receptor outside the cell, which is what gets tested.
+- **transferrin** - the iron-carrying protein TfR1 exists to collect. We must not block it.
+
+### What is next, and what could go wrong
+
+Next: build the acid-release calculation and test it against published switches before
+spending any GPU time.
+
+Honestly:
+
+- **The sugar reach is a sphere taken from the literature.** We do not model which way any
+  sugar points. E559 has a big margin so it is probably safe, but the 47 spots we discarded
+  were discarded on an advisory number and some of them may have been fine.
+- **The mouse structure is still a prediction**, and the mouse-only sugar is inferred from
+  sequence rather than observed.
+- The site has moved three times in three days. It should be stable now because all the
+  filters ran together, but a fourth consideration we have not thought of would move it
+  again.
+- Five days left, and no design exists yet.
 
 ## 11. 2026-10-26 - Challenge 4 plan: the pH switch becomes a calculation
 
