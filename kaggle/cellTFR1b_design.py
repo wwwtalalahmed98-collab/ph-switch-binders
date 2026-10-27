@@ -28,7 +28,12 @@ import textwrap
 import time
 
 W = "/kaggle/working"
-TIME_BUDGET_MIN = 420           # leaves headroom inside the 9 h Kaggle session limit
+TIME_BUDGET_MIN = 330           # 5.5 h. Sized against the GPU quota ACTUALLY left
+                                # this week (12 h, not 30), because two further GPU
+                                # passes still have to run on the same budget:
+                                # histidine scanning for the pH switch, and mouse
+                                # cross-reactivity prediction. Generation does not
+                                # get to eat the whole allowance.
 LEN_MIN, LEN_MAX = 55, 80
 
 if not os.path.exists("%s/tfr1_targets.json" % W):
