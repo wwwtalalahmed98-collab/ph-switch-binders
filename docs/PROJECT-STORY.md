@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 13 | 2026-10-27 | The acid switch becomes a sum, and where to put the histidines |
 | 12 | 2026-10-27 | Sugar moved the target spot, and why it moved three times |
 | 11 | 2026-10-26 | Challenge 4 plan: the pH switch becomes a calculation |
 | 10 | 2026-10-25 | Sequences retrieved, 20 chosen, and a liability I never checked |
@@ -18,6 +19,146 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 13. 2026-10-27 - The acid switch becomes a sum, and where to put the histidines
+
+### Where we are
+
+The design run is going on Kaggle. While it runs, the next step after it is built and
+rehearsed. Nothing is submitted, and no design exists yet.
+
+### What the challenge needs, in one paragraph
+
+A binder that holds TfR1 at blood pH and lets go inside the cell, where it is more acidic.
+Histidine is the only amino acid that changes electrical charge in that window, so the
+whole switch is a question of where to put histidines and which way they push.
+
+### Two things built today
+
+**1. A calculator for the switch.** Until now we ranked designs on a stand-in measurement
+and hoped it meant something. On the TNF-alpha challenge the first stand-in we picked
+pointed the **wrong way** and we only found out by checking. So this time we compute the
+thing itself: how much the histidine's flip point MOVES between the free binder and the
+bound complex is, exactly, how pH-sensitive the binding is. That is a textbook
+relationship, not a proxy.
+
+**It was tested against three complexes whose behaviour is already known before being
+trusted.** Two have no pH switch and scored near zero. One is the classic switch in
+biology - the receptor that recycles antibodies, which grips in acid - and it scored
+strongly in the right direction.
+
+**The first attempt failed, and the reason is the useful part.** On the first structure we
+tried, the known switch came out *backwards*. Rather than shrug or throw the method away,
+we measured the actual geometry and found two atoms sitting **1.2 angstrom apart** - which
+is physically impossible; nothing gets closer than about 2.6. That structure is a 4.5
+angstrom one, too blurry for the side chains to be in real positions. On a sharper
+structure the same equation gives the right answer. The script now **refuses** any
+structure blurrier than 3.0 angstrom, because this failure is silent: a bad structure does
+not produce an error, it produces a confident number that is wrong.
+
+**2. A chooser for where the histidines go.** A 70-residue binder has 70 positions, and
+every useful pair on top of that. Folding all of them is thousands of runs we cannot
+afford this week. So a free step narrows it to about six per binder, each with a written
+reason, and only those get folded.
+
+### The trap it was built to avoid
+
+A histidine next to a **negatively** charged residue on the target does the OPPOSITE of
+what we want: when it picks up its positive charge in acid, the two stick together and the
+binder grips **harder**. That is the right answer for a different challenge and the wrong
+one for this. Those positions are reported as **WRONG DIRECTION** rather than quietly
+scored low, because "put a histidine near a charge" sounds correct either way.
+
+### A flaw in my own rule, caught on the first test
+
+Run against a well-known protein pair, the chooser proposed replacing two residues that
+are the very ones holding the two proteins together. Swapping those for histidine does not
+add a switch; it breaks the binder. The rule now notices when a residue is already making
+that kind of contact and marks it risky, and prefers positions where the existing residue
+is doing nothing special.
+
+### Why the histidines have to be spaced out
+
+On TNF-alpha we measured that in **every** pair of histidines, one of the two was doing no
+work. The reason turns out to be known: histidines placed close together shift each
+other's flip point, so one gets silenced. The chooser now only proposes pairs far enough
+apart to work independently. And we need at least two, because the physics caps a single
+one at about 25-fold over this pH range while "no detectable binding" needs about a
+hundredfold.
+
+### The diagram
+
+The rendered diagram in chat shows the three stages. Only the blue one costs GPU time; the
+other two exist to keep it small.
+
+```mermaid
+flowchart TD
+    A[Binders from tonight's run] --> B[Stage A: choose the positions<br/>free, runs on a laptop]
+    B --> C[Rejected: faces an acid,<br/>would bind tighter in acid]
+    B --> D[Stage B: fold the mutants<br/>the only step that costs GPU]
+    D --> E[Stage C: score the switch<br/>free, already validated]
+    E --> F[Keep the positive scores]
+    style D fill:#2563eb,stroke:#1e40af,color:#ffffff
+    style C fill:#993C1D,stroke:#712B13,color:#ffffff
+```
+
+### What you have now
+
+Works now, tested:
+
+- [tfr1/pka_switch.py](tfr1/pka_switch.py) - the switch calculator, with its known-answer
+  checks. Run `python tfr1/pka_switch.py --validate`.
+- [tfr1/pick_his_sites.py](tfr1/pick_his_sites.py) - where to put the histidines, with a
+  written reason per position.
+- [tfr1/results/PKA_VALIDATION.md](tfr1/results/PKA_VALIDATION.md) - what it gets right and
+  what it gets wrong.
+
+Written but NOT tested:
+
+- [kaggle/cellTFR1c_hisscan.py](kaggle/cellTFR1c_hisscan.py) - the GPU stage. It cannot be
+  tested until there are designs to scan.
+
+Not done:
+
+- **No design exists yet.** The generation run is still going.
+- Nothing is submitted. Deadline Sunday, everything final Saturday afternoon.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Compute the switch from first principles | Another geometric stand-in | The last stand-in pointed the wrong way and we nearly shipped it |
+| Test on known answers first | Trust it and design | The published error on this prediction is as large as the effect we want |
+| Refuse blurry structures outright | Warn and continue | A blurry structure returns a confident wrong number, not an error |
+| Binders first, switch second | Design both at once | Doing both at once on TNF-alpha produced neither |
+| Narrow on CPU before folding | Fold everything | Twelve GPU hours left this week, not thirty |
+| Space the histidines apart | Add more of them | Crowded histidines silence each other - our own measurement |
+
+### Jargon decoder
+
+- **pKa / flip point** - the acidity at which a residue gains or loses its charge.
+- **salt bridge** - two oppositely charged residues sticking together.
+- **burial** - how much of a residue gets covered up when two proteins meet.
+- **angstrom** - a ten-billionth of a metre. Atoms sit about 3 apart; 1.2 means the
+  structure is wrong.
+- **resolution** - how sharp an experimental structure is. Smaller is sharper.
+- **fold / predict** - run AlphaFold to work out the shape a sequence takes.
+
+### What is next, and what could go wrong
+
+Next: read the generation log, check the designs touch the epitope, then run the scan.
+
+Honestly:
+
+- **The switch calculator underestimates size by ten to a hundred times.** It gets the
+  direction right and ranks designs against each other; it does not predict a real number.
+- **It was checked on experimental structures and will be used on predicted ones.** Nothing
+  yet measures how much that degrades it. This is the largest untested gap.
+- Only one of the three test cases was an actual switch. Right answer once is encouraging,
+  not proof.
+- The GPU stage has never run.
+- Four days left, and the whole plan still rests on tonight's run producing binders that
+  actually touch the chosen patch.
 
 ## 12. 2026-10-27 - Sugar moved the target spot, and why it moved three times
 
