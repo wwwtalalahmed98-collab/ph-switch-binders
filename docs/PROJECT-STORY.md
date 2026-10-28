@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 18 | 2026-10-28 | The fix worked on one spot and broke the other |
 | 17 | 2026-10-28 | We had been doing half the pipeline |
 | 16 | 2026-10-28 | We were measuring in inches and asking in yards |
 | 15 | 2026-10-28 | The binders went to the hole in the wall |
@@ -23,6 +24,135 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 18. 2026-10-28 - The fix worked on one spot and broke the other
+
+### Where we are
+
+The change we made this afternoon works. On one of the two target spots the designs now
+land where we asked, about four times as often as before, and two separate computers running
+different random seeds agree. On the other spot the same change made things worse - the
+designs stopped touching the target at all. And the aim came at a price: the shapes are now
+noticeably worse folded.
+
+### The one-line version
+
+We asked for "touch within 8 angstrom" instead of "be within 21", and the designs started
+touching. They also started looking less like real proteins while doing it.
+
+### The numbers, for the spot where it worked
+
+| | designs | average touches | reached 4+ |
+|---|---|---|---|
+| before the fix | 27 | 1.22 | 3 (11%) |
+| after, on Kaggle | 9 | 2.78 | 3 (33%) |
+| after, on Colab | 8 | 3.25 | 4 (50%) |
+| **after, both** | **17** | **3.0** | **7 (41%)** |
+
+Two machines, different random starting points, same answer. That is the strongest evidence
+this project has produced for anything.
+
+### The spot where it broke
+
+Six designs, **zero** touches on the target - and barely any touches anywhere. The binder
+simply does not engage. The likely reason is that the new demand is impossible on that spot,
+so the instruction gives no useful direction and the design drifts off. Same change, opposite
+result, which is worth knowing: this dial is not universally better.
+
+### The price
+
+The shapes are less confident folds than before. The program's own confidence dropped from a
+best of 0.78 to mostly 0.10-0.50, and the separate fold-quality number from around 0.75 to
+around 0.50. Some sequences contain 23 identical residues in a row.
+
+So we have swapped one problem for another:
+
+- before: **well-folded, badly aimed**
+- now: **well-aimed, badly folded**
+
+Whether that is progress depends on whether the sequence-rewriting step can put a real
+protein onto a well-aimed shape. That is unproven and is the next thing to find out.
+
+### Two things the audit caught
+
+**One of the best designs blocks the receptor's day job.** Three of 47 designs touch the
+transferrin site - the part of the receptor that does its actual work - and one of them is
+the second-best-aimed design we had, which also produced four of the rewritten sequence
+candidates. We spent three rounds of filtering choosing a spot away from that site and then
+never checked whether a design reached it anyway. Now we do.
+
+**My own quality screen was flattering junk.** It had a ceiling on charged residues and a
+floor on oily ones, so it caught one kind of nonsense and awarded "good" to the opposite
+kind - a design that is 64% oily with eight identical residues in a row passed cleanly. That
+is exactly the problem that bit us on the previous challenge. The screen now has limits on
+both sides of every measure. **Any earlier comparison of sequence quality should be ignored:
+it was measuring with a bent ruler.**
+
+### The diagram
+
+The rendered diagram in chat shows the trade. Teal is where we now are on aim; coral is what
+it cost in folding.
+
+```mermaid
+flowchart LR
+    A[Before the fix<br/>well folded, badly aimed] -->|ask for 8 angstrom<br/>instead of 21| B[After the fix<br/>well aimed, badly folded]
+    B --> C{Can sequence rewriting<br/>put a real protein<br/>on a well-aimed shape?}
+    C -->|yes| D[A candidate worth submitting]
+    C -->|no| E[Back to the shape stage]
+    style A fill:#993C1D,stroke:#712B13,color:#ffffff
+    style B fill:#0F6E56,stroke:#04342C,color:#ffffff
+    style C fill:#854F0B,stroke:#412402,color:#ffffff
+```
+
+### What you have now
+
+Confirmed by running, not by reasoning:
+
+- The targeting diagnosis was right. Two platforms agree on roughly a fourfold improvement
+  at the e559 spot.
+- [tfr1/results/PROBE_RESULT.md](tfr1/results/PROBE_RESULT.md) - why the old setting failed.
+- [kaggle/cellTFR1h_audit.py](kaggle/cellTFR1h_audit.py) - the transferrin check and the
+  two-sided quality screen.
+
+Still true:
+
+- **Nothing is submitted and nothing is confirmed as a working binder.**
+- No design has a measured acid-release switch, which is the thing this challenge scores.
+- The organisers' own score still cannot be computed, because we do not save the file it
+  needs. Requires a short run on a graphics card.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Run the same job on two platforms | One platform, more designs | Agreement between independent seeds is what made tonight's result believable |
+| Hold the histidine work back | Run it on tonight's shapes | Rewriting a badly folded shape just produces tidier nonsense |
+| Make the quality screen two-sided | Keep the simpler version | The one-sided version awarded "good" to a 64% oily aggregate |
+| Report the l537 failure as a failure | Average it away with e559 | Averaging would have hidden that the dial is not universally good |
+
+### Jargon decoder
+
+- **angstrom** - a ten-billionth of a metre. Atoms touching are about 4 apart.
+- **on-site touches** - contacts on the chosen spot. The number we judge aim by.
+- **transferrin site** - the part of the receptor that carries iron. Blocking it is a
+  functional problem, not just a miss.
+- **Kyte-Doolittle** - a single number for how oily a sequence is. Positive means trouble
+  for making it in a tube.
+
+### What is next, and what could go wrong
+
+Next: let the main run finish, then decide whether to spend the last of the week's graphics
+card time on rewriting the well-aimed shapes, or on another generation attempt.
+
+Honestly:
+
+- **The fold quality may be fatal.** A shape that AlphaFold is only 50% confident about may
+  not be a real protein at all, in which case good aim is worthless.
+- The l537 spot currently has nothing. If it stays that way we are down to one target spot
+  and less diversity in the twenty we submit.
+- About an hour and twenty minutes of Kaggle graphics time will remain after the main run,
+  plus whatever Colab allows.
+- Two days left.
 
 ## 17. 2026-10-28 - We had been doing half the pipeline
 
