@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 15 | 2026-10-28 | The binders went to the hole in the wall |
 | 14 | 2026-10-28 | 47 designs, none of them measured |
 | 13 | 2026-10-27 | The acid switch becomes a sum, and where to put the histidines |
 | 12 | 2026-10-27 | Sugar moved the target spot, and why it moved three times |
@@ -20,6 +21,147 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 15. 2026-10-28 - The binders went to the hole in the wall
+
+### Where we are
+
+The measurement is recovered, and the answer is bad: 32 of the 47 designs never touch the
+spot we chose. The five that look best touch it least. This run produced nothing we can
+submit, and we have 6 hours 50 minutes of graphics-card time left this week.
+
+### The analogy, carried through
+
+Last time I described the target as a **house with numbered rooms**, and the problem as the
+design program renumbering every room from 1. That is fixed - the numbers read back
+correctly, verified on a test case first.
+
+Here is the new problem, in the same house. To design against the house we do not hand the
+program the whole building - too big, too slow. We **cut out one wall** and hand it that.
+Cutting a wall out of a house leaves raw edges: brick, insulation, pipe ends. About 3,400
+square angstrom of surface that does not exist when the wall is part of the building, and
+roughly half of it oily, which is exactly what a protein likes to stick to.
+
+We told the program to aim for the doorway. **It stuck to the raw edge instead.**
+
+That instruction - "aim here" - turns out to be a suggestion, not a rule. The program is
+free to ignore it, and on this target it did.
+
+### The numbers
+
+Out of 47 designs:
+
+| | out of 47 |
+|---|---|
+| touch the chosen spot not at all | **32** |
+| touch it at least twice | 15 |
+| touch it at least four times | 3 |
+| touch it at least six times | 1 |
+
+And the part that settles what to do next - the five most confident designs:
+
+| design | confidence | touches on target | touches elsewhere |
+|---|---|---|---|
+| l537_014 | 0.78 | **0** | 31 |
+| e559_001 | 0.74 | **0** | 18 |
+| l537_002 | 0.74 | **0** | 13 |
+| e559_006 | 0.70 | **0** | 21 |
+| l537_016 | 0.66 | **0** | 15 |
+
+Every one of them is a well-made protein gripping the raw edge of the cut.
+
+Meanwhile the three that *do* reach the doorway are the ones the program gave up on -
+confidence 0.15 to 0.46, and sequences containing eight prolines or nine asparagines in a
+row. **Not one design in the set is both well-made and on target.**
+
+### A second thing we learned, which cuts the other way
+
+On the previous challenge we found that higher confidence meant *worse* targeting - a
+strong, reliable, backwards relationship. I did not assume it held here; the script measured
+it. It does not hold. The relationship here is **+0.10, which is nothing.**
+
+So confidence tells us nothing about where a binder sits on this target - not forwards, not
+backwards. It cannot be used to screen. That is worth knowing and it also removes a tool we
+were counting on.
+
+### Was the overnight run wasted?
+
+Mostly, yes, and it cost 5 hours 48 minutes of a 30-hour weekly allowance. I am not going to
+dress that up.
+
+What it did buy: the measuring pipeline now works end to end and is checked against a case
+with known answers; we know the cut edge is a real competitor for the binding site with a
+number attached rather than as a worry; and we know confidence screening is off the table
+here. The previous challenge cost about twenty failed runs to learn one thing. This cost one
+run to learn three.
+
+### The diagram
+
+The rendered diagram in chat shows where the designs actually went. The coral path is what
+happened to 32 of 47; the teal path is what we asked for and got from 3.
+
+```mermaid
+flowchart TD
+    A[Whole target protein<br/>too big to design against] -->|cut out one wall| B[The crop<br/>handed to the designer]
+    B --> C[The doorway<br/>the spot we chose]
+    B --> D[The raw cut edge<br/>3400 sq angstrom, half oily]
+    C -->|3 of 47, all malformed| E[On target but unusable]
+    D -->|32 of 47, including<br/>all 5 most confident| F[Well made, wrong place]
+    style D fill:#993C1D,stroke:#712B13,color:#ffffff
+    style F fill:#993C1D,stroke:#712B13,color:#ffffff
+    style E fill:#0F6E56,stroke:#04342C,color:#ffffff
+```
+
+### What you have now
+
+Works now, and ran:
+
+- [kaggle/cellTFR1d_remeasure.py](kaggle/cellTFR1d_remeasure.py) - the recovery step. Ran on
+  Kaggle in 43 seconds on an ordinary processor, no graphics-card time. Measured 47 of 47,
+  refused none, and verified both cut-out pieces against their residue lists before starting.
+- [tfr1/results/GENERATION_RESULT.md](tfr1/results/GENERATION_RESULT.md) - the full ranking
+  and what it means. Open this one if you open nothing else.
+
+On Kaggle: notebook `tfr1_remeasure`, whose output holds all 47 measured designs with their
+sequences.
+
+Not done:
+
+- **There is no usable design.** Nothing from this run is a candidate.
+- The histidine scan has still never run - it needs a design worth putting a switch on.
+- Nothing is submitted. Deadline Sunday 1 November; final Saturday afternoon, since only one
+  submission is allowed per 24 hours.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Measure before judging the run | Read the sequences and pick by eye | The five best-looking designs are the five worst-targeted; by eye we would have picked them |
+| Re-measure on a processor | Re-run on graphics cards | 43 seconds and no quota, against hours |
+| Measure the confidence relationship again | Reuse the GLP-1R finding | It did not transfer, and reusing it would have inverted our screening |
+| Report the run as mostly wasted | Present the 3 on-target designs as progress | They contain eight prolines in a row; calling them candidates would be dishonest |
+
+### Jargon decoder
+
+- **the crop / cut-out piece** - the chunk of target handed to the designer, with raw edges.
+- **on-site / off-site touches** - contacts on the chosen spot versus anywhere else.
+- **hotspot** - the "aim here" instruction. A bias, not a constraint. That is the lesson.
+- **confidence (i_ptm)** - the program's own guess that two pieces stick together. Says
+  nothing about *where*.
+- **homopolymer run** - eight prolines in a row. What the program writes when it is stuck.
+
+### What is next, and what could go wrong
+
+A decision, which is yours: how to spend the last 6 hours 50 minutes of graphics-card time
+this week. The options and their trade-offs are in the chat message with this checkpoint.
+
+Honestly:
+
+- **A second attempt may fail the same way.** The cut edge does not go away by wanting it to;
+  whatever we try next has to actively deal with it.
+- Giving the designer a bigger piece of target removes the cut edge but costs more time per
+  design, so we would get fewer designs from less time.
+- Three days left, and we currently have zero candidates for this challenge.
 
 ## 14. 2026-10-28 - 47 designs, none of them measured
 
