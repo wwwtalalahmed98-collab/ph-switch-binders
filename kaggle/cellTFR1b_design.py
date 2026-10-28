@@ -15,6 +15,11 @@ the chain misfolds. On the previous challenge 13 of 20 selected designs carried 
 buildability liability that was only noticed on the final day. Here it is prevented at
 generation rather than filtered afterwards.
 
+NUMBERING. save_pdb renumbers from 1, so the target chain cannot be found by looking for
+the epitope residue numbers - the first version of this script did exactly that and every
+one of 47 designs came back unmeasured. The target is now identified by reproducing the
+crop residue-for-residue, and its real numbering recovered from the crop's kept list.
+
 WHAT IS MEASURED, per design: contacts against the chosen epitope and against everything
 else. The second number matters because the target is a crop, and a crop exposes interior
 surface that does not exist in the real protein - about 3400 A^2 of it here, 90% of it more
@@ -78,17 +83,29 @@ def dedupe(chain):
             seen.add(r.id[1]); out.append(r)
     return out
 
+# The crop's UniProt numbers, in the order the crop was written. save_pdb renumbers
+# everything it writes from 1, so the target comes back as 1..N and its real numbering has
+# to be recovered from this list rather than read off the file. Identity is checked against
+# the crop PDB below; a length match alone would not prove the order is the same.
+KEPT = M["kept"]
+from Bio.PDB import PDBParser as _PP
+_crop = _PP(QUIET=True).get_structure("t", TARGET)[0]
+CROP_SEQ = [r.get_resname() for r in dedupe(list(_crop)[0])]
+if len(CROP_SEQ) != len(KEPT):
+    raise SystemExit("crop PDB has %d residues, kept list has %d" % (len(CROP_SEQ), len(KEPT)))
+
 def measure(pdb_path, blen):
     from Bio.PDB import PDBParser
     mdl = PDBParser(QUIET=True).get_structure("c", pdb_path)[0]
     kept = {ch.id: dedupe(ch) for ch in mdl}
-    # identify the target by its residue NUMBERS, never by "the bigger chain"
+    # identify the target as the chain that reproduces the crop residue-for-residue, then
+    # read its real numbering from KEPT by position
     tid = None
     for cid, rs in kept.items():
-        if set(r.id[1] for r in rs) >= EPITOPE:
+        if [r.get_resname() for r in rs] == CROP_SEQ:
             tid = cid; break
     if tid is None:
-        raise ValueError("no chain carries the epitope numbering; %s"
+        raise ValueError("no chain reproduces the crop; %s"
                          % {k: len(v) for k, v in kept.items()})
     bid = [c for c in kept if c != tid]
     if len(bid) != 1:
@@ -100,11 +117,11 @@ def measure(pdb_path, blen):
     ba = np.array([a.get_coord() for r in bres for a in r])
     on = off = 0
     touched = []
-    for r in kept[tid]:
+    for i, r in enumerate(kept[tid]):
         ra = np.array([a.get_coord() for a in r])
         if np.min(np.linalg.norm(ra[:, None, :] - ba[None, :, :], axis=-1)) <= 4.5:
-            if r.id[1] in EPITOPE:
-                on += 1; touched.append(r.id[1])
+            if KEPT[i] in EPITOPE:
+                on += 1; touched.append(KEPT[i])
             else:
                 off += 1
     rec = dict(on_site=on, off_site=off, n_epitope=len(EPITOPE),

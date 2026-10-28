@@ -73,14 +73,25 @@ def score_switch(pdb_path, label):
     return pka_switch.analyse(pdb_path, binder, target, label=label)
 
 # ---------------------------------------------------------------- find the previous run
-src = (glob.glob("/kaggle/input/**/tfr1_designs.json", recursive=True)
-       + glob.glob("%s/tfr1_designs.json" % W))
+# The measured file is preferred and the raw one is a fallback: the first generation run
+# wrote tfr1_designs.json with no on_site field at all (save_pdb renumbers the target, so
+# the worker could not find it), and cellTFR1d_remeasure.py recovers those numbers on CPU.
+# Without on_site there is nothing to rank by, so this refuses rather than scanning blind.
+src = sum([glob.glob(p_, recursive=True) for p_ in
+           ("/kaggle/input/**/tfr1_designs_measured.json",
+            "%s/tfr1_designs_measured.json" % W,
+            "/kaggle/input/**/tfr1_designs.json",
+            "%s/tfr1_designs.json" % W)], [])
 if not src:
-    raise SystemExit("no tfr1_designs.json found. Attach the tfr1_generate notebook's "
-                     "output as an input dataset and run again.")
+    raise SystemExit("no design file found. Attach the tfr1_generate notebook's output as "
+                     "an input dataset and run again.")
 DESIGNS = json.load(open(src[0]))
 ROOT = os.path.dirname(src[0])
 log("loaded %d designs from %s" % (len(DESIGNS), src[0]))
+if not any("on_site" in d for d in DESIGNS):
+    raise SystemExit("no design carries an on_site count - run cellTFR1d_remeasure.py "
+                     "first, or there is nothing to tell an epitope binder from a design "
+                     "stuck to the cut face of the crop")
 
 # Does predicted confidence track epitope accuracy on THIS task? On GLP-1R it anti-correlated
 # (-0.96, -0.67), but that was a buried channel. This is a surface epitope and the finding may
