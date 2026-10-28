@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 17 | 2026-10-28 | We had been doing half the pipeline |
 | 16 | 2026-10-28 | We were measuring in inches and asking in yards |
 | 15 | 2026-10-28 | The binders went to the hole in the wall |
 | 14 | 2026-10-28 | 47 designs, none of them measured |
@@ -22,6 +23,124 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 17. 2026-10-28 - We had been doing half the pipeline
+
+### Where we are
+
+Three jobs running at once on two platforms. The important one is not more computing power -
+it is a step we had been skipping since the first challenge.
+
+### The missing half
+
+The standard way to design a binder has two stages:
+
+1. **Shape it.** Work out a physical shape that fits the target.
+2. **Write it.** Work out which amino acids to use for that shape.
+
+We have only ever done stage 1. The design program does both at once, badly - which is
+exactly what our measurements showed. The three designs that reached the target spot had
+sequences containing eight prolines in a row and nine asparagines in a row. **Those are
+writing defects, not shape defects.** The shapes were sitting on the right spot.
+
+**ProteinMPNN** does stage 2 properly: hold the shape fixed, rewrite the sequence for it. It
+turns out to be bundled inside the software we already install, weights and all, so there was
+nothing to download, it needs no graphics card, and it ran while both cards were busy.
+
+I should be plain that this is a gap in how I have run all three challenges, not a new idea.
+
+### A second thing I got wrong
+
+I have told you three times that we have never computed the score the organisers record
+alongside ours. I never checked *why*. That score needs two files - the structure and a
+confidence matrix - and **we only ever save the structure**. So it was not merely undone, it
+was impossible, and the run going on right now will not produce the input for it either.
+
+It needs a short run on a graphics card to produce that second file for the final designs.
+A few minutes, but it has to be scheduled.
+
+### A second platform, and the trap in it
+
+Kaggle gives 30 hours of graphics card a week and we are nearly out. Colab has a separate
+free allowance, so the same job runs there too.
+
+The trap: Colab's current setup ships a numerical library five major versions newer than our
+design software expects, and it would almost certainly have broken. Colab lets you pick an
+older setup, so I did, and **ran a two-line compatibility test as its own step before
+committing any design time.** It passed. That check cost two minutes and would have cost an
+hour of confused debugging if skipped.
+
+### The diagram
+
+The rendered diagram in chat shows the three jobs and what each one needs from the others.
+Green needs no graphics card at all.
+
+```mermaid
+flowchart TD
+    A[Run 2 on Kaggle<br/>two cards, both target spots] -->|new designs| D[Choose the final 20]
+    B[Run 2 on Colab<br/>one card, separate allowance] -->|more designs| D
+    C[Rewrite sequences<br/>no card needed] -->|repaired candidates| E[Short card run<br/>confirm they still bind]
+    E --> D
+    E -->|also saves the missing<br/>confidence file| F[The organisers' score<br/>finally computable]
+    F --> D
+    style C fill:#0F6E56,stroke:#04342C,color:#ffffff
+    style F fill:#854F0B,stroke:#412402,color:#ffffff
+```
+
+### What you have now
+
+Running:
+
+- Kaggle `notebook2e4cbf5468` - generation run 2, two cards, both target spots, 4 h 10 m.
+- Kaggle `notebook62537b8821` - the sequence rewrite. **No graphics card, so no quota.**
+- Colab - the same generation on one card, from its own free allowance.
+
+New:
+
+- [kaggle/cellTFR1g_mpnn.py](kaggle/cellTFR1g_mpnn.py) - the rewrite step. It refuses to run
+  unless it knows which shapes are on target, because rewriting the sequence of a shape stuck
+  to the wrong surface just produces a tidier wrong answer.
+- [colab/tfr1_run2_colab.py](colab/tfr1_run2_colab.py) - the second platform.
+
+Not done:
+
+- **Nothing is confirmed.** Rewritten sequences still have to fold and still have to bind,
+  and that check has not run.
+- The organisers' score is still not computed, for the reason above.
+- Nothing is submitted. Deadline Sunday, final Saturday afternoon.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Add the sequence-rewriting step | Only add more computing power | Our failure was writing, not shape, on the designs that mattered |
+| Run it without a graphics card | Queue it behind the big runs | It needs none, so it costs nothing to run now |
+| Refuse to rewrite off-target shapes | Rewrite everything | A tidy sequence on the wrong surface is still wrong, and would look better than it is |
+| Test compatibility as its own step | Launch and hope | The library gap was five major versions; this would have failed an hour in |
+| Pick an older Colab setup | Use the current one | The current one ships a library our software predates |
+
+### Jargon decoder
+
+- **ProteinMPNN** - software that writes a sequence for a shape you give it.
+- **backbone / shape** - the fold, without deciding which amino acids fill it.
+- **homopolymer run** - eight prolines in a row. What a stuck optimiser writes.
+- **confidence matrix (PAE)** - a by-product of the folding prediction. We never saved it,
+  which is why the organisers' score was impossible.
+
+### What is next, and what could go wrong
+
+Next: read the first designs out of both generation runs, and the rewrite results.
+
+Honestly:
+
+- **Rewriting sequences does not fix aim.** If run 2's binders still miss the spot, the
+  rewrite has nothing good to work from.
+- The rewritten sequences are unverified in the strongest sense: the software that wrote them
+  is the software judging them. An independent fold check is required and has not run.
+- Running three jobs at once raises the chance I misread which result came from where. The
+  measurement code is identical across platforms and every design records its origin, which
+  is the guard against that.
+- Three days left.
 
 ## 16. 2026-10-28 - We were measuring in inches and asking in yards
 
