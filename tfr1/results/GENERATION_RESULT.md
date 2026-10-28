@@ -1,5 +1,10 @@
 # Generation run 1: the designs bind the wrong surface
 
+> **Superseded in part by [PROBE_RESULT.md](PROBE_RESULT.md).** The explanation below -
+> that the hotspot "biases the optimiser; it does not constrain it" and that "the bias lost" -
+> is wrong. The hotspot term was SATISFIED: its contact cutoff is 21.4 A and the cut face
+> sits 6.5 A from the epitope. The measurements in this file stand; the diagnosis does not.
+
 Measured 2026-10-28 by `kaggle/cellTFR1d_remeasure.py` (notebook `tfr1_remeasure`, version 2,
 CPU, 43 s). Both crops verified first: e559 108 residues / 13 epitope, l537 139 residues /
 14 epitope, kept list agrees with the crop PDB in both cases. 47 of 47 designs measured, no

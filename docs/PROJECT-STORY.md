@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 16 | 2026-10-28 | We were measuring in inches and asking in yards |
 | 15 | 2026-10-28 | The binders went to the hole in the wall |
 | 14 | 2026-10-28 | 47 designs, none of them measured |
 | 13 | 2026-10-27 | The acid switch becomes a sum, and where to put the histidines |
@@ -21,6 +22,142 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 16. 2026-10-28 - We were measuring in inches and asking in yards
+
+### Where we are
+
+We know why last night's designs went to the wrong place, and it is not what I thought
+twice. The one-hour test came back with both of my explanations wrong, and reading the
+design program's own source code gave the real answer. The fix is a single setting. Five
+hours of graphics-card time are left this week and run 2 is written and ready.
+
+### What the test said
+
+Two arms, one hour, on budget to the minute. Neither worked:
+
+| what we tried | designs | average touches on target | reached 4+ |
+|---|---|---|---|
+| last night, for comparison | 47 | 0.96 | 3 |
+| pull harder toward the spot | 8 | 1.25 | 1 |
+| hand over a smaller piece | 11 | **0.00** | 0 |
+
+Pulling harder did nothing you could distinguish from chance. The smaller piece was worse -
+zero, across eleven designs.
+
+### The real answer, in the analogy
+
+Keep the house. We cut out one wall and asked the designer to bind the doorway. Thirty-two
+of forty-seven bound the raw cut edge instead.
+
+I assumed the "aim for the doorway" instruction was being outvoted. It was not. **It was
+being satisfied.**
+
+Buried in the program's settings is what counts as "touching". We check our designs at
+**4.5 angstrom** - close enough that atoms are genuinely in contact. The program's own
+instruction counted anything closer than **21.4 angstrom** as touching. That is roughly five
+times further away. And the raw cut edge sits 6.5 angstrom from the doorway.
+
+So a design gripping the cut edge was comfortably "within 21 angstrom of the doorway", the
+instruction read as fully met, and nothing pushed it any closer. **We asked for "be in the
+same room as the doorway" and then graded on "has a hand on the handle."**
+
+That also explains both failed arms at once. Pulling harder on an instruction that is
+already satisfied changes nothing. And a smaller piece of wall makes "within 21 angstrom"
+easier still, while leaving less to grip - which is exactly the zero we measured.
+
+For scale, the same settings file asks for 14 angstrom when checking the design's contacts
+with *itself*. The interface was the loosest of the two by a wide margin.
+
+### How we found it
+
+Not by guessing. The test printed the settings actually in force, and one line stood out:
+every term in the scoring had a weight of zero except the interface one. So "weight it
+higher" could not have been the problem - it was already the whole score. That pointed at
+*what the term measures* rather than *how much it counts*, and the program's source code is
+public, so I read it.
+
+This is worth noting because the first two explanations were both mine and both wrong. The
+test was worth its hour for eliminating them, not for what it produced.
+
+### The diagram
+
+The rendered diagram in chat shows the two distances side by side. The grey bar is what the
+designer was asked for; the teal bar is what we grade on; the coral marker is where the cut
+edge sits.
+
+```mermaid
+flowchart TD
+    A[Instruction given to the designer<br/>anything under 21.4 angstrom counts] --> B{Binder on the raw cut edge<br/>6.5 angstrom from the doorway}
+    B -->|under 21.4, so the instruction is met| C[Optimiser stops<br/>nothing pushes it closer]
+    C --> D[Our grading at 4.5 angstrom<br/>scores it zero]
+    A --> E[Fix: ask for 8 angstrom<br/>and a six-residue footprint]
+    E --> F[Instruction no longer met<br/>by sitting on the edge]
+    style C fill:#993C1D,stroke:#712B13,color:#ffffff
+    style D fill:#993C1D,stroke:#712B13,color:#ffffff
+    style F fill:#0F6E56,stroke:#04342C,color:#ffffff
+```
+
+### What you have now
+
+Works now, and ran:
+
+- The probe, on Kaggle as `tfr1_probe`: 1 h 00 m 39 s, successful, 19 designs, no overrun.
+- [tfr1/results/PROBE_RESULT.md](tfr1/results/PROBE_RESULT.md) - the measurements, the source
+  reading and the fix. This is the one to open.
+
+Written, not yet run:
+
+- [kaggle/cellTFR1f_run2.py](kaggle/cellTFR1f_run2.py) - run 2. One change from last night:
+  ask for 8 angstrom instead of 21.4, and for six real contacts rather than an average over
+  all thirteen. It **refuses to start a design if the setting did not actually take effect**,
+  rather than spending the last of the quota repeating last night. It prints each design's
+  on-target count as it finishes, so it can be stopped early if it is still not working.
+
+Corrected, so you are not left with the old version:
+
+- [tfr1/results/GENERATION_RESULT.md](tfr1/results/GENERATION_RESULT.md) says the aiming hint
+  "biases but does not constrain, and the bias lost". That is wrong. The hint was satisfied
+  at 21 angstrom. The file now points at the newer one.
+
+Not done:
+
+- **Still zero usable designs.** Run 2 has not started.
+- Nothing is submitted. Deadline Sunday 1 November, final Saturday afternoon.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Spend an hour testing before five | Commit all six hours to a guess | Both guesses were wrong; the hour bought the real answer |
+| Read the program's source | Try a third setting | The printed weights ruled out the weight explanation outright |
+| Keep last night's piece of wall | Keep tightening it | The smaller piece measured zero across eleven designs |
+| Ask for six contacts, not all thirteen | Demand the whole patch | A 65-residue binder cannot reach thirteen spread-out residues, and an impossible target gives as little guidance as an already-met one |
+| Make run 2 refuse if the setting does not bite | Trust it and watch the log | A silent no-op would cost the rest of the week |
+
+### Jargon decoder
+
+- **angstrom** - a ten-billionth of a metre. Atoms in contact are about 4 apart; 21 is far.
+- **cutoff** - the distance the program is told to treat as "touching". The whole story.
+- **the interface term** - the part of the score covering the join between the two proteins.
+- **footprint** - how many residues of the target a binder actually sits on.
+- **weight** - how much a part of the score counts. Was never the problem here.
+
+### What is next, and what could go wrong
+
+Next: launch run 2 with the corrected setting, and read it after the first few designs rather
+than at the end.
+
+Honestly:
+
+- **The fix removes a reason the designs could not work. It does not prove they will.** There
+  may be a second reason behind the first.
+- Asking for 8 angstrom is a much harder target than 21. The designs may come back with
+  fewer, lower-confidence results that reach the epitope but are not buildable - which is
+  what the three on-target designs from last night already looked like.
+- This is the last of the week's quota. If run 2 fails there is no second attempt before the
+  deadline, only whatever can be salvaged from the designs we have.
+- Three days left.
 
 ## 15. 2026-10-28 - The binders went to the hole in the wall
 
