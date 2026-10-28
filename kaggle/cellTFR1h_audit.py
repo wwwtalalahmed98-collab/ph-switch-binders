@@ -67,10 +67,23 @@ HYDROPHOBIC = set("AVLIMFWYC")
 # charged and 30-35% hydrophobic; de novo helical bundles run more charged than natural for
 # solubility, commonly 30-40%. "good" is near natural, "marginal" is designed-protein
 # territory, "fail" is past anything that folds.
+# TWO-SIDED, because the first version of this was not and it flattered junk. With only a
+# floor on hydrophobic content and a ceiling on charge, tfr1_e559_022 scored "good" at 64%
+# hydrophobic, Kyte-Doolittle +0.81 and an 8-residue AAAAAAAA run - a hydrophobic aggregate,
+# which is the liability the Kyte-Doolittle screen existed for on the previous challenge. The
+# two failure modes are opposite and a screen that only looks for one ranks the other as good.
+#   too charged     -> polyelectrolyte, does not fold          (what MPNN produced)
+#   too hydrophobic -> aggregates, does not express cell-free  (what hallucination produced)
+# Anchors: natural globular proteins near 25% charged, 30-35% hydrophobic; soluble designed
+# binders sit near Kyte-Doolittle -0.3 to -1.0, and positive means net hydrophobic.
 TIERS = [
-    ("good",     dict(charge_run=8,  charged_frac=0.40, hydrophobic_frac=0.25)),
-    ("marginal", dict(charge_run=14, charged_frac=0.55, hydrophobic_frac=0.18)),
+    ("good", dict(same_run=5, charge_run=8, charged=(0.18, 0.40),
+                  hydrophobic=(0.25, 0.42), kd=(-1.5, 0.0))),
+    ("marginal", dict(same_run=6, charge_run=14, charged=(0.10, 0.55),
+                      hydrophobic=(0.20, 0.50), kd=(-2.2, 0.3))),
 ]
+KD = dict(A=1.8, R=-4.5, N=-3.5, D=-3.5, C=2.5, Q=-3.5, E=-3.5, G=-0.4, H=-3.2, I=4.5,
+          L=3.8, K=-3.9, M=1.9, F=2.8, P=-1.6, S=-0.8, T=-0.7, W=-0.9, Y=-1.3, V=4.2)
 
 T31 = {"ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q", "GLU": "E",
        "GLY": "G", "HIS": "H", "ILE": "I", "LEU": "L", "LYS": "K", "MET": "M", "PHE": "F",
@@ -108,29 +121,53 @@ def class_run(seq, group):
     return best
 
 
+def same_run(seq):
+    best = cur = 1
+    for i in range(1, len(seq)):
+        cur = cur + 1 if seq[i] == seq[i - 1] else 1
+        best = max(best, cur)
+    return best
+
+
 def composition(seq):
     n = float(len(seq))
     return dict(charged_frac=round(sum(c in CHARGED for c in seq) / n, 3),
                 hydrophobic_frac=round(sum(c in HYDROPHOBIC for c in seq) / n, 3),
-                charge_run=class_run(seq, CHARGED))
+                charge_run=class_run(seq, CHARGED),
+                same_run=same_run(seq),
+                kd=round(sum(KD[c] for c in seq) / n, 3))
+
+
+def _fails(c, lim):
+    why = []
+    if c["same_run"] > lim["same_run"]:
+        why.append("%d identical in a row" % c["same_run"])
+    if c["charge_run"] > lim["charge_run"]:
+        why.append("%d charged in a row" % c["charge_run"])
+    lo, hi = lim["charged"]
+    if c["charged_frac"] > hi:
+        why.append("%.0f%% charged" % (100 * c["charged_frac"]))
+    elif c["charged_frac"] < lo:
+        why.append("only %.0f%% charged" % (100 * c["charged_frac"]))
+    lo, hi = lim["hydrophobic"]
+    if c["hydrophobic_frac"] > hi:
+        why.append("%.0f%% hydrophobic" % (100 * c["hydrophobic_frac"]))
+    elif c["hydrophobic_frac"] < lo:
+        why.append("only %.0f%% hydrophobic" % (100 * c["hydrophobic_frac"]))
+    lo, hi = lim["kd"]
+    if c["kd"] > hi:
+        why.append("Kyte-Doolittle %+.2f, net hydrophobic" % c["kd"])
+    elif c["kd"] < lo:
+        why.append("Kyte-Doolittle %+.2f, extremely polar" % c["kd"])
+    return why
 
 
 def composition_tier(c):
-    """Returns (tier, why) where tier is good / marginal / fail."""
+    """Returns (tier, why) where tier is good / marginal / fail. Two-sided on every axis."""
     for tier, lim in TIERS:
-        if (c["charge_run"] <= lim["charge_run"]
-                and c["charged_frac"] <= lim["charged_frac"]
-                and c["hydrophobic_frac"] >= lim["hydrophobic_frac"]):
+        if not _fails(c, lim):
             return tier, ""
-    loose = TIERS[-1][1]
-    why = []
-    if c["charge_run"] > loose["charge_run"]:
-        why.append("%d charged in a row" % c["charge_run"])
-    if c["charged_frac"] > loose["charged_frac"]:
-        why.append("%.0f%% charged" % (100 * c["charged_frac"]))
-    if c["hydrophobic_frac"] < loose["hydrophobic_frac"]:
-        why.append("only %.0f%% hydrophobic" % (100 * c["hydrophobic_frac"]))
-    return "fail", "; ".join(why)
+    return "fail", "; ".join(_fails(c, TIERS[-1][1]))
 
 
 # ---------------------------------------------------------------- inputs
@@ -231,17 +268,17 @@ if mp:
 else:
     print("(no tfr1_mpnn.json attached - checking the original designs only)\n")
 
-print("%-24s %6s %7s %8s %8s %9s  %s"
-      % ("sequence", "source", "charged", "hydroph", "chg-run", "tier", "why"))
+print("%-24s %6s %7s %7s %7s %5s %5s %9s  %s"
+      % ("sequence", "source", "charged", "hydroph", "kd", "same", "chg", "tier", "why"))
 graded = []
 for src, name, seq, on in sorted(pool, key=lambda x: -x[3]):
     c = composition(seq)
     tier, why = composition_tier(c)
     graded.append(dict(source=src, name=name, sequence=seq, on_site=on, tier=tier, **c))
     if src == "mpnn" or on >= 2:
-        print("%-24s %6s %6.0f%% %7.0f%% %8d %9s  %s"
+        print("%-24s %6s %6.0f%% %6.0f%% %+7.2f %5d %5d %9s  %s"
               % (name[:24], src, 100 * c["charged_frac"], 100 * c["hydrophobic_frac"],
-                 c["charge_run"], tier, why))
+                 c["kd"], c["same_run"], c["charge_run"], tier, why))
 
 print("\ncomposition tiers, by source:")
 for src in ("run1", "mpnn"):
@@ -258,11 +295,24 @@ if not clean:
     print("  Nothing survives. These thresholds are GENEROUS against natural proteins at")
     print("  25% charged, so this says the backbones are the problem, not the sequences.")
 
-print("\nleast-bad by composition, regardless of tier:")
-for g in sorted(graded, key=lambda g: (g["charge_run"], g["charged_frac"]))[:8]:
-    print("  %-24s %6s  %3.0f%% charged, %3.0f%% hydrophobic, run %2d  [%s]"
+def distance(g):
+    """Distance from natural composition. Ranking on a single axis rewards whichever
+    failure mode is extreme in the other direction, which is how a 64%-hydrophobic
+    aggregate came top of the first version of this list."""
+    return (abs(g["charged_frac"] - 0.25) / 0.25
+            + abs(g["hydrophobic_frac"] - 0.32) / 0.32
+            + abs(g["kd"] + 0.6) / 1.0
+            + max(0, g["same_run"] - 5) / 5.0
+            + max(0, g["charge_run"] - 8) / 8.0)
+
+
+print("\nclosest to natural composition, regardless of tier:")
+print("  (reference: 25% charged, 32% hydrophobic, Kyte-Doolittle about -0.6)")
+for g in sorted(graded, key=distance)[:12]:
+    print("  %-24s %6s  %3.0f%% chg, %3.0f%% phob, kd %+.2f, runs %d/%d  [%s] d=%.2f"
           % (g["name"][:24], g["source"], 100 * g["charged_frac"],
-             100 * g["hydrophobic_frac"], g["charge_run"], g["tier"]))
+             100 * g["hydrophobic_frac"], g["kd"], g["same_run"], g["charge_run"],
+             g["tier"], distance(g)))
 
 out = dict(contacts=rows, clean=clean)
 outpath = "%s/tfr1_audit.json" % (W if os.path.isdir(W) else ".")
