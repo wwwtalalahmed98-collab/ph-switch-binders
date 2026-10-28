@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 14 | 2026-10-28 | 47 designs, none of them measured |
 | 13 | 2026-10-27 | The acid switch becomes a sum, and where to put the histidines |
 | 12 | 2026-10-27 | Sugar moved the target spot, and why it moved three times |
 | 11 | 2026-10-26 | Challenge 4 plan: the pH switch becomes a calculation |
@@ -19,6 +20,149 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 14. 2026-10-28 - 47 designs, none of them measured
+
+### Where we are
+
+The overnight run finished without crashing and produced 47 designs. Not one of them was
+measured for whether it binds the spot we chose, so right now we cannot rank any of them.
+The measurement can be recovered without spending any more GPU time.
+
+### Why this step mattered
+
+The whole plan rests on one number per design: how many contacts it makes with the patch of
+the target we picked, versus contacts anywhere else. The patch was chosen over three
+revisions of filtering, and the target we hand the designer is a **cut-out piece** of the
+real protein. Cutting it exposes about 3,400 square angstrom of inside surface that does not
+exist in the living molecule. A design that sticks to that cut face looks perfectly
+confident and is worthless. On-site versus off-site contacts is the only thing that tells
+the two apart.
+
+### What happened
+
+The run itself was fine: 5 hours 48 minutes, two GPUs, 47 designs, no cysteines anywhere
+(the buildability problem from the last challenge did not recur), and the checks on the
+target all passed before designing started.
+
+But every one of the 47 records carries the same failure line, and the reason is a numbering
+clash. Think of the target as a **house with numbered rooms**. We chose rooms 559, 560, 561
+and a dozen others. The design program, when it saves its work, **renumbers every room from
+1**. So the script went looking for room 559, found only rooms 1 to 108, and correctly
+refused to guess which of the two chains in the file was the house and which was the visitor.
+
+It was right to refuse - guessing wrong there is how an earlier pass in this project
+produced numbers that meant nothing. But it refused 47 times out of 47, so the run produced
+sequences and no measurements.
+
+### Why it is recoverable
+
+The renumbering is not random. When the target was cut out, the list of rooms kept was
+written down in order, so room 1 in the saved file is the first room on that list, room 2 is
+the second, and so on. The old numbers can be read straight back off the list.
+
+That is an **assumption** about how the program orders what it saves, so it is checked
+rather than believed: the recovery script confirms that the chain it thinks is the target
+reproduces the cut-out piece residue for residue, and reports and skips any design where it
+does not. If the assumption is wrong, we find out instead of getting confident wrong numbers.
+
+**The recovery runs on an ordinary processor, not a graphics card.** It costs none of the 12
+graphics-card hours left this week.
+
+### What the 47 look like so far
+
+Judged only on the numbers we do have - which do not include where they bind:
+
+| | out of 47 |
+|---|---|
+| confidence at or above 0.70 | 5 |
+| confidence at or above 0.60 | 15 |
+| containing cysteine (the last challenge's liability) | 0 |
+| with a run of 7 or more identical residues | 23 |
+
+That last row is the uncomfortable one. Nearly half the set contains stretches like nine
+leucines or nine prolines in a row. Those are not real proteins; they are what the optimiser
+falls back on when it cannot find a real answer. The honest read is that **this run found
+few good binders**, and we will know how few only after the measurement is recovered.
+
+### The diagram
+
+The rendered diagram in chat shows what the run did and where it broke. The red box is the
+break; the green box is the free step that recovers it.
+
+```mermaid
+flowchart TD
+    A[Cut-out piece of the target<br/>rooms numbered 287-727] --> B[Design run<br/>5h 48m, 2 GPUs]
+    B -->|47 designs, no cysteines| C[Saved to file]
+    C -->|rooms renumbered 1-108| D[Looked for room 559<br/>could not find it]
+    D --> E[Refused to guess<br/>47 of 47 unmeasured]
+    A -->|ordered list of rooms kept| F[Read the old numbers<br/>back off the list]
+    E --> F
+    F --> G[On-site vs off-site contacts<br/>ranking becomes possible]
+    style E fill:#993C1D,stroke:#712B13,color:#ffffff
+    style F fill:#15803d,stroke:#14532d,color:#ffffff
+```
+
+### What you have now
+
+Works now:
+
+- [kaggle/cellTFR1d_remeasure.py](kaggle/cellTFR1d_remeasure.py) - the recovery step. Runs
+  on a processor, costs no graphics-card time, and refuses rather than guessing if the
+  numbering assumption does not hold. **Written and checked for syntax; it has not been run
+  yet.**
+- [kaggle/cellTFR1b_design.py](kaggle/cellTFR1b_design.py) - the same fix at the source, so
+  a re-run measures properly instead of repeating this.
+- [kaggle/cellTFR1c_hisscan.py](kaggle/cellTFR1c_hisscan.py) - now refuses to start if no
+  design carries a contact count, instead of ranking on a field that is not there.
+
+On Kaggle: 47 designs and their structures, kept as the finished run's output.
+
+Not done, and not verified:
+
+- **No design has a binding measurement yet.** Everything about which designs are good is
+  currently unknown.
+- The recovery script has not been run. Until it has, the claim that the numbering can be
+  read back off the list is reasoning, not a result.
+- Nothing is submitted. Deadline Sunday 1 November; everything needs to be final Saturday
+  afternoon, because only one submission is allowed per 24 hours.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Recover the measurement on a processor | Re-run the designs on graphics cards | The structures already exist; re-running would spend half the week's quota to learn the same thing |
+| Verify the numbering by matching the sequence | Trust that lengths matching is enough | Two chains of the right length can still be in the wrong order, and that failure is silent |
+| Fix the design script too | Only fix the recovery | The same bug would hit any re-run, and a re-run is likely given how few good designs this one produced |
+| Make the switch step refuse without contact counts | Let it rank on confidence alone | Confidence does not distinguish the epitope from the cut face - that is the whole reason the measurement exists |
+
+### Jargon decoder
+
+- **crop / cut-out piece** - a chunk of the real protein, small enough to design against.
+- **on-site / off-site contacts** - touches on the patch we chose, versus anywhere else.
+- **cysteine** - an amino acid that mispairs when the protein is made in a tube; we exclude it.
+- **run of identical residues** - nine leucines in a row; a sign the optimiser gave up.
+- **confidence (i_ptm)** - AlphaFold's own guess at whether the two pieces really stick
+  together. It does not know which part of the target they stick to.
+- **save_pdb** - the function that writes a predicted structure to a file, and the one that
+  renumbers.
+
+### What is next, and what could go wrong
+
+Next: run the recovery on Kaggle (processor only), see how many of the 47 actually touch the
+chosen patch, and only then decide whether to add histidines to these or spend graphics-card
+time on a second generation run.
+
+Honestly:
+
+- **The likeliest outcome is that very few of the 47 are usable.** Nearly half contain
+  nonsense stretches and only 5 of 47 clear a confidence of 0.70. If almost none touch the
+  patch, we need a second run, and that eats into the quota reserved for the switch scan and
+  the mouse check.
+- The recovery assumes the saved file lists residues in the order the crop kept them. It is
+  checked, but if the check fails we are back to re-running.
+- We have still never computed the score the organizers record alongside ours.
+- Three days left.
 
 ## 13. 2026-10-27 - The acid switch becomes a sum, and where to put the histidines
 
