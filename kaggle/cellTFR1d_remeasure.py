@@ -19,10 +19,14 @@ The information is not lost. The crop kept a known, ordered list of UniProt resi
 
     UniProt number of chain-A residue i  ==  kept[i - 1]
 
-That is an ASSUMPTION about how save_pdb orders residues, so it is not taken on trust: the
-amino-acid sequence of chain A is compared against the amino acids those kept numbers have
-in the real human sequence, and any design whose chain A does not match is reported and
-skipped rather than measured against a mapping that does not hold.
+That is an ASSUMPTION about how save_pdb orders residues, so it is not taken on trust. The
+cropped target PDB that was designed against is in the same output, so the target chain is
+identified by reproducing that file residue for residue - not by matching its length, which
+two chains of the same size would also pass. Any design whose chains do not match is
+reported and skipped rather than measured against a mapping that does not hold.
+
+NO NETWORK. Everything needed is in the attached output: the designs, the targets map, and
+the crop itself. Nothing is fetched, so there is no version of a reference sequence to drift.
 
 WHAT IT PRINTS. Per design: contacts on the chosen epitope and contacts anywhere else, the
 same two numbers the generation run was supposed to produce. A high off-site count means the
@@ -31,12 +35,14 @@ design found the surface the crop exposed rather than the epitope, and is reject
 import glob
 import json
 import os
-import urllib.request
 
 import numpy as np
 from Bio import PDB
 
 W = "/kaggle/working"
+# Where to look for the attached output. Overridable only so this can be run against a
+# synthetic case off Kaggle; on Kaggle the default is what applies.
+ROOTS = os.environ.get("TFR1_ROOT", "/kaggle/input|/kaggle/working").split("|")
 CONTACT = 4.5          # A, any heavy atom to any heavy atom
 T31 = {"ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q", "GLU": "E",
        "GLY": "G", "HIS": "H", "ILE": "I", "LEU": "L", "LYS": "K", "MET": "M", "PHE": "F",
@@ -44,25 +50,26 @@ T31 = {"ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q", "
 
 
 def find(name):
-    hits = glob.glob("/kaggle/input/**/%s" % name, recursive=True) + glob.glob("%s/%s" % (W, name))
+    hits = [h for root in ROOTS
+            for h in glob.glob("%s/**/%s" % (root, name), recursive=True)]
     if not hits:
         raise SystemExit("cannot find %s - attach the tfr1_generate notebook output as an "
                          "input dataset" % name)
     return hits[0]
 
 
+def find_all(*patterns):
+    for pat in patterns:
+        hits = [h for root in ROOTS
+                for h in glob.glob("%s/**/%s" % (root, pat), recursive=True)]
+        if hits:
+            return hits
+    return []
+
+
 DESIGNS = json.load(open(find("tfr1_designs.json")))
 TARGETS = json.load(open(find("tfr1_targets.json")))
 print("%d designs, sites %s" % (len(DESIGNS), sorted(TARGETS)))
-
-FA = "%s/P02786.fasta" % W
-if not os.path.exists(FA):
-    urllib.request.urlretrieve("https://rest.uniprot.org/uniprotkb/P02786.fasta", FA)
-HUMAN = "".join(l.strip() for l in open(FA) if not l.startswith(">"))
-print("human TfR1 %d aa" % len(HUMAN))
-
-for tag, M in sorted(TARGETS.items()):
-    print("%s: crop kept %d residues, epitope %d" % (tag, len(M["kept"]), len(M["epitope"])))
 
 
 def residues(chain):
@@ -75,24 +82,42 @@ def residues(chain):
     return out
 
 
+# The crop each site was designed against, read back from the output rather than rebuilt.
+# Its residue order is the order save_pdb will have written, and its residue TYPES are what
+# a design's target chain has to reproduce for the kept-list mapping to be valid.
+CROP = {}
+for tag, M in sorted(TARGETS.items()):
+    path = find(os.path.basename(M["target"]))
+    rs = residues(list(PDB.PDBParser(QUIET=True).get_structure("t", path)[0])[0])
+    CROP[tag] = [r.get_resname() for r in rs]
+    if len(CROP[tag]) != len(M["kept"]):
+        raise SystemExit("%s: crop PDB has %d residues but the kept list has %d - the two "
+                         "do not describe the same target" % (tag, len(CROP[tag]),
+                                                              len(M["kept"])))
+    print("%s: crop %d residues, epitope %d, kept list agrees"
+          % (tag, len(CROP[tag]), len(M["epitope"])))
+
+
 def measure(pdb_path, tag):
     M = TARGETS[tag]
     kept, epitope = M["kept"], set(M["epitope"])
     model = PDB.PDBParser(QUIET=True).get_structure("c", pdb_path)[0]
     chains = {c.id: residues(c) for c in model}
 
-    # the target is the chain whose length matches the crop AND whose sequence matches the
-    # kept residues in the real human sequence; the binder is the other one
-    want = "".join(HUMAN[n - 1] for n in kept)
+    # the target is the chain that reproduces the crop residue for residue; the binder is
+    # the other one. Matching on length alone would also accept a same-sized binder.
+    want = CROP[tag]
     tid = None
     for cid, rs in chains.items():
-        if len(rs) == len(kept) and "".join(T31[r.get_resname()] for r in rs) == want:
+        if [r.get_resname() for r in rs] == want:
             tid = cid
             break
     if tid is None:
-        got = {c: (len(rs), "".join(T31[r.get_resname()] for r in rs)[:20]) for c, rs in chains.items()}
-        raise ValueError("no chain matches the crop sequence; expected %d residues starting "
-                         "%s, saw %s" % (len(kept), want[:20], got))
+        got = {c: (len(rs), "".join(T31[r.get_resname()] for r in rs)[:20])
+               for c, rs in chains.items()}
+        raise ValueError("no chain reproduces the crop; expected %d residues starting %s, "
+                         "saw %s" % (len(want),
+                                     "".join(T31[x] for x in want[:20]), got))
     bid = [c for c in chains if c != tid]
     if len(bid) != 1:
         raise ValueError("expected one binder chain, got %s" % bid)
@@ -121,8 +146,7 @@ def measure(pdb_path, tag):
 
 out, failed = [], []
 for d in DESIGNS:
-    hits = (glob.glob("/kaggle/input/**/tfr1_%s/%s.pdb" % (d["site"], d["name"]), recursive=True)
-            or glob.glob("/kaggle/input/**/%s.pdb" % d["name"], recursive=True))
+    hits = find_all("tfr1_%s/%s.pdb" % (d["site"], d["name"]), "%s.pdb" % d["name"])
     if not hits:
         failed.append((d["name"], "structure not found"))
         continue
@@ -139,7 +163,9 @@ print("\nmeasured %d of %d designs" % (len(out), len(DESIGNS)))
 for n, why in failed:
     print("  FAILED %s: %s" % (n, why))
 
-json.dump(out, open("%s/tfr1_designs_measured.json" % W, "w"), indent=0)
+outpath = "%s/tfr1_designs_measured.json" % (W if os.path.isdir(W) else ".")
+json.dump(out, open(outpath, "w"), indent=0)
+print("wrote %s" % outpath)
 
 out.sort(key=lambda r: (r["on_site"], r["true_iptm"]), reverse=True)
 print("\n%-18s %4s %6s %6s %6s %5s %5s %6s %4s %4s" % ("design", "len", "i_ptm", "pLDDT",
