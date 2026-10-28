@@ -49,7 +49,12 @@ import textwrap
 import urllib.request
 
 W = "/kaggle/working"
-BUDGET_MIN = 285                # 4 h 45 m per worker, leaving room to write results
+BUDGET_MIN = 250                # 4 h 10 m per worker. Kaggle reports 5 h of quota left
+                                # and the setup (params download, both crops, checks) takes
+                                # about 20 min, so this leaves ~30 min of margin. Overrunning
+                                # does not just truncate the run - the session is killed when
+                                # the quota ends, and /kaggle/working may not be saved, which
+                                # would lose every design rather than the last few.
 LEN_MIN, LEN_MAX = 55, 80
 I_CON = dict(cutoff=8.0, num=1, num_pos=6)   # the correction; see the header
 
