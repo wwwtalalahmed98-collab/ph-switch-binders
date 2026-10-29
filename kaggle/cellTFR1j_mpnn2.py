@@ -64,6 +64,17 @@ def find(name):
     return hits[0] if hits else None
 
 
+def site_of(d):
+    """Run 2 records the epitope as "arm" because that script was derived from the probe;
+    run 1 called it "site". Accept either rather than assume, and say so if neither is
+    there, because a wrong key here silently picks the wrong crop to match against."""
+    for k in ("site", "arm"):
+        if k in d:
+            return d[k]
+    raise SystemExit("design %s has neither 'site' nor 'arm'; keys are %s"
+                     % (d.get("name"), sorted(d)))
+
+
 def residues(chain):
     out, seen = [], set()
     for r in chain:
@@ -166,6 +177,7 @@ print("ProteinMPNN v_48_020 loaded\n")
 
 records = []
 for d in cands:
+    site = site_of(d)
     pdb_path = find("%s.pdb" % d["name"])
     if pdb_path is None:
         print("%s: no structure found, skipped" % d["name"])
@@ -173,7 +185,7 @@ for d in cands:
     model = PDB.PDBParser(QUIET=True).get_structure("c", pdb_path)[0]
     chains = {c.id: residues(c) for c in model}
     tid = next((cid for cid, rs in chains.items()
-                if [r.get_resname() for r in rs] == CROP[d["site"]]), None)
+                if [r.get_resname() for r in rs] == CROP[site]), None)
     if tid is None:
         print("%s: no chain reproduces the crop, skipped" % d["name"])
         continue
@@ -218,7 +230,7 @@ for d in cands:
              tiers["fail"], ("%.2f" % keep[0]["distance"]) if keep else "none"))
 
     for i, r in enumerate(keep, 1):
-        r.update(name="%s_r%02d" % (d["name"], i), parent=d["name"], site=d["site"],
+        r.update(name="%s_r%02d" % (d["name"], i), parent=d["name"], site=site,
                  length=len(r["sequence"]), on_site_parent=d["on_site"],
                  off_site_parent=d.get("off_site"), parent_iptm=d.get("true_iptm"),
                  parent_plddt=d.get("plddt"), parent_sequence=orig,
