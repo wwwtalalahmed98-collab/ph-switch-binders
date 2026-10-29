@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 19 | 2026-10-29 | We have never made one that is both |
 | 18 | 2026-10-28 | The fix worked on one spot and broke the other |
 | 17 | 2026-10-28 | We had been doing half the pipeline |
 | 16 | 2026-10-28 | We were measuring in inches and asking in yards |
@@ -24,6 +25,140 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 19. 2026-10-29 - We have never made one that is both
+
+### Where we are
+
+The main run finished cleanly. The aim fix holds up at full size. And a check I wrote
+yesterday has turned up the single most important fact in this challenge so far, which is
+not good news.
+
+### The fact
+
+Every design we hold that **looks like a real protein** touches the target spot **zero**
+times. Every design that **touches the target spot** does not look like a real protein.
+
+Across 47 designs from the first run, 36 from the second, and 19 from the test, we have
+**never once produced a design that is both**.
+
+That is not a near miss. The two lists do not overlap at all.
+
+### How we know, and why we did not know before
+
+Yesterday's quality screen was bent - it had a limit on one side of each measure and not the
+other, so it awarded "good" to designs that were 64% oily with eight identical residues in a
+row. Fixed to check both sides, the numbers changed completely:
+
+| | good | marginal | fail |
+|---|---|---|---|
+| first run's own sequences, 47 | 5 | 15 | 27 |
+| the rewritten sequences, 39 | **0** | 13 | 26 |
+
+And then cross-referencing those five "good" ones against where they bind: all five have zero
+contacts with the chosen spot. The best-looking sequence we own is a design that binds
+nothing we care about.
+
+**Any sequence-quality comparison from before this fix should be ignored.** It was measured
+with the bent ruler.
+
+### The aim fix, confirmed at full size
+
+| | designs | average touches | reached 4+ |
+|---|---|---|---|
+| first run, e559 | 27 | 1.22 | 3 (11%) |
+| second run, e559, Kaggle | 21 | 2.71 | 8 (38%) |
+| second run, e559, Colab | 11 | 3.27 | 5 (45%) |
+| **second run, both** | **32** | **2.9** | **13 (41%)** |
+
+Roughly four times as many designs reach the target spot. Two machines, different random
+starts, same answer. The diagnosis was right.
+
+The other spot, l537, is confirmed dead under the same setting: **15 designs, average 0.07,
+none reaching even two.** Same change, opposite outcome.
+
+### What this means, plainly
+
+We solved aim. We did not solve folding, and the two have been trading off against each
+other the whole time:
+
+- push for folding quality -> the design binds the wrong surface
+- push for aim -> the design stops being a protein
+
+Nothing in the pipeline has yet produced both at once, and **two days remain**.
+
+### The diagram
+
+The rendered diagram in chat shows the two lists and the empty space between them. The empty
+box is the entire problem.
+
+```mermaid
+flowchart TD
+    A[Everything we have designed<br/>102 designs across three runs] --> B[Looks like a protein<br/>5 designs]
+    A --> C[Touches the target spot<br/>21 designs]
+    B --> D[Both<br/>ZERO]
+    C --> D
+    style D fill:#993C1D,stroke:#712B13,color:#ffffff
+    style B fill:#0F6E56,stroke:#04342C,color:#ffffff
+    style C fill:#0F6E56,stroke:#04342C,color:#ffffff
+```
+
+### What you have now
+
+Finished and read:
+
+- Kaggle run 2: 4 h 21 m, 36 designs, successful.
+- Colab: 11 designs before its session ended. Its designs are in the notebook output.
+- The audit, with the corrected two-sided screen.
+
+Eight designs from the main run reach four or more contacts on the chosen spot. Their folding
+confidence runs 0.44 to 0.64, and their sequences contain runs of up to 22 identical
+residues. Those are the shapes worth rewriting - and rewriting them has not been tried yet,
+because yesterday's rewrite was done on the first run's shapes, not these.
+
+Not done:
+
+- **No design is both on target and buildable.**
+- No design has a measured acid-release switch, which is what this challenge scores.
+- The organisers' own score still cannot be computed - we do not save the file it needs.
+- Nothing is submitted.
+
+Budget: **1 hour 28 minutes** of Kaggle graphics time left this week, plus whatever Colab
+gives.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Fix the screen before trusting it | Act on yesterday's ranking | The bent version called a 64% oily aggregate "good" |
+| Cross-check quality against aim | Report the two separately | Separately they look like progress; together they show no overlap |
+| Report "never both" as the headline | Lead with the fourfold aim improvement | The aim improvement is real and does not matter on its own |
+| Accept l537 as dead for now | Keep spending on it | 15 designs, average 0.07, with the last of the quota running out |
+
+### Jargon decoder
+
+- **composition** - the mix of amino acid types. Too charged will not fold; too oily will not
+  dissolve. Both ends are failures.
+- **Kyte-Doolittle** - one number for how oily a sequence is. Positive is trouble.
+- **folding confidence (pLDDT)** - how sure AlphaFold is about the shape. Below about 0.7 is
+  weak evidence that it is a real protein at all.
+
+### What is next, and what could go wrong
+
+Next, and it has to fit in 1 hour 28 minutes: rewrite the sequences of the eight well-aimed
+shapes from the main run, then one graphics-card pass that does three jobs at once - check
+the rewrites still fold and still bind, save the file the organisers' score needs, and feed
+the acid-switch measurement.
+
+Honestly:
+
+- **This may not work.** If the rewrites of well-aimed shapes are still unbuildable, then the
+  shapes themselves are not proteins and no amount of sequence work will help.
+- There is no second attempt. This is the last of the week's quota.
+- Even if it works, we would then be measuring the acid switch for the first time, on the
+  final day, with no room to iterate on the result.
+- The honest fallback is submitting the least-bad twenty with the limitations written plainly
+  in the methods, which is what the methods file is for.
 
 ## 18. 2026-10-28 - The fix worked on one spot and broke the other
 
