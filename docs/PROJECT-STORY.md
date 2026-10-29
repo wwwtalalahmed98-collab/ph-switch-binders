@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 20 | 2026-10-29 | One out of four hundred and eighty |
 | 19 | 2026-10-29 | We have never made one that is both |
 | 18 | 2026-10-28 | The fix worked on one spot and broke the other |
 | 17 | 2026-10-28 | We had been doing half the pipeline |
@@ -25,6 +26,142 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 20. 2026-10-29 - One out of four hundred and eighty
+
+### Where we are
+
+For the first time in this project we hold **one** design that is both aimed at the
+target spot and plausible as a real protein. Yesterday the answer was zero. The run that
+produced it reported twelve, and eleven of those twelve do not survive a check I had not
+thought to write.
+
+### What we did
+
+We took the ten shapes from the main run that actually reach the target spot, held each
+shape fixed, and asked the sequence-writing program for 48 fresh sequences each - 480 in
+total. It cost no graphics card time and took five minutes.
+
+Nine of the ten shapes produced something. One produced nothing at all out of 48 tries.
+
+### The twelve that became one
+
+The program's own summary said twelve sequences were both well-aimed and
+composition-plausible. Then I counted prolines.
+
+Proline is an amino acid that kinks a chain and cannot make the bond that holds a fold
+together. Real compact proteins are about **5% proline**. Four of the twelve "good"
+sequences were **25% to 32% proline**. That is not a protein that happens to be
+proline-rich; it is a stiff rod.
+
+With a proline limit added:
+
+| | count |
+|---|---|
+| candidates | 41 |
+| pass the proline limit | 3 |
+| and were rated "good" | **1** |
+
+### I made the same mistake twice in two days
+
+Yesterday's quality screen had a limit on one side of each measure and not the other, so
+it awarded "good" to a 64%-oily aggregate. Today's screen had **no proline term at all**,
+so it awarded "good" to a polyproline rod.
+
+Both times I wrote the screen to catch the failure I had just been bitten by, and it
+silently waved through the next one. The screen now checks three things. It is still not
+a prediction of whether something folds - it is a list of ways to be obviously wrong, and
+that list is incomplete by construction.
+
+### The one survivor
+
+`tfr1b_e559_003_r02`, 62 residues. 8% proline, 35% charged, 40% oily, oiliness score
+-0.65 - all in the range real soluble proteins occupy. It sits on a shape that makes four
+contacts with the target spot.
+
+**And it has never been folded.** The four contacts belong to its *parent shape*. Whether
+this sequence still binds there is the thing we do not know, and sequence-writing programs
+routinely produce sequences that fold into something other than the shape they were given.
+So the honest claim is not "we have a binder". It is "we have one sequence worth spending
+graphics card time on".
+
+### The diagram
+
+The rendered diagram in chat shows the funnel. Note how much of it is the screens, and
+that the last box is a question rather than a result.
+
+```mermaid
+flowchart TD
+    A[36 shapes from the main run] -->|10 reach the target spot| B[10 shapes kept]
+    B -->|48 sequences each| C[480 sequences written]
+    C -->|charge, oiliness, repeats| D[41 pass the old screen<br/>12 rated good]
+    D -->|proline limit added| E[1 rated good<br/>2 borderline]
+    E --> F{Does it still bind<br/>once folded?}
+    F -->|unmeasured| G[Needs the last of<br/>the graphics card time]
+    style E fill:#0F6E56,stroke:#04342C,color:#ffffff
+    style F fill:#854F0B,stroke:#412402,color:#ffffff
+    style G fill:#993C1D,stroke:#712B13,color:#ffffff
+```
+
+### What you have now
+
+- [tfr1/results/MPNN2_RESULT.md](tfr1/results/MPNN2_RESULT.md) - the run, the twelve, the
+  one, and why the eleven were dropped.
+- [tfr1/results/mpnn2_candidates.tsv](tfr1/results/mpnn2_candidates.tsv) - all 41
+  candidates with their numbers, copied out of the run's log.
+- [tfr1/rescreen_proline.py](tfr1/rescreen_proline.py) - the proline check. It also
+  recomputes the oiliness of every sequence and compares it against what the run printed,
+  so that a mistake in copying the table out of the log would show up rather than pass
+  quietly. It matched on all 41 rows.
+
+Not done:
+
+- **The survivor has not been folded.** Nothing is confirmed to bind.
+- Run 2's designs have never been checked against the transferrin site - the receptor's
+  day job. That check has only been run on the first run's designs, where 3 of 47 blocked
+  it.
+- No acid-release switch has been measured on anything. That is what this challenge
+  scores.
+- Nothing is submitted.
+
+Budget: **1 hour 28 minutes** of Kaggle graphics time this week, plus Colab.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Add a proline limit before reporting | Report the twelve | Four of the twelve were 25-32% proline |
+| Report "one", not "twelve" | Lead with the first-ever "both" | Twelve was the number my own blind spot produced |
+| Copy the candidate table out of the log and re-check it locally | Trust the printed numbers | It was transcribed by hand; recomputing catches a slip |
+| Keep the two borderline sequences visible | Report only the clean one | Three candidates is thin enough that the next step needs more than one input |
+
+### Jargon decoder
+
+- **proline** - an amino acid that stiffens and kinks a chain. Fine in small amounts,
+  fatal in bulk.
+- **backbone / shape** - the fold, before deciding which amino acids fill it.
+- **folding it** - running the prediction program on the new sequence to see what shape it
+  actually makes, and whether it still touches the target.
+- **oiliness score (Kyte-Doolittle)** - one number for how water-repelling a sequence is.
+  Real soluble proteins sit around -0.3 to -1.0.
+
+### What is next, and what could go wrong
+
+The next step is the one graphics-card pass, and the result above changes what it should
+contain. There is now one clean candidate rather than twelve, which is too few to fill a
+pass on its own - so it should go in alongside the borderline ones and the best unrewritten
+shapes, and it should save the confidence file the organisers' score needs while it is
+running.
+
+Honestly:
+
+- **One survivor out of 480 is a low yield.** It may simply be luck, and folding it may
+  show it does not bind at all.
+- Its parent shape has weak fold confidence (0.50-0.56), so even a successful fold check
+  would be evidence about a shape we are not confident in.
+- There is no second attempt at the graphics card this week.
+- Everything must be final tomorrow afternoon, because only one submission is allowed per
+  24 hours and the deadline is Sunday.
 
 ## 19. 2026-10-29 - We have never made one that is both
 
