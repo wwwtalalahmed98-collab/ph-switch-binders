@@ -1,0 +1,11 @@
+name,role,paired_with,internal_id,length,n_his,his_substitutions,his_partner,human_i_ptm,human_retained,mouse_i_ptm,mouse_retained,mouse_on_site,status_vs_current
+tnf_sw_01,switch,tnf_ct_01,tnf3_w0_012,76,2,"E54H,W57H",R108B,0.722,1.003,0.669,1.012,16,new
+tnf_sw_02,switch,tnf_ct_02,tnf_w0_012,73,2,"Q23H,D27H",R108B,0.621,0.899,0.592,0.907,12,unchanged (was tnf_sw_01)
+tnf_sw_03,switch,tnf_ct_03,tnf2_w0_007,75,1,E26H,R108B,0.566,0.966,0.678,0.943,15,placement changed (was L30H+D27H)
+tnf_sw_04,switch,tnf_ct_04,tnf_w0_011,60,1,Q19H,R107B,0.651,1.020,0.638,0.910,5,new
+tnf_sw_05,switch,tnf_ct_05,tnf2_w0_008,64,1,E2H,R108B,0.598,0.931,0.628,0.919,10,unchanged (was tnf_sw_09)
+tnf_sw_06,switch,tnf_ct_06,tnf2_w1_001,64,2,"D10H,L13H",R108B,0.553,0.929,0.566,1.103,9,unchanged (was tnf_sw_07)
+tnf_sw_07,switch,tnf_ct_07,tnf3_w0_017,56,2,"Y18H,E19H",R107B/R108B,0.560,0.921,0.499,0.943,7,new
+tnf_sw_08,switch,tnf_ct_08,tnf3_w1_009,77,2,"L18H,I22H",R108B,0.503,0.886,0.480,0.759,15,new
+tnf_sw_09,switch,tnf_ct_09,tnf2_w0_001,75,2,"Y37H,Q40H",R108B,0.470,,0.654,1.391,12,unchanged (was tnf_sw_10)
+tnf_sw_10,switch,tnf_ct_10,tnf_w0_007,79,1,Q46H,R108B,0.486,0.964,0.498,1.071,12,new

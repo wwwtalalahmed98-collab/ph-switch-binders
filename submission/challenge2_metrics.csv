@@ -1,0 +1,21 @@
+name,role,paired_with,length,i_ptm_alphafold2,plddt_note,n_his,n_his_functional,his_contacts_cbeta_angstrom,switch_strength,mouse_functional_switch,epitope_residues_confirmed,epitope_pct_conserved_mouse,on_site_contacts,internal_id
+tnf_sw_01,switch,tnf_ct_01,73,0.622,re-predicted at 3 recycles,2,2,R108B 5.16 / R108B 4.01,1.45,yes,28,82,,tnf_w0_012_sw
+tnf_sw_02,switch,tnf_ct_02,73,0.725,re-predicted at 3 recycles,3,3,R108B 4.92 / K166A 8.30 / R107B 4.41,1.51,partial,31,81,,tnf_w1_012_sw
+tnf_sw_03,switch,tnf_ct_03,70,0.487,re-predicted at 3 recycles,2,2,R108B 4.74 / R108B 5.58,1.26,yes,24,79,,tnf_w0_004_sw
+tnf_sw_04,switch,tnf_ct_04,79,0.600,re-predicted at 3 recycles,3,3,R107B 4.35 / R107B 8.11 / R107B 3.11,1.87,no,26,73,,tnf_w0_003_sw
+tnf_sw_05,switch,tnf_ct_05,75,0.487,re-predicted at 3 recycles,2,2,R108B 7.03 / R108B 5.06,0.95,yes,23,83,,tnf2_w0_007_sw
+tnf_sw_06,switch,tnf_ct_06,63,0.544,re-predicted at 3 recycles,3,2,R108B 6.54 / R108B 10.20 (out of reach) / R107B 5.10,1.03,partial,24,79,,tnf_w0_008_sw
+tnf_sw_07,switch,tnf_ct_07,64,0.553,re-predicted at 3 recycles,2,2,R108B 6.31 / R108B 6.93,0.75,yes,28,79,,tnf2_w1_001_sw
+tnf_sw_08,switch,tnf_ct_08,80,0.489,re-predicted at 3 recycles,2,2,R108B 8.30 / R108B 5.72,0.62,yes,13,62,,tnf_w1_004_sw
+tnf_sw_09,switch,tnf_ct_09,64,0.598,re-predicted at 3 recycles,1,1,R108B 5.79,0.52,yes,34,82,,tnf2_w0_008_sw
+tnf_sw_10,switch,tnf_ct_10,75,0.469,re-predicted at 3 recycles,2,2,R108B 7.99 / R108B 7.03,0.44,yes,26,81,,tnf2_w0_001_sw
+tnf_ct_01,control,tnf_sw_01,73,,histidine-free twin,0,0,,0.00,n/a,28,82,,tnf_w0_012_ctl
+tnf_ct_02,control,tnf_sw_02,73,,histidine-free twin,0,0,,0.00,n/a,31,81,,tnf_w1_012_ctl
+tnf_ct_03,control,tnf_sw_03,70,,histidine-free twin,0,0,,0.00,n/a,24,79,,tnf_w0_004_ctl
+tnf_ct_04,control,tnf_sw_04,79,,histidine-free twin,0,0,,0.00,n/a,26,73,,tnf_w0_003_ctl
+tnf_ct_05,control,tnf_sw_05,75,,histidine-free twin,0,0,,0.00,n/a,23,83,,tnf2_w0_007_ctl
+tnf_ct_06,control,tnf_sw_06,63,,histidine-free twin,0,0,,0.00,n/a,24,79,,tnf_w0_008_ctl
+tnf_ct_07,control,tnf_sw_07,64,,histidine-free twin,0,0,,0.00,n/a,28,79,,tnf2_w1_001_ctl
+tnf_ct_08,control,tnf_sw_08,80,,histidine-free twin,0,0,,0.00,n/a,13,62,,tnf_w1_004_ctl
+tnf_ct_09,control,tnf_sw_09,64,,histidine-free twin,0,0,,0.00,n/a,34,82,,tnf2_w0_008_ctl
+tnf_ct_10,control,tnf_sw_10,75,,histidine-free twin,0,0,,0.00,n/a,26,81,,tnf2_w0_001_ctl

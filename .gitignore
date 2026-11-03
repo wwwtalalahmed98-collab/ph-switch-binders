@@ -19,16 +19,22 @@ __pycache__/
 *.pyc
 .venv/
 
-# Design sequences - withheld until each submission window closes.
-# Matched by PATTERN, not by name: the list below once named each file
-# individually, and a newly created third file (round2_sequences.csv) was
-# therefore not covered and got committed.
+# Design sequences - PUBLISHED as of 2026-11-03.
 #
-# The same mistake nearly repeated on 24 Oct: "submission/challenge2_*" named a
-# single challenge, so the first challenge 3 file written was not covered. Any
-# future challenge is matched now, whatever it is numbered.
-tnf/results/*sequences*.csv
-submission/challenge*
-glp1r/results/*sequences*.csv
+# These were withheld while each submission window was open. All four windows are
+# now closed (EGFR, TNF-alpha, GLP-1R submitted; TfR1 closed 1 Nov unsubmitted), so
+# the sequences are published with the write-ups that cite them.
+#
+# Kept for the record, because the withholding rule was twice written too narrowly:
+# it first named each file individually, so a new round2_sequences.csv was not
+# covered and got committed; then "submission/challenge2_*" named one challenge, so
+# the first challenge 3 file was not covered either. Any future withholding rule
+# must match by pattern, not by name.
+#
+# Challenge 5 (KRAS G12D pMHC) is open until 8 Nov. Its sequences go here, ignored,
+# until that window closes:
+pmhc/results/*sequences*.csv
+submission/challenge5_*
+
+# Downloaded reference structures - re-fetched by the scripts, not source
 data/glp1r/
-incoming/
