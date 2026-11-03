@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 21 | 2026-11-03 | Challenge 4 ended unsubmitted; challenge 5 is open |
 | 20 | 2026-10-29 | One out of four hundred and eighty |
 | 19 | 2026-10-29 | We have never made one that is both |
 | 18 | 2026-10-28 | The fix worked on one spot and broke the other |
@@ -26,6 +27,129 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 21. 2026-11-03 - Challenge 4 ended unsubmitted; challenge 5 is open
+
+### Where we are
+
+The TfR1 challenge closed on 1 November and **we did not submit**. Work stopped on
+29 October with one usable candidate and no fold check run on it. That is the fourth
+challenge and still nothing experimentally confirmed.
+
+Challenge 5 opened on 26 October and closes **Sunday 8 November, 23:59 AoE**. Five
+days. It is a harder target than anything we have attempted.
+
+### What challenge 5 asks for
+
+Design a binder for the **KRAS G12D peptide sitting in an HLA-A\*11:01 groove** - a
+cancer mutation displayed on the outside of a cell for the immune system to see.
+
+The hard part is not binding it. It is binding **only** it. The design must not bind:
+
+1. the same groove holding the **normal** version of the peptide, which differs by a
+   single amino acid, and
+2. the same groove holding **no peptide at all**.
+
+That one-letter difference sits down in the groove. A binder that grips the groove
+walls instead of the peptide will stick to all three and score nothing.
+
+### Why that changes how we work
+
+In every previous challenge we designed first and checked for off-target problems at
+the end. On TfR1 that is how we discovered, late, that three designs blocked the
+receptor's actual job.
+
+Here the off-target check **is** the score. The competition ranks on two ratios
+before it ever looks at strength:
+
+| rank step | what it measures |
+|---|---|
+| 1 | how much more weakly it binds the normal peptide |
+| 2 | how much more weakly it binds the empty groove |
+| 3 | strength, only as a tie-break |
+
+So a weak design that is clean beats a strong design that is sticky. The plan builds
+the three-way comparison in from the first hour.
+
+### What we published today
+
+All four submission windows are closed, so the design sequences that were held back
+are now public, alongside the write-ups that cite them: 20 TNF-alpha designs across
+four rounds, 20 GLP-1R designs with their methodology, and the TNF round 1 and 2
+sequence sets.
+
+The withholding rule stays in place, rewritten to match by pattern rather than by
+name - it was written too narrowly twice before and leaked a file each time - and now
+points at challenge 5, whose window is open.
+
+### The diagram
+
+The rendered diagram in chat shows the three states the design has to tell apart. Teal
+is the one to bind; coral are the two to avoid.
+
+```mermaid
+flowchart TD
+    A[Our design] --> B[Groove + mutant peptide<br/>VVVGADGVGK]
+    A --> C[Groove + normal peptide<br/>VVVGAGGVGK]
+    A --> D[Groove, empty]
+    B --> E[Must bind]
+    C --> F[Must not bind]
+    D --> F
+    style B fill:#0F6E56,stroke:#04342C,color:#ffffff
+    style E fill:#0F6E56,stroke:#04342C,color:#ffffff
+    style C fill:#993C1D,stroke:#712B13,color:#ffffff
+    style D fill:#993C1D,stroke:#712B13,color:#ffffff
+    style F fill:#993C1D,stroke:#712B13,color:#ffffff
+```
+
+### What you have now
+
+- [pmhc/PLAN.md](pmhc/PLAN.md) - the challenge 5 specification copied from the official
+  page, and a five-phase plan with the time each phase needs.
+- The design sequences for all four closed challenges, now public in the repository.
+- Everything pushed. The repository is up to date with the local work for the first
+  time since 29 October.
+
+Not done:
+
+- **Challenge 4 was never submitted.** Nothing was lost by the vacation; the work had
+  already stopped.
+- The TfR1 raw measurement files are still only on Kaggle, not in the repository. The
+  write-ups quote their numbers but a reader cannot yet check them.
+- No work has started on challenge 5 beyond the plan.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Publish all four challenges' sequences | Hold the TfR1 ones back | The windows are closed, which was the only reason to withhold |
+| Enter challenge 5 | Treat the competition as over | It is open for five more days and the pipeline is now debugged |
+| Build the three-way comparison into the objective | Add it as a final filter | It is the score, not a safety check |
+| Stop trying to scrape Kaggle through the browser | Keep clicking | A proper access key is two minutes of your time and also makes the next five days scriptable |
+
+### Jargon decoder
+
+- **pMHC** - a short piece of a protein held in a groove on the cell surface, shown to
+  the immune system. Our target is a cancer-mutated piece in that groove.
+- **HLA-A\*11:01** - the particular groove. One of many in the population.
+- **de novo** - designed from scratch. Modifying a known binder is banned here.
+- **AoE** - Anywhere on Earth. The deadline passes when it has passed everywhere.
+
+### What is next, and what could go wrong
+
+Next: build the three target states from the published structures, then generate.
+
+Honestly:
+
+- **Five days, and four previous rounds each lost most of their time to one silent
+  bug.** The guards we added catch the bugs that already happened, not new ones.
+- **The ranking depends on a prediction AlphaFold is not known to be good at.** We
+  will be ranking designs by a predicted ability to tell two near-identical targets
+  apart. That is the weakest joint in the plan and it belongs in the methods text.
+- Telling apart one buried amino acid is a research-grade problem. Published work on
+  it uses a purpose-built pipeline.
+- The realistic goal is twenty designs with an honest three-way screen and methods
+  that state the limits - not a claim of high affinity.
 
 ## 20. 2026-10-29 - One out of four hundred and eighty
 
