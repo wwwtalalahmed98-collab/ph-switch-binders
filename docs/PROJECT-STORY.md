@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 22 | 2026-11-03 | The audit that pointed the wrong way |
 | 21 | 2026-11-03 | Challenge 4 ended unsubmitted; challenge 5 is open |
 | 20 | 2026-10-29 | One out of four hundred and eighty |
 | 19 | 2026-10-29 | We have never made one that is both |
@@ -27,6 +28,118 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 22. 2026-11-03 - The audit that pointed the wrong way
+
+### Where we are
+
+Phase 0 of challenge 5 is done. We have the target built, the three states defined, and
+the one real decision of this phase settled by measurement. No graphics card used.
+
+### What phase 0 had to decide
+
+The thing we design against has to be a cut-down piece of the real protein, because the
+whole thing is 384 building blocks and every design has to be tested three times over.
+Too big and we get almost no designs in the days left.
+
+But cutting a protein exposes oily surface that is hidden inside the real one, and a
+design program will happily glue itself to that fake surface. That is precisely how
+challenge 3 went wrong.
+
+So: which cut?
+
+### The measurement, and the mistake in it
+
+I measured eight candidate cuts for how much fake oily surface each one creates. The
+first table said that keeping the small partner protein underneath the groove was almost
+perfectly clean - 14 units of fake surface, against 250 or more for everything else. I
+was one sentence away from recommending it.
+
+It was wrong. **I had only counted the fake surface appearing on the main chain, not on
+the small partner protein itself.** Cutting away the lower section leaves that partner's
+own underside bare, and my count could not see it. Counted properly it is 309 units -
+not the cleanest option but one of the worst, and bigger as well, so it loses twice.
+
+The corrected answer: **no cut is clean.** Every one of them opens roughly as much fake
+oily surface as the target peptide itself occupies.
+
+### Why we proceed anyway
+
+Here the fake surface is the same in all three states. A design that sticks to it sticks
+to all three equally, and the three-way comparison throws it out. It wastes design
+effort; it does not corrupt the answer. That reasoning would not hold on a challenge
+scored by strength - it holds here only because this one is scored by specificity.
+
+Chosen: everything within 20 angstroms of the peptide. 189 building blocks, the joint
+cleanest option.
+
+### The diagram
+
+The rendered diagram in chat shows the candidate cuts, how big each is, and how much
+fake surface each creates. The one marked is what we are designing against.
+
+```mermaid
+flowchart LR
+    A[Full complex<br/>384 parts, no fake surface] -->|too slow for 3 tests each| B{Which cut?}
+    B --> C[Keep partner protein<br/>288 parts, 1.29x fake]
+    B --> D[20 angstroms round peptide<br/>189 parts, 1.04x fake]
+    B --> E[Tighter cuts<br/>157-183 parts, 1.16-2.30x fake]
+    C --> F[Rejected: bigger AND dirtier]
+    D --> G[Chosen]
+    E --> F
+    style D fill:#0F6E56,stroke:#04342C,color:#ffffff
+    style G fill:#0F6E56,stroke:#04342C,color:#ffffff
+    style F fill:#993C1D,stroke:#712B13,color:#ffffff
+```
+
+### What you have now
+
+- [pmhc/results/PHASE0.md](pmhc/results/PHASE0.md) - the checks, the full comparison
+  table, the corrected numbers, and the measured hotspots.
+- [pmhc/build_states.py](pmhc/build_states.py) - builds the target. It refuses to write
+  anything unless both peptide sequences are exactly what the specification says and
+  differ at exactly one position.
+- [pmhc/crop_sweep.py](pmhc/crop_sweep.py) - the comparison, now counting every chain.
+
+Confirmed by running: both peptides are as specified and differ only at position 6; all
+three states share one background, so the only difference between the mutant and normal
+states is that single change.
+
+Not done:
+
+- **Nothing generated. No graphics card used yet on this challenge.**
+- The hotspots are measured but not chosen - that is phase 1.
+- The empty-groove comparison is defined by sequence only. Real empty grooves are
+  unstable and AlphaFold will predict a tidy one, so our test there is easier than the
+  laboratory's. That belongs in the write-up and is in the phase 0 notes.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| One shared background for all three states | Each state from its own crystal | Otherwise a difference could come from two crystals, not from the mutation |
+| Recount the audit across every chain | Trust the first table | The first table was about to pick the worst option |
+| Accept a cut face | Design against the full complex | The face is identical in all three states, so the three-way comparison rejects anything that binds it |
+| 20 angstroms round the peptide | The domain-based cut | Same size and fake surface; peptide-centred is the more relevant shape |
+
+### Jargon decoder
+
+- **crop / cut** - a piece of the target protein, small enough to compute with.
+- **fake oily surface** - interior that becomes exposed only because we cut. Designs
+  stick to it and the binding means nothing.
+- **hotspot** - the specific spots we instruct the design to touch.
+- **angstrom** - a ten-billionth of a metre; touching atoms are about 4 apart.
+
+### What is next, and what could go wrong
+
+Phase 1: choose which of the 18 measured hotspots to aim at. The whole specificity story
+is "we touch the mutated spot", so the set has to be weighted onto the peptide rather
+than spread across the groove - spreading a contact instruction too thin is part of why
+the first TfR1 round aimed at nothing.
+
+Honestly: phase 0 proves nothing about whether this will work. It builds the target and
+removes two ways of being silently wrong. Four days remain, and the hard part - telling
+apart one buried building block - has not been attempted yet.
 
 ## 21. 2026-11-03 - Challenge 4 ended unsubmitted; challenge 5 is open
 
