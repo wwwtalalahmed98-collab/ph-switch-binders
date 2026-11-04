@@ -238,12 +238,20 @@ def main():
                     if pae is not None:
                         np.save("%s/%s_%s_m%d_pae.npy" % (W, d["name"], tag, mi),
                                 np.asarray(pae))
+                    # per-residue pLDDT, not just the mean: ipsae.py takes a length-N
+                    # array and substitutes zeros if it is missing, which produces a
+                    # score that runs fine and means less than it appears to.
+                    pr = model.aux.get("plddt")
+                    if pr is not None:
+                        np.save("%s/%s_%s_m%d_plddt.npy" % (W, d["name"], tag, mi),
+                                np.asarray(pr).reshape(-1))
                     c = contacts(pdb_out, tag, st["peptide"])
                     per_model.append(dict(model=mi,
                                           i_ptm=round(float(lg.get("i_ptm", 0)), 4),
                                           ptm=round(float(lg.get("ptm", 0)), 4),
                                           plddt=round(float(lg.get("plddt", 0)), 4),
-                                          pae_saved=pae is not None, **c))
+                                          pae_saved=pae is not None,
+                                          plddt_saved=pr is not None, **c))
                 rec["states"][tag] = dict(
                     per_model=per_model,
                     i_ptm=round(float(np.mean([x["i_ptm"] for x in per_model])), 4),
