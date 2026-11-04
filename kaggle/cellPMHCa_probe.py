@@ -147,17 +147,46 @@ def build_target(path):
 
 
 def measure(pdb_path, crop_a, crop_c):
-    """Contacts, counted against the peptide by sequence match - never by numbering."""
+    """Contacts, counted against the peptide by sequence match - never by numbering.
+
+    save_pdb MERGES the two target chains into one. Version 2 of this notebook died
+    here with chains {'A': 189, 'B': 77}: 179 groove residues and the 10-residue
+    peptide concatenated, plus the binder. So the target is found as one chain whose
+    sequence is the two crops joined, and the peptide is located by WHERE the join
+    falls - checked both ways round, because which half comes first is save_pdb's
+    business, not something to assume.
+    """
     from Bio import PDB
     m = PDB.PDBParser(QUIET=True).get_structure("d", pdb_path)[0]
     chains = {c.id: residues(c) for c in m}
-    tgt_a = next((c for c, rs in chains.items() if seq(rs) == crop_a), None)
-    tgt_c = next((c for c, rs in chains.items()
-                  if c != tgt_a and seq(rs) == crop_c), None)
-    if tgt_a is None or tgt_c is None:
-        raise SystemExit("no chain reproduces the crop; chains are %s"
-                         % {c: len(rs) for c, rs in chains.items()})
-    binder = [c for c in chains if c not in (tgt_a, tgt_c)]
+
+    tgt = pep_rs = None
+    for cid, rs in chains.items():
+        s = seq(rs)
+        if s == crop_a + crop_c:
+            tgt, pep_rs = cid, rs[len(crop_a):]
+            break
+        if s == crop_c + crop_a:
+            tgt, pep_rs = cid, rs[:len(crop_c)]
+            break
+    if tgt is None:
+        # fall back to the separate-chain layout, in case save_pdb ever changes
+        a = next((c for c, rs in chains.items() if seq(rs) == crop_a), None)
+        c_ = next((c for c, rs in chains.items()
+                   if c != a and seq(rs) == crop_c), None)
+        if a is None or c_ is None:
+            raise SystemExit("no chain reproduces the crop; chains are %s"
+                             % {c: len(rs) for c, rs in chains.items()})
+        tgt, pep_rs = a, chains[c_]
+        groove_rs = chains[a]
+        binder = [c for c in chains if c not in (a, c_)]
+    else:
+        groove_rs = [r for r in chains[tgt] if r not in pep_rs]
+        binder = [c for c in chains if c != tgt]
+
+    if seq(pep_rs) != crop_c:
+        raise SystemExit("located peptide reads %s, expected %s"
+                         % (seq(pep_rs), crop_c))
     if len(binder) != 1:
         raise SystemExit("expected one binder chain, got %s" % binder)
     b_atoms = np.concatenate([heavy(r) for r in chains[binder[0]]])
@@ -170,10 +199,9 @@ def measure(pdb_path, crop_a, crop_c):
                 n += 1
         return n
 
-    pep_rs = chains[tgt_c]
     on_mut = touch([pep_rs[MUT_POS - 1]])
     return dict(on_mutation=on_mut, on_peptide=touch(pep_rs),
-                on_groove=touch(chains[tgt_a]),
+                on_groove=touch(groove_rs),
                 mutation_contacts=int(np.sum(
                     np.linalg.norm(heavy(pep_rs[MUT_POS - 1])[:, None, :]
                                    - b_atoms[None, :, :], axis=-1) <= CONTACT)))
