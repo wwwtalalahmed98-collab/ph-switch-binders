@@ -179,9 +179,31 @@ def measure(pdb_path, crop_a, crop_c):
                                    - b_atoms[None, :, :], axis=-1) <= CONTACT)))
 
 
+def fetch_params():
+    """AlphaFold weights. Without these ColabDesign builds a model with no parameters
+    and dies at the first optimisation step with 'no model params defined' - which is
+    exactly how version 1 of this notebook failed, 47 seconds in."""
+    import glob
+    import subprocess
+
+    pdir = "%s/params" % W
+    if not os.path.exists("%s/params_model_1_ptm.npz" % pdir):
+        os.makedirs(pdir, exist_ok=True)
+        subprocess.run("wget -q -O %s/af2.tar https://storage.googleapis.com/alphafold/"
+                       "alphafold_params_2022-12-06.tar" % W, shell=True, check=True)
+        subprocess.run("tar -xf %s/af2.tar -C %s" % (W, pdir), shell=True, check=True)
+        os.remove("%s/af2.tar" % W)
+    n = len(glob.glob("%s/params_model_*.npz" % pdir))
+    print("params: %d files" % n)
+    if n == 0:
+        raise SystemExit("no AlphaFold parameters - refusing to start, the run would "
+                         "fail at the first design step and waste the budget")
+
+
 def main():
     os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
     os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
+    fetch_params()
     target = build_target("%s/target_design.pdb" % W)
 
     from colabdesign import clear_mem, mk_afdesign_model
@@ -199,7 +221,7 @@ def main():
             L = int(rng.randint(LEN_MIN, LEN_MAX + 1))
             hot = ",".join("C%d" % p for p in cfg["hotspot"])
             clear_mem()
-            model = mk_afdesign_model(protocol="binder")
+            model = mk_afdesign_model(protocol="binder", data_dir=W)
             model.prep_inputs(pdb_filename=target, chain="A,C", binder_len=L,
                               hotspot=hot)
 
