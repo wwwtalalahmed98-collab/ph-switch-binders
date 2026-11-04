@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 23 | 2026-11-04 | Aiming at a target the size of a full stop |
 | 22 | 2026-11-03 | The audit that pointed the wrong way |
 | 21 | 2026-11-03 | Challenge 4 ended unsubmitted; challenge 5 is open |
 | 20 | 2026-10-29 | One out of four hundred and eighty |
@@ -28,6 +29,132 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 23. 2026-11-04 - Aiming at a target the size of a full stop
+
+### Where we are
+
+The first real generation run for challenge 5 finished: 28 designs, no crashes. Almost
+none of them hit the spot we need. But we now know *why*, in a way we can act on, and one
+thing that has failed in all four challenges finally worked.
+
+### The honest result
+
+| | designs | hit the mutation | average |
+|---|---|---|---|
+| tight aim (our choice) | 17 | **4 (24%)** | 0.24 |
+| broad aim | 11 | 1 (9%) | 0.09 |
+
+Our choice is about two and a half times better. **It is also not a real result** - with
+numbers this small, a difference that size happens by chance about 60% of the time. To
+prove it we would need roughly 60 designs per side, which is about 19 of our 22 remaining
+hours.
+
+So I am taking the better-looking option and **calling it a judgement call rather than a
+finding**. It was also the one the earlier measurements argued for, so it is not a coin
+flip, but it is not proven either.
+
+### A mistake of mine that skewed the comparison
+
+The two sides were supposed to get equal time. One side got 17 designs and the other 11,
+and that is my fault, not a property of the methods.
+
+Each side ran as its own process, writing progress into a pipe back to the main one. The
+main process emptied the first side's pipe completely before looking at the second's. A
+pipe holds about 64 kilobytes; the design program prints a line for every single step, so
+the second side filled its pipe and **froze for roughly two hours waiting to be read**.
+
+I had specifically considered this risk when launching and dismissed it - by counting
+only my own log lines and forgetting the design program's. About two hours of graphics
+card time went to nothing.
+
+### Why so few designs reach the target
+
+The piece of the target that distinguishes the cancer version from the healthy one is
+**11% exposed** - about the area of a full stop on this page - and it sits in a trench,
+surrounded by walls that are identical in both versions.
+
+Watching the run's own numbers: the instruction to "touch that spot" accounts for about
+**99% of everything the program is trying to satisfy**, and it never succeeds - it gets
+partway and stalls. So the program spends the entire run reaching for something it cannot
+grasp, with nothing left over to make the design a sensible protein. That is exactly what
+we see: the designs are badly folded.
+
+This is fixable. The balance between "touch the spot" and "be a real protein" is a
+setting, and it is currently pinned to one extreme.
+
+### The thing that finally worked
+
+**Every one of the 28 designs saved its confidence file.** For four challenges we have
+reported that we could not compute the organisers' own quality score, and the reason was
+never complicated: the score needs a file we were not saving. We are saving it now.
+
+### The diagram
+
+The rendered diagram in chat shows where the designs are landing: on the walls of the
+trench, not on the spot at the bottom.
+
+```mermaid
+flowchart TD
+    A[28 designs] --> B[Land on the trench walls<br/>identical in both versions]
+    A --> C[Reach the peptide<br/>but not the mutation]
+    A --> D[Touch the mutation<br/>4 designs, one contact each]
+    B --> E[Would bind all three targets<br/>scores zero]
+    C --> E
+    D --> F[The only ones worth anything]
+    style D fill:#0F6E56,stroke:#04342C,color:#ffffff
+    style F fill:#0F6E56,stroke:#04342C,color:#ffffff
+    style E fill:#993C1D,stroke:#712B13,color:#ffffff
+```
+
+### What you have now
+
+- [pmhc/results/PHASE2.md](pmhc/results/PHASE2.md) - the run, the comparison, the bug.
+- [pmhc/results/PHASE4_DESIGN.md](pmhc/results/PHASE4_DESIGN.md) - the three-way
+  comparison, built and tested on a processor while the graphics cards were busy.
+- 28 designs with their confidence files, on Kaggle.
+
+Two designs are worth keeping. Both touch the mutation and are better folded than the
+rest, though still not good.
+
+Not done:
+
+- **No design is a credible binder.** 4 of 28 touch the mutation, one contact each.
+- Nothing has been through the three-way comparison yet.
+- Nothing submitted. Deadline Sunday; everything final Saturday.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Adopt the tight aim | Run 60 per side to prove it | Proving it costs 19 of our 22 remaining hours |
+| Report it as a judgement call | Report 24% vs 9% as a finding | A difference that size is chance 60% of the time at this sample size |
+| Rebalance the objective next | Generate more of the same | The run's own numbers show one instruction crowding out everything else |
+| Build the three-way comparison during the run | Wait for the cards | It needs no card, and it caught a bug of its own |
+
+### Jargon decoder
+
+- **pLDDT** - how confident the prediction is about the shape. 0.4 means "probably not a
+  real protein"; above 0.7 is respectable.
+- **pipe** - the channel a background task writes its progress into. If nobody empties
+  it, the task stops.
+- **confidence file (PAE)** - a by-product of the prediction, needed for the organisers'
+  quality score. We never saved it before.
+
+### What is next, and what could go wrong
+
+Rebalance the objective so "be a real protein" is not crowded out, fix the pipe bug, and
+generate again. Then the three-way comparison on whatever comes out.
+
+Honestly:
+
+- **This may be the wrong method for this target.** Published work on this kind of target
+  uses purpose-built tools that grow a reaching loop; we are shaping a blob and hoping it
+  reaches into a trench. If the rebalanced run still lands on the walls, that is the
+  answer, not a tuning problem.
+- Three days left, about 22 hours of card time.
+- The fallback remains submitting a small, clearly labelled set with the negative result
+  written up plainly.
 
 ## 22. 2026-11-03 - The audit that pointed the wrong way
 
