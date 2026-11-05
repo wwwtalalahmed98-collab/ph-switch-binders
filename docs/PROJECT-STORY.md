@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 24 | 2026-11-05 | The test we set in advance came back no |
 | 23 | 2026-11-04 | Aiming at a target the size of a full stop |
 | 22 | 2026-11-03 | The audit that pointed the wrong way |
 | 21 | 2026-11-03 | Challenge 4 ended unsubmitted; challenge 5 is open |
@@ -29,6 +30,133 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 24. 2026-11-05 - The test we set in advance came back no
+
+### Where we are
+
+We changed the one setting the evidence pointed at, ran it, and **it did not work**. We
+had written down beforehand what would count as failure, and that is what came back. So
+we are stopping this approach rather than tuning it further.
+
+### What we suspected, now confirmed as a measurement
+
+The program balances competing instructions by weight. We suspected one instruction -
+"touch the target spot" - was drowning out everything else, including "be a real
+protein". This run printed the actual settings before changing them:
+
+    touch the spot ........ 1.0
+    be a real protein ..... 0.1
+    everything else ....... 0
+
+Ten to one. The suspicion was right, and it is now a reading rather than an inference.
+
+### What happened when we fixed it
+
+We rebalanced so being a real protein mattered properly, and ran two versions side by
+side: one demanding a close touch, one allowing a looser one, to separate "the balance
+was wrong" from "what we are asking is physically impossible".
+
+| | designs | hit the spot | fold quality | reaching effort |
+|---|---|---|---|---|
+| close demand | 18 | 4 | 0.45 | stalls |
+| looser demand | 16 | 2 | 0.45 | stalls |
+| *previous run* | 28 | 4 | 0.40 | stalls |
+
+Fold quality moved from 0.40 to 0.45 - barely. Hitting the spot did not improve. And the
+"reaching effort" number **stalls at the same place whether we demand a close touch or a
+loose one**, which means the problem is not that we were asking for too much.
+
+### The conclusion, taken as written
+
+Before the run I wrote: *"If it stalls at both demands, the method is wrong for this
+target and no amount of tuning fixes it."* It stalled at both. So that is the answer, and
+I am taking it rather than inventing a third thing to adjust - which would be moving the
+goalposts after seeing the result.
+
+**Why it is wrong**: the spot we must touch is 11% exposed at the bottom of a trench
+whose walls are identical in the healthy version. Reaching it needs a protruding finger.
+Natural immune receptors have one. Purpose-built tools for this kind of target grow one
+deliberately. We have been shaping a compact blob and hoping it reaches in.
+
+### But two rounds did produce something
+
+62 designs, every one with its confidence file. A handful are much better than anything
+earlier, and one in particular:
+
+    W_cut8_015   touches the spot | fold quality 0.73
+
+That is the first design in this challenge that is **both plausibly a real protein and
+touching the spot that matters**. One out of 62. On the previous challenge the equivalent
+count was one out of 480, so this is not nothing.
+
+### The diagram
+
+The rendered diagram in chat shows the two questions this run was built to separate, and
+the answer each got.
+
+```mermaid
+flowchart TD
+    A[Designs miss the spot<br/>and fold badly] --> B{Why?}
+    B --> C[The balance was wrong<br/>fold quality was ignored]
+    B --> D[What we ask is<br/>physically out of reach]
+    C --> E[Fixed it: 0.40 to 0.45<br/>barely moved]
+    D --> F[Loosened the demand<br/>stalls exactly the same]
+    E --> G[Neither explains it.<br/>Wrong method for this target.]
+    F --> G
+    style G fill:#993C1D,stroke:#712B13,color:#ffffff
+    style E fill:#854F0B,stroke:#412402,color:#ffffff
+    style F fill:#854F0B,stroke:#412402,color:#ffffff
+```
+
+### What you have now
+
+- [pmhc/results/PHASE2B.md](pmhc/results/PHASE2B.md) - the settings, the numbers, the
+  conclusion and what it does and does not claim.
+- 62 designs with confidence files, on Kaggle.
+- The three-way comparison built and tested, not yet run.
+- The organisers' quality score is finally computable, and the conversion for it is
+  written and tested against the two ways it can silently give wrong answers.
+
+Not done:
+
+- **No design is a confirmed binder.** The best one touches the spot with a single
+  contact point.
+- Nothing has been through the three-way comparison.
+- Nothing submitted. Deadline Sunday; everything final Saturday.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Print the settings before changing them | Assume the defaults | The real ratio was 10:1 and guessing it wrong would have wasted five hours |
+| Two demands side by side | Change one thing and hope | It separates "wrongly balanced" from "physically impossible"; both came back no |
+| Accept the stated conclusion | Tune a third thing | The criterion was written before the data; changing it afterwards is not evidence |
+| Spend the rest on comparing and submitting | Another generation attempt | Two rounds agree, and the remaining time is better spent ranking what we have honestly |
+
+### Jargon decoder
+
+- **weights** - how much the program cares about each competing instruction.
+- **fold quality (pLDDT)** - confidence the shape is real. 0.4 is "probably not a
+  protein"; 0.73 is respectable.
+- **stalls** - the number stops improving, meaning the program cannot do what is asked.
+
+### What is next, and what could go wrong
+
+Run the three-way comparison on the best designs, rank them by how much more weakly they
+bind the healthy version, pick twenty, and write the method up honestly including this
+negative result.
+
+Honestly:
+
+- **The entry is now most likely a well-documented negative result with a few
+  speculative designs attached**, not a strong set of binders. That is worth submitting -
+  selection weighs method and honesty, not claimed strength - but it should not be dressed
+  up as more.
+- The comparison itself rests on a prediction the software is not known to be good at.
+  We measure its own noise so we can say which differences are too small to mean anything,
+  which is the most we can honestly claim.
+- Two days left, about 16 hours of card time.
 
 ## 23. 2026-11-04 - Aiming at a target the size of a full stop
 
