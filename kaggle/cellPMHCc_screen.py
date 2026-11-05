@@ -42,7 +42,8 @@ MUT_POS = 6
 PEP_G12D = "VVVGADGVGK"
 PEP_WT = "VVVGAGGVGK"
 BACKBONE = ("N", "CA", "C", "O", "OXT")
-BUDGET_MIN = 240
+BUDGET_MIN = 300
+MAX_SCREEN = 25
 
 
 def sh(c):
@@ -197,19 +198,48 @@ def main():
     os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
     states = build_states()
 
-    src = None
-    for cand in ("%s/pmhc_gen.json" % W,
-                 *sorted(glob.glob("/kaggle/input/**/pmhc_gen.json", recursive=True))):
-        if os.path.exists(cand):
-            src = cand
-            break
-    if src is None:
-        raise SystemExit("no pmhc_gen.json - attach the generation run's output")
-    designs = json.load(open(src))
-    designs = [d for d in designs if d.get("sequence")]
-    print("\n%d designs from %s\n" % (len(designs), src))
+    # ---- load both generation runs ----
+    designs, sources = [], []
+    for name in ("pmhc_gen.json", "pmhc_gen2.json"):
+        for cand in ("%s/%s" % (W, name),
+                     *sorted(glob.glob("/kaggle/input/**/%s" % name, recursive=True))):
+            if os.path.exists(cand):
+                got = [d for d in json.load(open(cand)) if d.get("sequence")]
+                designs += got
+                sources.append("%s (%d)" % (cand, len(got)))
+                break
     if not designs:
-        raise SystemExit("generation produced no sequences - nothing to screen")
+        raise SystemExit("no pmhc_gen*.json found - attach the generation runs' output")
+    seen, uniq = set(), []
+    for d in designs:
+        if d["name"] not in seen:
+            seen.add(d["name"])
+            uniq.append(d)
+    designs = uniq
+    print("\nloaded %d designs from: %s" % (len(designs), "; ".join(sources)))
+
+    # ---- the shortlist rule, fixed and printed BEFORE anything is scored ----
+    # Six predictions per design does not fit the remaining budget for all of them, so a
+    # shortlist is unavoidable. It is chosen on GENERATION metrics only - never on
+    # anything the screen produces - so the screen cannot be flattered by its own input.
+    touching = [d for d in designs if d.get("on_mutation", 0) > 0]
+    rest = [d for d in designs if d.get("on_mutation", 0) == 0
+            and d.get("on_peptide", 0) > 0]
+    rest.sort(key=lambda d: -d.get("plddt", 0))
+    shortlist = touching + rest[:max(0, MAX_SCREEN - len(touching))]
+    print("\nshortlist rule, fixed in advance:")
+    print("  1. every design that touches the mutation          -> %d" % len(touching))
+    print("  2. then best-folded designs touching the peptide   -> %d"
+          % (len(shortlist) - len(touching)))
+    print("  cap %d. Chosen on generation metrics only, never on screen output." % MAX_SCREEN)
+    print("  %d of %d designs are screened; the remaining %d touch neither."
+          % (len(shortlist), len(designs), len(designs) - len(shortlist)))
+    for d in shortlist:
+        print("    %-22s on-mut %d on-pept %2d plddt %.2f"
+              % (d["name"], d.get("on_mutation", 0), d.get("on_peptide", 0),
+                 d.get("plddt", 0)))
+    designs = shortlist
+    print()
 
     from colabdesign import clear_mem, mk_afdesign_model
 
