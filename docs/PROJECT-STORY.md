@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 25 | 2026-11-06 | Somebody already solved this, and published the parts |
 | 24 | 2026-11-05 | The test we set in advance came back no |
 | 23 | 2026-11-04 | Aiming at a target the size of a full stop |
 | 22 | 2026-11-03 | The audit that pointed the wrong way |
@@ -28,6 +29,200 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 25. 2026-11-06 - Somebody already solved this, and published the parts
+
+### Where we are
+
+We stopped trying to invent binders from nothing and found a published method that
+already works on exactly this problem — including the ready-made parts, free to
+download. We are now building on those instead.
+
+### What this project is for
+
+The Anthropic × Adaptyv protein design competition, challenge 5. We must design up to
+20 small proteins that stick to a **mutated** cancer peptide (KRAS G12D) while it is
+being displayed on a cell's surface, and crucially *do not* stick to the normal version
+of the same peptide, which differs by a single atom's worth of chemistry at one
+position. We are scored first on that discrimination, and only then on how tightly we
+bind. Designs are picked for real laboratory testing; the deadline is Sunday 8 November.
+
+### Why this step
+
+For three runs we had been making the binder shape ourselves, by running a structure
+prediction program backwards until it imagined a protein that looked like it would
+stick. The checkpoint before this one recorded that this failed a test we had set in
+advance: when we asked a second program to write a real amino-acid sequence for our
+imagined shapes, it returned nonsense on all fifteen we tried — 720 sequences, none
+usable.
+
+That nonsense was informative. The second program (*ProteinMPNN*) only produces
+glycine-and-proline mush when the shape it has been handed is not a real, foldable
+protein. In other words: we had not been designing proteins. We had been polishing
+noise, carefully, for sixteen hours of borrowed graphics-card time.
+
+If we had skipped this step and simply tried harder — a fourth run, different settings —
+we would have spent the remaining time the same way.
+
+### What we actually did
+
+We went and read the literature properly, which is what I should have done at the start
+of the challenge rather than after three failures.
+
+In July 2025 the Baker lab published exactly this problem and solved it: *Design of
+high-specificity binders for peptide–MHC-I complexes* (Science 389:386–391). Eleven
+different displayed peptides, binders that stick in the nanomolar range, discrimination
+against the near-identical wrong peptides confirmed in live cells, and one case
+confirmed by crystal structure. Two sentences from it reframed our whole position.
+
+The first explains our failure. On generating shapes from scratch, they write that
+*only a small fraction of trajectories yield backbones that interact extensively with
+the peptide while largely avoiding the MHC*. Our approach was not merely unlucky; it is
+known to be wasteful, and we were running it on a fraction of their compute.
+
+The second is their fix: **stop generating shapes and reuse ones already known to
+work.** Because every one of these displayed-peptide targets has nearly the same shape,
+a binder designed to arch over one of them can be lifted onto another.
+
+And they published the parts. A public archive holds **152 binder shapes** already shown
+to arch over this exact kind of target, each saved alongside the target it was built
+for, plus the filters and the scoring scripts.
+
+So we built the step that moves those shapes onto our target. Think of it as a set of
+152 bridges, each cast for a slightly different river, and all the rivers are nearly
+identical. To try a bridge on our river, line up *its* riverbanks with *our* riverbanks,
+then keep the bridge and discard the old banks.
+
+That lining-up either works or it does not, and it is a number we can read. **It works:
+the riverbanks match to within 0.5–0.7 ångström** — about a fifth of the width of a
+single atom. The shapes land on our target in very nearly the pose they were designed
+to adopt.
+
+We also found the idea that may matter more than the shapes. Their test for
+discrimination is to hold a finished design in place, rub out the peptide's identity,
+and ask the sequence-writing program *what peptide belongs in this pocket?* A design
+that genuinely reads the mutation will answer with the mutated letter. One that is
+merely resting on the surface will not care which letter is there. This runs on an
+ordinary processor in minutes, costs nothing, and measures the exact quantity the
+competition ranks us on. **We have had no measurement of discrimination at all until
+now** — in four challenges.
+
+### How it works
+
+The bridge analogy, carried through:
+
+- **The river** is the displayed peptide sitting in its groove, with the mutated
+  position as a single stone in the riverbed we must touch.
+- **The 152 bridges** are the published binder shapes. Someone else cast them, tested
+  them, and showed they span this kind of river.
+- **Lining up the banks** is the docking step we just built. The banks are the
+  near-identical scaffolding either side of the groove.
+- **Rebuilding the bridge deck** is sequence redesign: we keep the shape and replace
+  every single amino acid, choosing ones that grip *our* stone.
+- **The flow test** is the discrimination screen: block the riverbed, ask which stone
+  the bridge thinks is underneath it.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[152 published binder shapes<br/>each with its own target] -->|line up the targets| B[Docking onto our target]
+    T[Our KRAS G12D target<br/>189 building blocks] --> B
+    B -->|poses that touch the mutation<br/>and avoid the rest| C[Shortlist of poses]
+    C -->|replace every amino acid| D[Sequence redesign]
+    D -->|reject prolineglycine mush<br/>and bad composition| E[Buildable candidates]
+    E -->|ask which peptide<br/>belongs in the pocket| F{Does it prefer<br/>the mutation?}
+    F -->|no| X[Discard]
+    F -->|yes| G[Predict against all three:<br/>mutant, normal, empty]
+    G -->|rank by discrimination| H[20 designs submitted]
+    style B fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+"Now" is the blue box: docking is built and running. Everything to its right is designed
+but not yet built or run.
+
+### What you have now
+
+**Things that work now:**
+
+- [pmhc/dock_scaffolds.py](pmhc/dock_scaffolds.py) — moves the published shapes onto our
+  target and measures each pose. Open it and you get the reasoning for every threshold,
+  including two bugs it caught in itself.
+- [pmhc/inspect_scaffolds.py](pmhc/inspect_scaffolds.py) — reads the downloaded shape set
+  and reports what is actually in it rather than what the paper implies. This is how we
+  know the binders are 54–118 amino acids and contain **no cysteines at all**, which
+  happens to remove a liability that bit us on the previous challenge.
+- [pmhc/results/docked_poses.json](pmhc/results/docked_poses.json) — the measurements for
+  every pose that docked.
+
+**Plans, not working things:**
+
+- [pmhc/PLAN5_SCAFFOLD.md](pmhc/PLAN5_SCAFFOLD.md) — the revised seven-step plan, the
+  compute budget, and a rule risk written out in full (below).
+
+**Already built earlier and still good:** the three-state target files, the
+three-state screen with its unit tests, the composition screen including the
+proline/glycine gate, and the ipSAE input converter.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Reuse 152 published binder shapes | A fourth from-scratch generation run | Three runs, zero usable designs, and the paper says from-scratch is known to be wasteful for this target type |
+| Reimplement the docking in Biopython | Running their script as-is | Theirs needs PyMOL, which we do not have; ours reports the alignment quality as a number instead of trusting it silently |
+| Measure backbone-only clashes separately | Rejecting poses on all-atom clashes | All-atom clashes include side chains we are about to delete and replace; rejecting on those would have thrown away every pose |
+| One prediction pass over all three states | Validate first, then discriminate | Halves the graphics-card bill, and that is where all three previous runs died |
+| Declare the shape provenance in the submission | Quietly redesigning and not mentioning it | See the rule risk below; the sequences are public either way |
+
+### Jargon decoder
+
+- **Scaffold** — a protein shape without a committed amino-acid sequence; the bridge
+  before the deck is laid.
+- **Docking** — positioning one molecule against another to test a pose.
+- **Ångström** — a ten-billionth of a metre. An atom is roughly 1–3 across.
+- **RMSD** — the average distance between two shapes after you line them up as well as
+  possible. 0.5 Å means near-perfect agreement.
+- **ProteinMPNN** — the program that writes an amino-acid sequence for a given shape.
+- **Proline and glycine** — two amino acids with unusual rigidity and floppiness. A
+  sequence made mostly of them is a sign the shape was never foldable.
+- **Cysteine** — an amino acid that forms bonds with other cysteines; unpaired ones make
+  proteins misbehave when manufactured.
+- **de novo** — designed from scratch, as opposed to copied from nature.
+
+### What is next, and what could go wrong
+
+Next: finish docking, shortlist the poses that touch the mutation without a backbone
+clash, redesign their sequences, run the discrimination screen, then one graphics-card
+pass over all three states, then rank and submit. The first submission needs to go in
+**Saturday 7 November**, because only one submission is allowed per 24 hours and we want
+a second attempt available.
+
+Honest risks:
+
+- **The rule risk, which is real.** Track 3 says *"De novo only. Modifying an existing
+  binder is not allowed."* These shapes are themselves de novo designs, and they were
+  built for *different* targets, not ours. Starting from a shape library and rewriting
+  the sequence is completely standard in this field. But a strict reading of that
+  sentence could cover what we are doing, and I cannot settle it from the rules text. So
+  we will replace 100% of each sequence, measure and report how similar each design
+  still is to the shape it came from, drop any that stay too close, and name the source
+  paper in the submission. If the organisers judge it ineligible they will be able to see
+  exactly why from the submission itself. I am flagging this before we spend the time,
+  not after.
+- **The discrimination screen may come back flat.** It is the published method, but we
+  have not yet shown it separates anything on *our* target. If every design scores the
+  same, it tells us nothing and we are back to ranking on confidence alone.
+- **Confidence scores do not predict binding strength.** The BindCraft authors state
+  this outright, and the Baker paper leans on experiments rather than metrics for
+  affinity. We should not present our rankings as predicted affinities.
+- **Our "normal peptide" comparison is a model, not a structure.** We make it by
+  stripping one side chain and renaming the residue. The real structure of the normal
+  version exists and we are not using it. That makes the comparison cleaner than reality
+  and should be read as a lower bound on how hard discrimination is.
+- **Only around 14 of 30 graphics-card hours remain this week**, and the one remaining
+  graphics-card step is the only thing between us and a submission.
 
 ---
 

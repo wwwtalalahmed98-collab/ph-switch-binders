@@ -38,3 +38,7 @@ submission/challenge5_*
 
 # Downloaded reference structures - re-fetched by the scripts, not source
 data/glp1r/
+
+# Docked poses are regenerable from pmhc/dock_scaffolds.py plus the published
+# scaffold set (Zenodo 10.5281/zenodo.15169815); 151 PDBs is not worth versioning.
+data/pmhc/docked/
