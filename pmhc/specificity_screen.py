@@ -40,6 +40,7 @@ Run:  python pmhc/specificity_screen.py [--limit N]
 """
 import json
 import os
+import random
 import sys
 import time
 
@@ -308,11 +309,30 @@ def main(argv):
                                 os.path.join(WORK, "%s.pdb" % c["design"]))
             lp = mutation_logprobs(model, p)
             d, g = float(lp[MUT_IDX, AA_D]), float(lp[MUT_IDX, AA_G])
+
+            # THE CONTROL THAT MAKES THE NUMBER MEAN SOMETHING.
+            # A smoke test with a nonsense poly-AEKL helix on this very backbone
+            # scored +0.52 against the bare-groove baseline, which means a large
+            # part of that baseline delta is "a protein is sitting here", not "this
+            # design reads the mutation". Scoring a SHUFFLE of the design's own
+            # sequence on the same backbone holds the pose, the length and the amino
+            # acid composition fixed, and varies only the arrangement. What survives
+            # that subtraction is attributable to the design.
+            rng = random.Random(hash(c["design"]) & 0xFFFFFFFF)
+            shuf = list(c["seq"])
+            rng.shuffle(shuf)
+            ps = thread_sequence(pose, "".join(shuf),
+                                 os.path.join(WORK, "%s_shuf.pdb" % c["design"]))
+            lps = mutation_logprobs(model, ps)
+            ds, gs = float(lps[MUT_IDX, AA_D]), float(lps[MUT_IDX, AA_G])
+
             r = dict(c)
             r["logp_asp6"] = round(d, 4)
             r["logp_gly6"] = round(g, 4)
             r["margin"] = round(d - g, 4)
             r["delta_vs_baseline"] = round((d - g) - baseline, 4)
+            r["margin_shuffled"] = round(ds - gs, 4)
+            r["delta_vs_shuffled"] = round((d - g) - (ds - gs), 4)
             if c["design"] in fits:
                 s_mut, s_wt = fits[c["design"]]
                 r["binder_score_g12d"] = round(s_mut, 4)
@@ -332,19 +352,39 @@ def main(argv):
         raise SystemExit("nothing screened")
 
     deltas = sorted(r["delta_vs_baseline"] for r in rows)
+    shuf = sorted(r["delta_vs_shuffled"] for r in rows)
     print()
     print("--- did the screen separate anything? (denominator %d) ---" % len(rows))
-    print("    delta vs baseline: min %+.3f  median %+.3f  max %+.3f"
+    print("    vs the BARE GROOVE (no binder):")
+    print("        min %+.3f  median %+.3f  max %+.3f"
           % (deltas[0], deltas[len(deltas) // 2], deltas[-1]))
-    pos = sum(1 for d in deltas if d > 0)
-    print("    designs that improve on the bare groove: %d of %d" % (pos, len(rows)))
-    spread = deltas[-1] - deltas[0]
-    print("    spread: %.3f" % spread)
+    print("        improving on it: %d of %d"
+          % (sum(1 for d in deltas if d > 0), len(rows)))
+    print("        Read this one with suspicion: a nonsense poly-AEKL helix scored")
+    print("        +0.52 here in a smoke test, so it rewards mere occupancy.")
+    print()
+    print("    vs a SHUFFLE of the design's own sequence on the same backbone")
+    print("    (same pose, same length, same composition - only the order differs):")
+    print("        min %+.3f  median %+.3f  max %+.3f"
+          % (shuf[0], shuf[len(shuf) // 2], shuf[-1]))
+    print("        improving on it: %d of %d"
+          % (sum(1 for d in shuf if d > 0), len(rows)))
+    print("        This is the number to rank on. It is the part of the signal")
+    print("        attributable to the design rather than to the pose.")
+    spread = shuf[-1] - shuf[0]
+    print()
+    print("    spread of the shuffle-controlled score: %.3f" % spread)
     if spread < 0.2:
         print()
-        print("    WARNING: the scores are essentially flat. This screen is then not")
-        print("    discriminating between our designs and must not be used to rank")
-        print("    them. Report it as a null result rather than reading noise.")
+        print("    WARNING: shuffle-controlled scores are essentially flat. The")
+        print("    screen is then NOT discriminating between our designs and must")
+        print("    not be used to rank them. Report it as a null result rather than")
+        print("    reading noise, and fall back to interface geometry.")
+    if shuf[len(shuf) // 2] <= 0:
+        print()
+        print("    WARNING: the median design does no better than a shuffle of its")
+        print("    own sequence. That is evidence the sequences are not reading the")
+        print("    mutation at all, whatever their raw margins look like.")
 
     # The second, independent measure, and whether the two agree.
     fits = [r["binder_fit_delta"] for r in rows if r.get("binder_fit_delta") is not None]
@@ -369,17 +409,18 @@ def main(argv):
                 print("    agreement is evidence and disagreement is a caution, not")
                 print("    a bug.")
 
-    rows.sort(key=lambda r: -r["delta_vs_baseline"])
+    rows.sort(key=lambda r: -r["delta_vs_shuffled"])
     print()
-    print("--- top 25 by specificity margin over the bare groove ---")
-    print("%-24s %8s %8s %8s %8s %8s %5s"
-          % ("design", "logP(D)", "logP(G)", "margin", "delta", "fitdiff", "mut"))
+    print("--- top 25 by the shuffle-controlled score ---")
+    print("%-24s %8s %8s %9s %8s %8s %5s"
+          % ("design", "margin", "vs bare", "vs shuf", "fitdiff", "mpnn", "mut"))
     for r in rows[:25]:
         fd = r.get("binder_fit_delta")
-        print("%-24s %+8.3f %+8.3f %+8.3f %+8.3f %8s %5d"
-              % (r["design"], r["logp_asp6"], r["logp_gly6"], r["margin"],
-                 r["delta_vs_baseline"],
-                 ("%+.3f" % fd) if fd is not None else "-", r["n_mut_contacts"]))
+        print("%-24s %+8.3f %+8.3f %+9.3f %8s %8.3f %5d"
+              % (r["design"], r["margin"], r["delta_vs_baseline"],
+                 r["delta_vs_shuffled"],
+                 ("%+.3f" % fd) if fd is not None else "-",
+                 r["mpnn_score"], r["n_mut_contacts"]))
 
     out = os.path.join(RESULTS, "specificity.json")
     json.dump({"baseline_margin": baseline,

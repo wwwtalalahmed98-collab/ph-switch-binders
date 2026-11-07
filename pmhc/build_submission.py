@@ -85,12 +85,12 @@ def main():
     print()
     print("--- ranking, stated before the numbers are read ---")
     if have_spec:
-        print("    1. specificity margin over the bare groove (proxy for KD(WT)/KD(G12D))")
+        print("    1. shuffle-controlled specificity score (proxy for KD(WT)/KD(G12D))")
         print("    2. binder-fit difference, mutant vs wild-type background")
         print("    3. number of heavy-atom contacts to the Asp6 mutation")
         print("    4. peptide share of the interface (peptide-centric = specific)")
         print("    5. ProteinMPNN score, as a tie-break only")
-        rows.sort(key=lambda r: (-r.get("delta_vs_baseline", 0.0),
+        rows.sort(key=lambda r: (-r.get("delta_vs_shuffled", 0.0),
                                  -(r.get("binder_fit_delta") or 0.0),
                                  -r["n_mut_contacts"], -r["pep_fraction"],
                                  r["mpnn_score"]))
@@ -140,7 +140,7 @@ def main():
     detail = os.path.join(SUB, "challenge5_kras_g12d_detail.tsv")
     cols = ["rank", "submit_name", "parent", "length", "tier", "parent_identity",
             "n_mut_contacts", "n_pep_contacts", "n_mhc_contacts", "pep_fraction",
-            "mpnn_score", "logp_asp6", "logp_gly6", "margin", "delta_vs_baseline",
+            "mpnn_score", "logp_asp6", "logp_gly6", "margin", "delta_vs_baseline", "margin_shuffled", "delta_vs_shuffled",
             "binder_score_g12d", "binder_score_wt", "binder_fit_delta",
             "charged_frac", "hydrophobic_frac", "pro_frac", "gly_frac", "kd", "seq"]
     with open(detail, "w", newline="") as f:
@@ -152,12 +152,14 @@ def main():
 
     print()
     print("--- the 20 ---")
-    hdr = "%-14s %-10s %4s %-8s %5s %4s %6s"
-    print(hdr % ("name", "parent", "len", "tier", "ident", "mut", "delta"))
+    hdr = "%-14s %-10s %4s %-8s %5s %4s %8s %8s"
+    print(hdr % ("name", "parent", "len", "tier", "ident", "mut",
+                 "vs shuf", "vs bare"))
     for r in final:
         print(hdr % (r["submit_name"], r["parent"], r["length"], r["tier"],
                      "%.2f" % r["parent_identity"], r["n_mut_contacts"],
-                     ("%+.2f" % r["delta_vs_baseline"]) if have_spec else "-"))
+                     ("%+.3f" % r["delta_vs_shuffled"]) if have_spec else "-",
+                     ("%+.3f" % r["delta_vs_baseline"]) if have_spec else "-"))
 
     ident = [r["parent_identity"] for r in final]
     lens = [r["length"] for r in final]
@@ -175,6 +177,13 @@ def write_methods(final, baseline, have_spec, ident, lens):
         "same quantity measured on the bare pMHC with no binder present (%+.3f) is "
         "subtracted, so the reported margin is the binder's own contribution rather "
         "than the groove's intrinsic preference.\n\n"
+        "That subtraction alone is not enough, and we checked: a nonsense poly-AEKL "
+        "helix threaded onto one of these backbones scored +0.52 against the "
+        "bare-groove baseline, so a large part of it rewards mere occupancy of the "
+        "site. The score designs are ranked on is therefore measured against a "
+        "SHUFFLE of each design's own sequence on its own backbone, holding pose, "
+        "length and amino-acid composition fixed and varying only the order. What "
+        "survives that subtraction is attributable to the design.\n\n"
         "A second, independent measure was taken: the ProteinMPNN score of the binder "
         "sequence against the G12D background and against a wild-type background built "
         "by renaming the peptide's Asp6 to Gly on the same backbone. A binder that fits "
