@@ -146,7 +146,13 @@ def write_yaml(path, chains):
 
 
 def run_boltz(yaml_path, out_dir):
-    sh("boltz predict %s --out_dir %s --output_format pdb --diffusion_samples 1 "
+    # mmCIF, not PDB: ipsae.py's Boltz mode is documented as
+    #   python ipsae.py <boltz_pae_npz> <boltz_cif> <pae_cutoff> <dist_cutoff>
+    # and it infers the format from the extension. Handing it a .pdb alongside a
+    # Boltz .npz is not a combination it advertises, and a scorer that silently
+    # misreads chains would give us confident nonsense - the exact failure this
+    # project has had three times.
+    sh("boltz predict %s --out_dir %s --output_format mmcif --diffusion_samples 1 "
        "--override" % (yaml_path, out_dir), check=False, quiet=True)
     return out_dir
 
@@ -160,7 +166,8 @@ def find_outputs(out_dir, stem):
                                  "predictions", stem, "pae_*.npz"))
     conf = glob.glob(os.path.join(out_dir, "boltz_results_%s" % stem,
                                   "predictions", stem, "confidence_*.json"))
-    return (pdb or cif), pae, conf
+    # cif first: that is what ipsae.py's Boltz mode expects.
+    return (cif or pdb), pae, conf
 
 
 def sanity_check_target(heavy, work):
