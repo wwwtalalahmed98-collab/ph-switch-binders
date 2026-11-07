@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 26 | 2026-11-07 | Twenty designs, and the first time we have measured the thing we are judged on |
 | 25 | 2026-11-06 | Somebody already solved this, and published the parts |
 | 24 | 2026-11-05 | The test we set in advance came back no |
 | 23 | 2026-11-04 | Aiming at a target the size of a full stop |
@@ -29,6 +30,192 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 26. 2026-11-07 - Twenty designs, and the first time we have measured the thing we are judged on
+
+### Where we are
+
+We have twenty finished designs, ready to submit, and for the first time in five
+challenges we have actually measured whether they can tell the cancer peptide from the
+healthy one — which is the thing the competition scores us on.
+
+### What this project is for
+
+Challenge 5 of the Anthropic × Adaptyv competition. Design up to twenty small proteins
+that stick to a **mutated** peptide (KRAS G12D) being displayed on a cell's surface,
+and *do not* stick to the normal version, which differs at a single position. We are
+ranked on that discrimination first, and on binding strength only as a tie-break. The
+deadline is tomorrow; the first submission should go in today so a second attempt stays
+available.
+
+### Why this step
+
+Yesterday we threw away three runs' worth of work and started again from published
+parts. Today was the test of whether that was the right call.
+
+### What we actually did
+
+Four things, in order.
+
+**One: wrote the sequences.** Taking the 63 docked shapes from yesterday, we replaced
+every single amino acid in each one, 48 different ways, using the sequence-writing
+program (*ProteinMPNN*). 3,024 sequences. The pre-registered test — the one the old
+approach failed — was whether the program would return something other than
+glycine-proline mush. It did:
+
+| | Old approach | New approach |
+|---|---|---|
+| Sequences that could plausibly fold | **0 of 720** | **552 of 3,024** |
+
+**Two: hit the de novo problem head-on.** The sequences came back 50–60% identical to
+the published shapes they were built on. That is not a bug — given a fixed shape, the
+program recovers a near-native sequence, because the shape largely dictates it. But the
+rules say *"de novo only; modifying an existing binder is not allowed"*, and 55%
+identical is uncomfortably close to what that forbids.
+
+Turning up the randomness barely helped. So instead we told the program, at every
+single position, *you may not use the residue the original had there*. That pulled the
+median identity from 55% down to 42%, and gave us 179 sequences below 35% identity.
+
+It also did something I did not predict and would have been wrong about: the proportion
+of sequences passing our fold-and-express check **went up**, from 2.2% to 18.8%. Pushing
+away from the originals moved the chemistry *towards* natural, because those published
+shapes carry idealised, unusually repetitive sequences. I had described the penalty as
+purely a cost. It was not.
+
+**Three: measured discrimination, finally.** Hold the design in place, rub out the
+peptide's identity, and ask the program *which peptide belongs in this pocket?* A design
+that truly grips the mutation answers with the mutated letter.
+
+The control is what makes this honest, and building it changed the answer twice:
+
+- The **empty groove, with no design at all**, already prefers the mutant letter by
+  +0.44. That is the display molecule's own chemistry. Without measuring it we would
+  have claimed a large part of it as ours.
+- Then a smoke test on **two nonsense sequences** — meaningless repeating helices —
+  scored +0.52 and +0.62 against that empty-groove baseline. So even the corrected
+  number was largely rewarding *"a protein is sitting here"*.
+
+So each design is now compared against **a shuffle of its own sequence on its own
+shape**: same position, same length, same ingredients, only the order changed. What
+survives that subtraction is the design's own doing. Forty of fifty-six beat their own
+shuffle.
+
+**Four: a second measure, which failed.** We also asked the reverse question — does this
+design's sequence suit the mutant background better than the healthy one? It produced
+almost no variation at all (a range of 0.16 against 1.15 for the first measure) and
+agreed with the first measure not at all (correlation −0.03). We are reporting it as a
+failed measurement and leaving it out of the ranking. A number with no spread that
+agrees with nothing is not a second opinion.
+
+### How it works
+
+Carrying on yesterday's bridge analogy: we had 152 bridges cast for near-identical
+rivers, and we had lined the good ones up over ours.
+
+- **Rebuilding the deck** is writing the sequence: keep the span, replace every plank.
+- **The de novo penalty** is a rule that no plank may be the same kind as the one that
+  was there before. The bridge still spans, but it is visibly not the old bridge.
+- **The flow test** is the discrimination screen: block the riverbed and ask the bridge
+  which stone is underneath it.
+- **The shuffle control** is the bit that makes the flow test mean something: run the
+  same test with the same planks nailed up in a scrambled order. Any bridge "detects"
+  the stone a bit just by standing over it. We only count the part that scrambling
+  destroys.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[63 docked shapes<br/>from yesterday] -->|replace every amino acid| B[Pass 1: 3,024 sequences]
+    A -->|and again, forbidding<br/>the original residue| C[Pass 2: 960 sequences]
+    B -->|50-60% like the original| D{Too close to<br/>the published shape?}
+    C -->|median 42% like the original| D
+    D -->|keep only below 35%| E[56 candidates<br/>17 distinct shapes]
+    E -->|ask which peptide<br/>belongs in the pocket| F[Discrimination score]
+    G[Control: the same test on<br/>a scramble of each sequence] --> F
+    F -->|subtract the control| H[20 designs, ranked<br/>12 distinct shapes]
+    style F fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+"Now" is the blue box. Everything shown has run; the only thing after the last box is
+submitting.
+
+### What you have now
+
+**Things that work now, and have produced real output:**
+
+- `submission/challenge5_kras_g12d.csv` — the twenty designs. Validated: 20 rows, the
+  three required columns, all 54–103 amino acids, no cysteines, no duplicates.
+- `submission/challenge5_kras_g12d_detail.tsv` — every number behind each design,
+  including which published shape it came from and how similar it still is.
+- `submission/challenge5_methods.md` — the write-up, including the de novo declaration
+  and the failed second measure.
+- [pmhc/specificity_screen.py](pmhc/specificity_screen.py) — the discrimination
+  measurement, with both controls.
+- [pmhc/run_mpnn_divergent.py](pmhc/run_mpnn_divergent.py) — the pass that pushes away
+  from the published sequences.
+- [pmhc/merge_candidates.py](pmhc/merge_candidates.py) — combines both passes, applying
+  the identity limit *first*.
+
+These three files are deliberately **not** published to GitHub yet; they go up when the
+submission window closes, as with the previous four challenges.
+
+**Not done:** no structure has been predicted for any of these twenty sequences, so we
+have no confidence scores and no ipSAE. That needs a graphics card, and the Chrome
+extension went down mid-session so Kaggle is unreachable. It is an optional extra, not
+a requirement.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Run everything on this laptop | Kaggle | The browser failed mid-session; moving sequence design local removed the whole dependency and cost nothing |
+| Identity limit of 35% | 30% or 40% | Fixed on the de novo argument *before* seeing any discrimination score. 30% left only 9 shapes; 40% weakened the claim for material we did not need |
+| Rank on the shuffle-controlled score | The raw score, or the empty-groove comparison | Nonsense sequences scored +0.52 on the empty-groove comparison, so it partly measures occupancy |
+| Report the second measure as failed | Quietly dropping it, or presenting it as support | It had no spread and agreed with nothing |
+| Declare the shape provenance in the submission | Not mentioning it | The sequences are public either way; the organisers should judge it with the facts |
+
+### Jargon decoder
+
+- **de novo** — designed from scratch rather than copied from nature or from an
+  existing binder.
+- **Sequence identity** — what fraction of positions hold the same amino acid in two
+  sequences. 100% is identical, ~30% is around the point where relatedness stops being
+  detectable from sequence alone.
+- **ProteinMPNN** — the program that writes an amino-acid sequence for a given shape.
+- **Bias** — a thumb on the scales telling that program to prefer or avoid particular
+  amino acids at particular positions. How we enforced the de novo penalty.
+- **Log-probability** — how strongly a model expects something, on a scale where
+  differences add up rather than multiply. A margin of +0.44 means "noticeably
+  preferred", not "certain".
+- **Correlation** — how much two measurements move together. −0.03 means essentially
+  not at all.
+
+### What is next, and what could go wrong
+
+Next: submit. Then, if a graphics card becomes reachable, add structure predictions and
+ipSAE and resubmit tomorrow, since one submission per 24 hours is allowed.
+
+Honest risks, unchanged or newly sharpened:
+
+- **The de novo rule is still the biggest risk, and lowering identity did not remove
+  it.** The shapes are still published scaffolds. Only generating new shapes would
+  settle it, and we could not get that running in the time. If the organisers read the
+  rule strictly, all twenty could be ruled ineligible. They will be able to see exactly
+  why, because we say so in the submission.
+- **The discrimination score is a sequence model's opinion, not a binding measurement.**
+  It is not a KD, it is not an affinity, and a positive score is not a promise. It is
+  the cheapest honest estimate of the quantity we are ranked on.
+- **The healthy-peptide comparison shares one backbone with the mutant.** We make it by
+  renaming one residue. That is cleaner than reality, so our margins are an upper bound
+  on how easy this discrimination actually is.
+- **Nothing has been folded.** Every design passed a chemistry-and-composition check,
+  not a structure prediction. A sequence that passes that check can still fail to fold.
+- **Sixteen of fifty-six candidates did no better than their own scramble.** They were
+  ranked out, but it is a reminder that the method does not work on every design.
 
 ---
 
