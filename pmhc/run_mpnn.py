@@ -43,6 +43,14 @@ KEEP_PER_POSE = 6               # so the final set is not one backbone repeated
 PEP = "VVVGADGVGK"
 TARGET_LEN = 189                # 179 MHC platform + 10 peptide
 
+# ProteinMPNN sampling is stochastic. The first production run of this script was
+# made BEFORE this seed was added, so the sequences actually submitted for challenge 5
+# came from an unseeded run and cannot be regenerated bit-for-bit. Every sequence that
+# run produced is recorded in pmhc/results/mpnn_all.json, so the set is auditable even
+# though it is not reproducible, and the submission methods text says so. Runs from
+# here on are seeded.
+SEED = 37
+
 
 def main():
     sl = os.path.join(RESULTS, "shortlist_poses.json")
@@ -56,12 +64,13 @@ def main():
     print("    temperatures   : %s, %d sequences each = %d per pose"
           % (list(TEMPERATURES), N_SEQ, N_SEQ * len(TEMPERATURES)))
     print("    weights        : v_48_020")
+    print("    seed           : %d" % SEED)
     print("    expected total : %d sequences"
           % (N_SEQ * len(TEMPERATURES) * len(poses)))
     print()
 
     from colabdesign.mpnn import mk_mpnn_model
-    model = mk_mpnn_model(model_name="v_48_020")
+    model = mk_mpnn_model(model_name="v_48_020", seed=SEED)
 
     rows = []
     n_seen = n_cys = 0

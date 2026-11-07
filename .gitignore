@@ -32,9 +32,21 @@ __pycache__/
 # must match by pattern, not by name.
 #
 # Challenge 5 (KRAS G12D pMHC) is open until 8 Nov. Its sequences go here, ignored,
-# until that window closes:
+# until that window closes.
+#
+# Caught a third time on 7 Nov, and only because the rule above was read before the
+# files existed: the scaffold pipeline writes designed sequences into JSON result
+# files, which "submission/challenge5_*" does not cover. Matching by pattern was not
+# enough on its own - the patterns also have to cover every PLACE sequences are
+# written, not just the submission folder.
 pmhc/results/*sequences*.csv
+pmhc/results/mpnn_candidates.json
+pmhc/results/mpnn_all.json
+pmhc/results/specificity.json
 submission/challenge5_*
+
+# NOT withheld, and deliberately so: docked_poses.json and shortlist_poses.json carry
+# scaffold_seq, which is the Baker lab's already-published scaffold sequence, not ours.
 
 # Downloaded reference structures - re-fetched by the scripts, not source
 data/glp1r/

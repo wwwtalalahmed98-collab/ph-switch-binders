@@ -251,6 +251,16 @@ target. Sequence identity of each design to the scaffold it came from is %.0f-%.
 and parent scaffold names are in the accompanying detail table. We state this
 explicitly so the organisers can judge eligibility directly.
 
+## Reproducibility
+
+Target preparation, scaffold docking, pose filtering and all screens are
+deterministic and reproducible from the public inputs (PDB 7OW6/7OW5 and Zenodo
+10.5281/zenodo.15169815). ProteinMPNN sampling is stochastic, and the run that produced
+these sequences was made before a fixed seed was added to our script, so the exact
+sampled set cannot be regenerated bit-for-bit. All sequences that run produced are
+recorded alongside the code, so the set is auditable even though it is not
+reproducible; later runs are seeded.
+
 ## What we did not do
 
 - No experimental data of any kind.
