@@ -268,40 +268,65 @@ def main(argv):
           % len(wt_poses))
     print()
 
-    rows = []
-    t0 = time.time()
-    for i, c in enumerate(cands, 1):
-        pose = os.path.join(DOCKED, "%s_docked.pdb" % c["parent"])
-        if not os.path.exists(pose):
-            continue
-        p = thread_sequence(pose, c["seq"],
-                            os.path.join(WORK, "%s.pdb" % c["design"]))
-        lp = mutation_logprobs(model, p)
-        d, g = float(lp[MUT_IDX, AA_D]), float(lp[MUT_IDX, AA_G])
-        r = dict(c)
-        r["logp_asp6"] = round(d, 4)
-        r["logp_gly6"] = round(g, 4)
-        r["margin"] = round(d - g, 4)
-        r["delta_vs_baseline"] = round((d - g) - baseline, 4)
+    # Work parent by parent. The binder-fit measure only needs the model prepared on
+    # the parent pose, not on each design, so preparing once per parent and scoring
+    # every design of that parent against it turns 2 preparations per design into 2
+    # per parent. With ~6 designs per parent that is most of the run time.
+    by_parent = {}
+    for c in cands:
+        by_parent.setdefault(c["parent"], []).append(c)
 
-        # second, independent read: does this binder sequence fit the mutant
-        # background better than the wild-type one? score is a negative
-        # log-likelihood, so lower is better and a POSITIVE difference is good.
+    rows = []
+    done = 0
+    t0 = time.time()
+    for parent, group in by_parent.items():
+        pose = os.path.join(DOCKED, "%s_docked.pdb" % parent)
+        if not os.path.exists(pose) or parent not in wt_poses:
+            continue
+
+        # (a) binder fit, both backgrounds, one preparation each
+        fits = {}
         try:
-            s_mut = binder_fit(model, pose, c["seq"])
-            s_wt = binder_fit(model, wt_poses[c["parent"]], c["seq"])
-            r["binder_score_g12d"] = round(s_mut, 4)
-            r["binder_score_wt"] = round(s_wt, 4)
-            r["binder_fit_delta"] = round(s_wt - s_mut, 4)
+            model.prep_inputs(pdb_filename=pose, chain="A,B", fix_pos="A")
+            mut_scores = {c["design"]: float(
+                np.asarray(model.score(seq=c["seq"])["score"]).reshape(-1)[0])
+                for c in group}
+            model.prep_inputs(pdb_filename=wt_poses[parent], chain="A,B",
+                              fix_pos="A")
+            wt_scores = {c["design"]: float(
+                np.asarray(model.score(seq=c["seq"])["score"]).reshape(-1)[0])
+                for c in group}
+            fits = {k: (mut_scores[k], wt_scores[k]) for k in mut_scores}
         except Exception as e:                     # noqa: BLE001
-            r["binder_fit_delta"] = None
-            if i == 1:
+            if not rows:
                 print("    binder-fit measure unavailable: %s: %s"
                       % (type(e).__name__, e))
-        rows.append(r)
-        if i % 10 == 0 or i == len(cands):
-            print("  %d/%d screened  (%.0f s)" % (i, len(cands), time.time() - t0),
-                  flush=True)
+
+        # (b) peptide recovery, which does need the design threaded onto the backbone
+        for c in group:
+            p = thread_sequence(pose, c["seq"],
+                                os.path.join(WORK, "%s.pdb" % c["design"]))
+            lp = mutation_logprobs(model, p)
+            d, g = float(lp[MUT_IDX, AA_D]), float(lp[MUT_IDX, AA_G])
+            r = dict(c)
+            r["logp_asp6"] = round(d, 4)
+            r["logp_gly6"] = round(g, 4)
+            r["margin"] = round(d - g, 4)
+            r["delta_vs_baseline"] = round((d - g) - baseline, 4)
+            if c["design"] in fits:
+                s_mut, s_wt = fits[c["design"]]
+                r["binder_score_g12d"] = round(s_mut, 4)
+                r["binder_score_wt"] = round(s_wt, 4)
+                # score is a negative log-likelihood, so lower is a better fit and a
+                # POSITIVE difference means the binder suits the mutant background.
+                r["binder_fit_delta"] = round(s_wt - s_mut, 4)
+            else:
+                r["binder_fit_delta"] = None
+            rows.append(r)
+            done += 1
+            if done % 20 == 0 or done == len(cands):
+                print("  %d/%d screened  (%.0f s)" % (done, len(cands),
+                                                      time.time() - t0), flush=True)
 
     if not rows:
         raise SystemExit("nothing screened")
