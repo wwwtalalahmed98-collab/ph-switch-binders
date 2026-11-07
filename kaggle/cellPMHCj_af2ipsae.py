@@ -158,7 +158,19 @@ def build_states():
 
 def load_candidates():
     import csv
-    for p in glob.glob(CAND_GLOB):
+    # Search recursively and accept any csv: Kaggle's input layout depends on how the
+    # dataset was created, and the previous run died on a glob that assumed exactly
+    # one directory level. Whatever happens, print what is actually there - a path
+    # guess that fails silently wastes a whole session, which is what it just did.
+    found = sorted(glob.glob("/kaggle/input/**/*.csv", recursive=True))
+    print("csv files visible under /kaggle/input: %d" % len(found))
+    for f in found:
+        print("    %s" % f)
+    if not found:
+        print("    /kaggle/input contains:")
+        for root, dirs, files in os.walk("/kaggle/input"):
+            print("      %s -> dirs %s files %s" % (root, dirs[:6], files[:6]))
+    for p in found:
         rows = list(csv.DictReader(open(p)))
         print("candidates from %s: %d" % (p, len(rows)))
         AA = set("ACDEFGHIKLMNPQRSTVWY")
@@ -171,7 +183,8 @@ def load_candidates():
                   % MAX_CANDIDATES)
             rows = rows[:MAX_CANDIDATES]
         return rows
-    raise SystemExit("no candidate csv found at %s" % CAND_GLOB)
+    raise SystemExit("no usable candidate csv under /kaggle/input - is the "
+                     "dataset attached to this notebook version?")
 
 
 def run_ipsae(pdb, pae_npy, plddt_npy):
