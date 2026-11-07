@@ -86,10 +86,12 @@ def main():
     print("--- ranking, stated before the numbers are read ---")
     if have_spec:
         print("    1. specificity margin over the bare groove (proxy for KD(WT)/KD(G12D))")
-        print("    2. number of heavy-atom contacts to the Asp6 mutation")
-        print("    3. peptide share of the interface (peptide-centric = specific)")
-        print("    4. ProteinMPNN score, as a tie-break only")
+        print("    2. binder-fit difference, mutant vs wild-type background")
+        print("    3. number of heavy-atom contacts to the Asp6 mutation")
+        print("    4. peptide share of the interface (peptide-centric = specific)")
+        print("    5. ProteinMPNN score, as a tie-break only")
         rows.sort(key=lambda r: (-r.get("delta_vs_baseline", 0.0),
+                                 -(r.get("binder_fit_delta") or 0.0),
                                  -r["n_mut_contacts"], -r["pep_fraction"],
                                  r["mpnn_score"]))
     else:
@@ -139,6 +141,7 @@ def main():
     cols = ["rank", "submit_name", "parent", "length", "tier", "parent_identity",
             "n_mut_contacts", "n_pep_contacts", "n_mhc_contacts", "pep_fraction",
             "mpnn_score", "logp_asp6", "logp_gly6", "margin", "delta_vs_baseline",
+            "binder_score_g12d", "binder_score_wt", "binder_fit_delta",
             "charged_frac", "hydrophobic_frac", "pro_frac", "gly_frac", "kd", "seq"]
     with open(detail, "w", newline="") as f:
         w = csv.writer(f, delimiter="\t")
@@ -171,7 +174,14 @@ def write_methods(final, baseline, have_spec, ident, lens):
         "position 6 and took log P(Asp) - log P(Gly), i.e. G12D over wild type. The "
         "same quantity measured on the bare pMHC with no binder present (%+.3f) is "
         "subtracted, so the reported margin is the binder's own contribution rather "
-        "than the groove's intrinsic preference."
+        "than the groove's intrinsic preference.\n\n"
+        "A second, independent measure was taken: the ProteinMPNN score of the binder "
+        "sequence against the G12D background and against a wild-type background built "
+        "by renaming the peptide's Asp6 to Gly on the same backbone. A binder that fits "
+        "the mutant context better scores lower there, and the difference is reported "
+        "as `binder_fit_delta`. The two measures ask different questions - which "
+        "peptide the pocket wants, versus which background suits this binder - so "
+        "their agreement is reported rather than assumed."
         % baseline if (have_spec and baseline is not None) else
         "Specificity was NOT measured for this submission."
     )

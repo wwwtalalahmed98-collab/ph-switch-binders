@@ -143,6 +143,54 @@ def peptide_logprobs(model, pdb, chain="A,B", n_samples=8):
                      "A%d-%d" % (PEP_START + 1, PEP_START + len(PEP)), n_samples)
 
 
+def make_wt_pose(pose_pdb, out_pdb):
+    """The same pose with the peptide's Asp6 renamed to Gly: the wild-type state.
+
+    This is honest only because the files involved are backbone-only as far as
+    ProteinMPNN is concerned - it reads N, CA, C, O and computes CB itself
+    (colabdesign/mpnn/model.py line 56). Renaming the residue therefore produces
+    exactly the wild-type input the model would see, with no invented coordinates.
+
+    The limitation is the one already recorded for the counter-states: wild type and
+    G12D share a single backbone here, the one crystallised with the aspartate. That
+    makes the comparison cleaner than reality, so a margin measured this way should be
+    read as an upper bound on how easy the discrimination is.
+    """
+    target_resnum = PEP_START + MUT_POS          # 185 in chain A, 1-based
+    n_renamed = 0
+    out = []
+    for line in open(pose_pdb):
+        if line.startswith("ATOM") and line[21] == "A" \
+                and int(line[22:26]) == target_resnum:
+            if line[17:20].strip() != "ASP":
+                raise SystemExit("residue %d of chain A is %s, expected ASP"
+                                 % (target_resnum, line[17:20]))
+            if line[12:16].strip() not in BACKBONE:
+                continue                          # drop the aspartate side chain
+            line = line[:17] + "GLY" + line[20:]
+            n_renamed += 1
+        out.append(line)
+    if n_renamed == 0:
+        raise SystemExit("no atoms renamed at chain A residue %d" % target_resnum)
+    open(out_pdb, "w").writelines(out)
+    return out_pdb, n_renamed
+
+
+def binder_fit(model, pose_pdb, binder_seq):
+    """ProteinMPNN score of the binder sequence given this target background.
+
+    Score is a mean negative log-likelihood, so LOWER is a better fit. Comparing the
+    same binder sequence on the G12D background and the wild-type background asks the
+    complementary question to the peptide-recovery test: not "which peptide does this
+    pocket want" but "does this binder sequence sit more comfortably against the
+    mutant than against wild type". Two independent reads on the same claim are worth
+    more than one, especially when neither is a binding free energy.
+    """
+    model.prep_inputs(pdb_filename=pose_pdb, chain="A,B", fix_pos="A")
+    out = model.score(seq=binder_seq)
+    return float(np.asarray(out["score"]).reshape(-1)[0])
+
+
 def check_indexing(model, pdb):
     """Prove MUT_IDX points at the aspartate before trusting any number from it.
 
@@ -206,6 +254,20 @@ def main(argv):
     print("    own margin looks.")
     print()
 
+    # One wild-type background per parent pose, built once and reused.
+    wt_poses = {}
+    for c in cands:
+        if c["parent"] in wt_poses:
+            continue
+        pose = os.path.join(DOCKED, "%s_docked.pdb" % c["parent"])
+        if not os.path.exists(pose):
+            continue
+        wt, _ = make_wt_pose(pose, os.path.join(WORK, "%s_wt.pdb" % c["parent"]))
+        wt_poses[c["parent"]] = wt
+    print("--- wild-type backgrounds built: %d (Asp6 -> Gly6 on the same backbone) ---"
+          % len(wt_poses))
+    print()
+
     rows = []
     t0 = time.time()
     for i, c in enumerate(cands, 1):
@@ -221,6 +283,21 @@ def main(argv):
         r["logp_gly6"] = round(g, 4)
         r["margin"] = round(d - g, 4)
         r["delta_vs_baseline"] = round((d - g) - baseline, 4)
+
+        # second, independent read: does this binder sequence fit the mutant
+        # background better than the wild-type one? score is a negative
+        # log-likelihood, so lower is better and a POSITIVE difference is good.
+        try:
+            s_mut = binder_fit(model, pose, c["seq"])
+            s_wt = binder_fit(model, wt_poses[c["parent"]], c["seq"])
+            r["binder_score_g12d"] = round(s_mut, 4)
+            r["binder_score_wt"] = round(s_wt, 4)
+            r["binder_fit_delta"] = round(s_wt - s_mut, 4)
+        except Exception as e:                     # noqa: BLE001
+            r["binder_fit_delta"] = None
+            if i == 1:
+                print("    binder-fit measure unavailable: %s: %s"
+                      % (type(e).__name__, e))
         rows.append(r)
         if i % 10 == 0 or i == len(cands):
             print("  %d/%d screened  (%.0f s)" % (i, len(cands), time.time() - t0),
@@ -244,15 +321,40 @@ def main(argv):
         print("    discriminating between our designs and must not be used to rank")
         print("    them. Report it as a null result rather than reading noise.")
 
+    # The second, independent measure, and whether the two agree.
+    fits = [r["binder_fit_delta"] for r in rows if r.get("binder_fit_delta") is not None]
+    if fits:
+        fs = sorted(fits)
+        print()
+        print("--- second measure: binder fit on mutant vs wild-type background ---")
+        print("    delta (positive = fits the mutant better):"
+              " min %+.3f  median %+.3f  max %+.3f"
+              % (fs[0], fs[len(fs) // 2], fs[-1]))
+        print("    designs fitting the mutant better: %d of %d"
+              % (sum(1 for x in fits if x > 0), len(fits)))
+        both = [r for r in rows if r.get("binder_fit_delta") is not None]
+        if len(both) > 2:
+            a = np.array([r["delta_vs_baseline"] for r in both])
+            b = np.array([r["binder_fit_delta"] for r in both])
+            if a.std() > 1e-9 and b.std() > 1e-9:
+                cc = float(np.corrcoef(a, b)[0, 1])
+                print("    correlation between the two measures: %+.2f" % cc)
+                print("    They ask different questions (which peptide does the")
+                print("    pocket want, vs which background suits this binder), so")
+                print("    agreement is evidence and disagreement is a caution, not")
+                print("    a bug.")
+
     rows.sort(key=lambda r: -r["delta_vs_baseline"])
     print()
     print("--- top 25 by specificity margin over the bare groove ---")
-    print("%-24s %8s %8s %8s %8s %5s"
-          % ("design", "logP(D)", "logP(G)", "margin", "delta", "mut"))
+    print("%-24s %8s %8s %8s %8s %8s %5s"
+          % ("design", "logP(D)", "logP(G)", "margin", "delta", "fitdiff", "mut"))
     for r in rows[:25]:
-        print("%-24s %+8.3f %+8.3f %+8.3f %+8.3f %5d"
+        fd = r.get("binder_fit_delta")
+        print("%-24s %+8.3f %+8.3f %+8.3f %+8.3f %8s %5d"
               % (r["design"], r["logp_asp6"], r["logp_gly6"], r["margin"],
-                 r["delta_vs_baseline"], r["n_mut_contacts"]))
+                 r["delta_vs_baseline"],
+                 ("%+.3f" % fd) if fd is not None else "-", r["n_mut_contacts"]))
 
     out = os.path.join(RESULTS, "specificity.json")
     json.dump({"baseline_margin": baseline,
