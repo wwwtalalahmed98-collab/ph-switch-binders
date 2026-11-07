@@ -45,8 +45,12 @@ __pycache__/
 # times, so the rule is inverted: withhold EVERY json in pmhc/results by default and
 # name the exceptions. A new output file is then withheld automatically, and the
 # mistake is impossible to repeat in the same way.
+# FIFTH guard, 7 Nov: the json rule was inverted but the csv rule was still
+# name-based (*sequences*), which would not cover boltzgen_designs.csv. Inverted
+# too: every csv and fasta in pmhc/results is withheld by default.
 pmhc/results/*.json
-pmhc/results/*sequences*.csv
+pmhc/results/*.csv
+pmhc/results/*.fasta
 submission/challenge5_*
 
 # The two exceptions, allowed deliberately: both carry scaffold_seq, which is the Baker

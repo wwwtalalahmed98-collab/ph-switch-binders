@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 27 | 2026-11-07 | The judges published their own marking scheme, and we had been optimising the wrong order |
 | 26 | 2026-11-07 | Twenty designs, and the first time we have measured the thing we are judged on |
 | 25 | 2026-11-06 | Somebody already solved this, and published the parts |
 | 24 | 2026-11-05 | The test we set in advance came back no |
@@ -32,6 +33,149 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 27. 2026-11-07 — The judges published their own marking scheme, and we had been optimising the wrong order
+
+### Where we are
+
+The people who will judge this challenge have published the exact instructions they use to judge it, and reading them tells us we have been ranking our twenty designs by the wrong thing.
+
+### What this project is for
+
+Challenge 5 of the Anthropic × Adaptyv competition. We design a protein that grabs a cancer mutation — a single changed letter in the KRAS protein, G12D — while it is being held up for display on the surface of a cell by a molecule called HLA. Adaptyv's robot lab makes the winners and measures them for real. The deadline is **8 November 23:59 Anywhere-on-Earth**, which is 9 November 11:59 UTC, so roughly two days from now.
+
+### Why this step
+
+You asked what models and design methods Adaptyv lists and how we could use them. Looking for that turned up something more valuable than a model list: the competition's **selection prompt is public**. Adaptyv and Anthropic wrote it before the first challenge opened, and they publish it at `proteinbase.com/competitions/anthropic-adaptyv-2026/selection`. It is the literal text handed to the AI that reads every submission and recommends which go to the lab.
+
+Skipping this would have meant submitting a set tuned to a scoring function I invented, into a competition that had already published its real one.
+
+### What we actually did
+
+Read four things and compared them with what we have built:
+
+1. **The method catalogue** (`proteinbase.com/design-methods`) — twenty methods with Adaptyv's own counts of how many designs each produced and how many were actually tested in their lab.
+2. **The selection prompt**, all nine sections, including the parameters specific to our challenge.
+3. **The novelty definition** (`adaptyvbio.com/blog/novelty`) — the four-level scale, and the hard rule that a submission must reach level 3.
+4. **The official pre-submission screen** (`github.com/adaptyvbio/binder-prescreen`) — source-available code that decides whether a sequence is allowed in at all.
+
+### The three findings that change what we do
+
+**Finding 1 — we are ranking by the wrong thing.** The prompt states the goals for our challenge *hardest first*, and says "that order is what the model weighs":
+
+| Rank | Goal |
+|---|---|
+| a) | **no** binding to the wild-type peptide `VVVGAGGVGK` |
+| b) | **no** binding to the HLA with no peptide at all |
+| c) | strong binding to the G12D complex |
+
+Rejecting the near-identical wild type is the *top* goal, and raw strength is the *bottom* one. Our `pmhc/build_submission.py` currently ranks on a specificity score I built myself from ProteinMPNN. The three-state AlphaFold job running on Kaggle right now measures exactly goals (a) and (b) — so the measurement is right and the **ranking formula is wrong**. That is a one-file fix, not new science.
+
+**Finding 2 — self-reported numbers barely count.** The prompt says plainly: *"Self-reported metrics compare only within a submission; check what you can; unverifiable claims weigh little."* My shuffle-controlled specificity score is exactly such a claim — nobody can recompute it. Meanwhile the prompt names **three screens it records for every design**: pLDDT, ipSAE against the target, and **mean Kyte–Doolittle hydropathy**. We compute the first two. We have never computed the third, and it takes about ten lines.
+
+**Finding 3 — our scaffold reuse is allowed, and I had been worrying about the wrong risk.** I had flagged that building on published scaffolds might break the de-novo rule. The screen's own README settles it: *"This pipeline does not judge whether the scaffold is de novo. Reusing a published framework is allowed in these competitions"*, and framework reuse is reported as context that *"never disqualifies"*. For our target specifically, the known-binder set is **144 references, all T-cell receptors**, with *"no TCR-mimic antibody or designed-binder sequences available for this pMHC"* — our miniproteins cannot collide with it.
+
+**But a different novelty risk is real and unresolved.** Separately from the screen, ProteinTyper assigns a novelty *level*, and level 3 is a hard floor. Level 4 needs sequence identity ≤30% to anything known **and** less than moderate structural similarity. Our designs keep a published scaffold's backbone exactly, so their *fold* matches a known structure closely. On the published table, high structural similarity alone caps a design at **level 2** — below the floor. I cannot resolve this from the documents: it depends on whether those specific scaffolds are in the databases they search. It is a genuine threat to the set we have and I have not tested it.
+
+### How it works
+
+Think of the competition as a school that has published its marking rubric before the exam. Three separate gates stand between our file and a test tube:
+
+- **The door** — the pre-submission screen. Asks only "is this already somebody's published sequence?" Our designs are 25–35% identical to their parents, so they should walk through. Not yet tested.
+- **The register** — the novelty level. A clerk checks that your work is not a copy. It looks at the words *and* the shape. We are confident on words, exposed on shape.
+- **The examiner** — the Claude selection prompt. Marks against the published rubric, hardest goal first, and explicitly rewards a well-argued method description.
+
+I had spent the project polishing the answer and never read the rubric.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[Our 20 designs] --> B{The door<br/>pre-submission screen}
+    B -->|already published?| X[Rejected]
+    B -->|25-35% identity: expected pass| C{The register<br/>novelty level 3 floor}
+    C -->|same fold as a known scaffold<br/>could cap us at level 2| X
+    C -->|passes| D[The examiner<br/>public Claude rubric]
+    D -->|1st: rejects wild-type peptide| E[Ranked list]
+    D -->|2nd: rejects empty HLA| E
+    D -->|3rd: binds G12D strongly| E
+    E -->|375 tested per track| F[Adaptyv robot lab]
+    style C fill:#b45309,stroke:#78350f,color:#ffffff
+    style D fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+"Now" is the two coloured boxes: the novelty gate we have not tested, and the rubric we have just read and must re-rank against.
+
+### What you have now
+
+Nothing new was built this turn — this was reading, and it changed the plan. What exists:
+
+- `submission/challenge5_kras_g12d.csv` — 20 designs, validated, **ranked by the wrong criterion**. Still a complete submission if everything else fails.
+- `pmhc/build_submission.py` — the ranking script that needs the goal order corrected.
+- Kaggle notebook `notebook4f6bc6039a` **Version 3** — running since 21:15 on 7 Nov, measuring goals (a) and (b) with AlphaFold on 24 candidates across three states. Not finished, not verified.
+- `docs/PROJECT-STORY.md` — this record.
+
+### The method catalogue, and what is worth taking
+
+Adaptyv's twenty catalogued methods, with their own lab counts. The top of the list is not what it was a year ago:
+
+| Method | Who | Generated | Tested in Adaptyv's lab |
+|---|---|---|---|
+| **BoltzGen** | MIT | 1,752 | **532** |
+| RFdiffusion | Baker Lab | 1,592 | 164 |
+| BindCraft | EPFL/MIT | 600 | 177 |
+| Mosaic | Escalante Bio | 338 | 63 |
+| PXDesign | ByteDance | 38 | 38 |
+
+**BoltzGen is the one worth the remaining time**, for three specific reasons rather than because it is new:
+
+1. Its design-specification language has exactly the constraint this challenge is about. You can write `binding: 6` on the peptide chain and `not_binding: "all"` on the HLA chain — "touch the mutation, avoid the scaffolding". Every previous attempt of ours filtered for that *after* generating. BoltzGen asks for it *during*.
+2. It installs with `pip install boltzgen` and officially supports **Python 3.13** — which is precisely the thing that made Boltz-2 impossible on Kaggle yesterday (`dm-tree` had no Python 3.13 wheel, 22 minutes to fail).
+3. The selection prompt reserves quota for method diversity, and says new methods, *even untested*, should get **at least about a tenth** of the selected designs.
+
+Known risks: it wants ~39 GB of model weights, and its ESMFold2 scoring step needs a CUDA 13 driver that Kaggle's T4 machines probably do not have. The `--steps` flag can skip steps, and `--reuse` survives an interrupted run. Untested by us.
+
+### Decisions made, and why
+
+| Decision | Chosen against | Why |
+|---|---|---|
+| Re-rank on the published goal order | Keeping my own shuffle-controlled score as the headline | The judges published their order; mine is unverifiable by them and so "weighs little" |
+| Add mean Kyte–Doolittle hydropathy | Leaving the three named screens at two of three | It is explicitly one of three recorded per design, and costs ten lines |
+| Run the official pre-submission screen | Assuming we pass | It is the actual gate, it is public, and it runs in 30 seconds without downloads |
+| Try BoltzGen overnight | BindCraft, PXDesign, Mosaic, Germinal | Only BoltzGen expresses the peptide-vs-MHC constraint natively *and* supports Python 3.13; there is time for one attempt, not four |
+| Keep the existing 20 as the fallback | Betting everything on BoltzGen | A validated submission in hand beats an unproven one, and one submission per 24 h means we can improve it tomorrow |
+
+### Jargon decoder
+
+- **Selection prompt** — the published text instructing the AI that recommends which designs go to the lab.
+- **ProteinTyper** — Adaptyv's pipeline that labels each design's class, novelty level and closest prior art.
+- **Novelty level 1–4** — 4 means no known sequence *and* no known fold resembles it; 3 means only one of the two; the competition floor is 3.
+- **Pre-submission screen** — public code that checks whether a submitted sequence is already published or is a known binder in disguise.
+- **MMseqs2** — fast sequence-search tool; the screen uses it against eight databases.
+- **FoldSeek / TM-score** — tools for "does this shape already exist"; TM-score 1.0 is identical, 0.5 is roughly the same fold.
+- **ipSAE** — a confidence score for a predicted interface between two chains; better than its predecessors at predicting whether binding is real.
+- **pLDDT** — AlphaFold's per-residue confidence that it got the local shape right.
+- **Kyte–Doolittle hydropathy** — a per-residue water-hating scale; the mean over a sequence flags designs likely to clump instead of dissolve.
+- **BoltzGen** — an all-atom generative model that designs sequence and 3D structure together, with a language for stating which parts of a target to bind and which to avoid.
+- **ANARCI** — numbering tool used to recognise antibody formats.
+
+### What is next, and what could go wrong
+
+Next, in order:
+
+1. Correct the ranking in `pmhc/build_submission.py` to the published goal order.
+2. Compute mean Kyte–Doolittle hydropathy for all designs.
+3. Run `binder-prescreen` with `--target kras-pmhc` on our 20.
+4. Collect Version 3's AlphaFold results and re-rank.
+5. If time allows, one BoltzGen run with the peptide-binding constraint.
+
+What could go wrong, honestly:
+
+- **The novelty level is the real danger and I have not measured it.** If reusing a scaffold backbone caps us at level 2, the whole set is inadmissible and only a genuinely new fold — BoltzGen — saves it. This is a live, untested risk.
+- Version 3 may fail again. Three of my last four Kaggle runs failed on environment and path problems, not science.
+- BoltzGen may not install or may not fit Kaggle's disk and driver. It is one attempt, not a plan.
+- `mmseqs2` is awkward on Windows, so the prescreen may need to run on Kaggle or WSL rather than locally.
+- Everything above assumes the published prompt is the one actually used. It says so; I cannot verify it.
 
 ## 26. 2026-11-07 - Twenty designs, and the first time we have measured the thing we are judged on
 
