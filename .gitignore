@@ -39,14 +39,20 @@ __pycache__/
 # files, which "submission/challenge5_*" does not cover. Matching by pattern was not
 # enough on its own - the patterns also have to cover every PLACE sequences are
 # written, not just the submission folder.
+# FOURTH time, 7 Nov: I enumerated mpnn_all/mpnn_candidates/specificity by name and
+# then added run_mpnn_divergent.py, whose mpnn_divergent.json was not on the list. The
+# commit was stopped by a guardrail, not by me. Enumerating names has now failed four
+# times, so the rule is inverted: withhold EVERY json in pmhc/results by default and
+# name the exceptions. A new output file is then withheld automatically, and the
+# mistake is impossible to repeat in the same way.
+pmhc/results/*.json
 pmhc/results/*sequences*.csv
-pmhc/results/mpnn_candidates.json
-pmhc/results/mpnn_all.json
-pmhc/results/specificity.json
 submission/challenge5_*
 
-# NOT withheld, and deliberately so: docked_poses.json and shortlist_poses.json carry
-# scaffold_seq, which is the Baker lab's already-published scaffold sequence, not ours.
+# The two exceptions, allowed deliberately: both carry scaffold_seq, which is the Baker
+# lab's already-published scaffold sequence (Zenodo 10.5281/zenodo.15169815), not ours.
+!pmhc/results/docked_poses.json
+!pmhc/results/shortlist_poses.json
 
 # Downloaded reference structures - re-fetched by the scripts, not source
 data/glp1r/
