@@ -60,6 +60,10 @@ IPSAE_URL = "https://raw.githubusercontent.com/DunbrackLab/IPSAE/main/ipsae.py"
 
 # Candidates are uploaded as a Kaggle dataset because the sequences are withheld from
 # GitHub until the submission window closes.
+# Candidate sequences reach this notebook in one of two ways, never through GitHub:
+# a JSON file staged by a preceding cell (the usual route - the sequences are withheld
+# while the submission window is open), or a private Kaggle dataset.
+CAND_JSON = "/kaggle/working/cands.json"
 CAND_GLOB = "/kaggle/input/*/*candidates*.csv"
 
 PEP_G12D = "VVVGADGVGK"
@@ -240,19 +244,32 @@ def main():
     sanity_check_target(heavy, work)
 
     cands = []
-    for p in glob.glob(CAND_GLOB):
-        import csv
-        cands = list(csv.DictReader(open(p)))
+    if os.path.exists(CAND_JSON):
+        raw = json.load(open(CAND_JSON))
+        cands = [{"name": n, "seq": s} for n, s in raw]
         print()
-        print("candidates loaded from %s: %d" % (p, len(cands)))
-        break
+        print("candidates staged by a preceding cell: %d" % len(cands))
+    else:
+        import csv
+        for p in glob.glob(CAND_GLOB):
+            cands = list(csv.DictReader(open(p)))
+            print()
+            print("candidates loaded from %s: %d" % (p, len(cands)))
+            break
     if not cands:
         print()
-        print("No candidate file found at %s." % CAND_GLOB)
-        print("Upload pmhc_candidates.csv as a Kaggle dataset (name, seq) and re-run.")
-        print("The sanity check above has already told us the important thing:")
+        print("No candidates found (neither %s nor %s)." % (CAND_JSON, CAND_GLOB))
+        print("The sanity check above has already answered the important question:")
         print("whether single-sequence Boltz reproduces this target's groove.")
         return
+
+    # Refuse to spend GPU hours on anything that is not a plain protein sequence.
+    AA = set("ACDEFGHIKLMNPQRSTVWY")
+    bad = [c["name"] for c in cands
+           if not c.get("seq") or set(c["seq"]) - AA or not (10 <= len(c["seq"]) <= 250)]
+    if bad:
+        raise SystemExit("not valid designs: %s" % bad[:8])
+    print("all %d sequences validated: standard residues, 10-250 aa" % len(cands))
 
     print()
     print("=" * 72)
