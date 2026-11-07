@@ -86,12 +86,16 @@ def main():
     print("--- ranking, stated before the numbers are read ---")
     if have_spec:
         print("    1. shuffle-controlled specificity score (proxy for KD(WT)/KD(G12D))")
-        print("    2. binder-fit difference, mutant vs wild-type background")
-        print("    3. number of heavy-atom contacts to the Asp6 mutation")
-        print("    4. peptide share of the interface (peptide-centric = specific)")
-        print("    5. ProteinMPNN score, as a tie-break only")
+        print("    2. number of heavy-atom contacts to the Asp6 mutation")
+        print("    3. peptide share of the interface (peptide-centric = specific)")
+        print("    4. ProteinMPNN score, as a tie-break only")
+        print()
+        print("    The binder-fit measure is NOT used for ranking. On the real data")
+        print("    its whole range was 0.16 log units against 1.15 for the measure")
+        print("    above, and it correlated -0.03 with it. A measure with almost no")
+        print("    dynamic range that agrees with nothing is not evidence; it is")
+        print("    reported in the detail table and left out of the ordering.")
         rows.sort(key=lambda r: (-r.get("delta_vs_shuffled", 0.0),
-                                 -(r.get("binder_fit_delta") or 0.0),
                                  -r["n_mut_contacts"], -r["pep_fraction"],
                                  r["mpnn_score"]))
     else:
@@ -184,13 +188,14 @@ def write_methods(final, baseline, have_spec, ident, lens):
         "SHUFFLE of each design's own sequence on its own backbone, holding pose, "
         "length and amino-acid composition fixed and varying only the order. What "
         "survives that subtraction is attributable to the design.\n\n"
-        "A second, independent measure was taken: the ProteinMPNN score of the binder "
-        "sequence against the G12D background and against a wild-type background built "
-        "by renaming the peptide's Asp6 to Gly on the same backbone. A binder that fits "
-        "the mutant context better scores lower there, and the difference is reported "
-        "as `binder_fit_delta`. The two measures ask different questions - which "
-        "peptide the pocket wants, versus which background suits this binder - so "
-        "their agreement is reported rather than assumed."
+        "A second, independent measure was attempted: the ProteinMPNN score of the "
+        "binder sequence against the G12D background and against a wild-type "
+        "background built by renaming the peptide's Asp6 to Gly on the same backbone. "
+        "It did not work. Across the candidate set its entire range was 0.16 log units "
+        "(-0.105 to +0.059) against 1.15 for the measure above, and it correlated "
+        "-0.03 with it. We report it in the detail table as `binder_fit_delta` and do "
+        "NOT use it for ranking: a measure with almost no dynamic range that agrees "
+        "with nothing is not corroboration."
         % baseline if (have_spec and baseline is not None) else
         "Specificity was NOT measured for this submission."
     )
