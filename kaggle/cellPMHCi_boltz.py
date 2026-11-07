@@ -79,14 +79,27 @@ BUDGET_MIN = 400          # stop cleanly before the session limit
 MAX_CANDIDATES = 32
 
 
-def sh(cmd, check=True, quiet=False):
+def sh(cmd, check=True, quiet=False, stream=False):
+    """Run a shell command.
+
+    stream=True lets the child write straight to our stdout instead of being
+    captured. That matters for anything slow: the first run of this script sat on
+    `pip install boltz` for over thirty minutes with no output at all, because the
+    output was captured and only printed on completion, so there was no way to tell
+    a working download from a wedged dependency resolver. Long commands stream.
+    """
     if not quiet:
         print("$ %s" % cmd, flush=True)
-    r = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE,
-                       stderr=subprocess.STDOUT, text=True)
-    out = r.stdout or ""
-    if out.strip() and not quiet:
-        print(out[-2500:], flush=True)
+    if stream:
+        r = subprocess.run(cmd, shell=True)
+        out = ""
+    else:
+        r = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE,
+                           stderr=subprocess.STDOUT, text=True)
+        out = r.stdout or ""
+        if out.strip() and not quiet:
+            print(out[-2500:], flush=True)
+    sys.stdout.flush()
     if check and r.returncode != 0:
         raise SystemExit("command failed (%d): %s" % (r.returncode, cmd))
     return out
@@ -96,7 +109,8 @@ def setup():
     print("=" * 72)
     print("SETUP")
     print("=" * 72)
-    sh("pip -q install boltz -U biopython")
+    # streamed: this is the step that previously ran blind for 30+ min
+    sh("pip install boltz biopython", stream=True)
     sh("wget -q -O %s/ipsae.py %s" % (W, IPSAE_URL))
     if not os.path.exists(os.path.join(W, "ipsae.py")):
         raise SystemExit("could not download ipsae.py")
@@ -150,7 +164,7 @@ def write_yaml(path, chains):
     return path
 
 
-def run_boltz(yaml_path, out_dir):
+def run_boltz(yaml_path, out_dir, verbose=False):
     # mmCIF, not PDB: ipsae.py's Boltz mode is documented as
     #   python ipsae.py <boltz_pae_npz> <boltz_cif> <pae_cutoff> <dist_cutoff>
     # and it infers the format from the extension. Handing it a .pdb alongside a
@@ -158,7 +172,8 @@ def run_boltz(yaml_path, out_dir):
     # misreads chains would give us confident nonsense - the exact failure this
     # project has had three times.
     sh("boltz predict %s --out_dir %s --output_format mmcif --diffusion_samples 1 "
-       "--override" % (yaml_path, out_dir), check=False, quiet=True)
+       "--override" % (yaml_path, out_dir), check=False, quiet=not verbose,
+       stream=verbose)
     return out_dir
 
 
@@ -190,7 +205,7 @@ def sanity_check_target(heavy, work):
     y = write_yaml(os.path.join(work, "%s.yaml" % stem),
                    [("A", heavy), ("B", PEP_G12D)])
     t0 = time.time()
-    run_boltz(y, work)
+    run_boltz(y, work, verbose=True)
     print("prediction took %.0f s" % (time.time() - t0))
     struct, pae, conf = find_outputs(work, stem)
     if not struct:
