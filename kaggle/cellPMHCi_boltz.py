@@ -72,6 +72,11 @@ PAE_CUTOFF = 10
 DIST_CUTOFF = 10
 RMSD_LIMIT = 2.5          # target-alone prediction vs 7OW6, in angstroms
 BUDGET_MIN = 400          # stop cleanly before the session limit
+# 56 candidates x 2 states is ~112 predictions, which risks running past a Kaggle
+# session. The CSV is ordered best-first by the shuffle-controlled score, so taking
+# the leading slice keeps the candidates most likely to be submitted and still leaves
+# room to promote ones currently ranked below 20.
+MAX_CANDIDATES = 32
 
 
 def sh(cmd, check=True, quiet=False):
@@ -277,6 +282,10 @@ def main():
     if bad:
         raise SystemExit("not valid designs: %s" % bad[:8])
     print("all %d sequences validated: standard residues, 10-250 aa" % len(cands))
+    if len(cands) > MAX_CANDIDATES:
+        print("taking the leading %d of %d (the file is ordered best-first)"
+              % (MAX_CANDIDATES, len(cands)))
+        cands = cands[:MAX_CANDIDATES]
 
     print()
     print("=" * 72)
