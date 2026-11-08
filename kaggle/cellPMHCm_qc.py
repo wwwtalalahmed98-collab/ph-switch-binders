@@ -174,6 +174,24 @@ def pae_interaction(seqs):
     if not files:
         print("none attached - attach the AF2 screen's notebook output")
         return {}
+    # The two controls are generated inside the AF2 script and are in no input CSV,
+    # but that run wrote their lengths into its results json. Read lengths from
+    # there when it is attached, so the controls - the whole point of this - are
+    # not silently dropped for want of a sequence.
+    lengths = {n: len(v) for n, v in seqs.items()}
+    for j in sorted(glob.glob("/kaggle/input/**/af2_ipsae_results.json",
+                              recursive=True)):
+        try:
+            data = json.load(open(j))
+        except (OSError, ValueError):
+            continue
+        got = 0
+        for rec in data:
+            if rec.get("name") and rec.get("length"):
+                if rec["name"] not in lengths:
+                    got += 1
+                lengths[rec["name"]] = int(rec["length"])
+        print("    lengths from %s: +%d" % (os.path.basename(j), got))
     pat = re.compile(r"^(?P<name>.+)_(?P<state>g12d|wt|apo)_m(?P<model>\d+)_pae$")
     out = {}
     skipped = {}
@@ -184,15 +202,14 @@ def pae_interaction(seqs):
             skipped["unparsable name"] = skipped.get("unparsable name", 0) + 1
             continue
         name = m.group("name")
-        seq = seqs.get(name)
-        if seq is None:
-            skipped["no sequence for %s" % name] = 1
+        L = lengths.get(name)
+        if L is None:
+            skipped["no length for %s" % name] = 1
             continue
         a = np.load(f)
         if a.ndim != 2 or a.shape[0] != a.shape[1]:
             skipped["odd shape"] = skipped.get("odd shape", 0) + 1
             continue
-        L = len(seq)
         n = a.shape[0]
         if n <= L + 20:
             skipped["matrix too small"] = skipped.get("matrix too small", 0) + 1
