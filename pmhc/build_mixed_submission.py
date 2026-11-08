@@ -48,6 +48,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "pmhc"))
 import screen  # noqa: E402
 from prep_boltzgen import best_offset_identity  # noqa: E402
+from qc_adaptyv import liabilities  # noqa: E402
 
 SUB = os.path.join(ROOT, "submission")
 RESULTS = os.path.join(ROOT, "pmhc", "results")
@@ -136,8 +137,25 @@ def main():
         raise SystemExit("refusing to build from a set containing controls: %s"
                          % [d["name"] for d in bad])
 
-    scaf_ok = [d for d in scaf if d["tier_calc"] in ("good", "marginal")]
-    bolt_ok = [d for d in bolt if d["tier_calc"] in ("good", "marginal")]
+    # The organisers' own expression filters, which this project had never run until
+    # 8 Nov. The dominant one is the instability index: 12 of the first 20 we built
+    # failed it. Anything at redesign level is now excluded outright, and 'clean'
+    # beats 'flag' in the ordering.
+    for d in scaf + bolt:
+        d["qc"] = liabilities(d["seq"])
+    def qc_ok(d):
+        return d["qc"]["verdict"] != "redesign"
+    for tag, pool in (("scaffold-docked", scaf), ("boltzgen", bolt)):
+        t = {}
+        for d in pool:
+            t[d["qc"]["verdict"]] = t.get(d["qc"]["verdict"], 0) + 1
+        print()
+        print("    %s expression QC: %s" % (tag, t))
+
+    scaf_ok = [d for d in scaf
+               if d["tier_calc"] in ("good", "marginal") and qc_ok(d)]
+    bolt_ok = [d for d in bolt
+               if d["tier_calc"] in ("good", "marginal") and qc_ok(d)]
     report("scaffold-docked", scaf, scaf_ok)
     report("boltzgen", bolt, bolt_ok)
 
@@ -148,9 +166,13 @@ def main():
             return 0.0
 
     # Scaffold half: buildability first, then the unvalidated specificity tie-break.
-    scaf_ok.sort(key=lambda d: (0 if d["tier_calc"] == "good" else 1,
+    scaf_ok.sort(key=lambda d: (0 if d["qc"]["verdict"] == "clean" else 1,
+                                0 if d["tier_calc"] == "good" else 1,
                                 -fnum(d, "delta_vs_shuffled"),
                                 -fnum(d, "pep_fraction")))
+    bolt_ok.sort(key=lambda d: (0 if d["qc"]["verdict"] == "clean" else 1,
+                                0 if d["tier_calc"] == "good" else 1,
+                                d["qc"]["instability"]))
     # BoltzGen half: the file already arrives ordered by tier then distance.
 
     a, sa, pa = pick(scaf_ok, N_EACH, per_parent=MAX_PER_PARENT)
@@ -176,6 +198,9 @@ def main():
                       "tier": d["tier_calc"],
                       "kd_hydropathy": d["kd"],
                       "charged_frac": d["charged_frac"],
+                      "instability": d["qc"]["instability"],
+                      "gravy": d["qc"]["gravy"],
+                      "qc_verdict": d["qc"]["verdict"],
                       "parent_identity": d.get("parent_identity", "")})
 
     seqs = [d["sequence"] for d in final]
@@ -193,12 +218,13 @@ def main():
                          max(len(s) for s in seqs), worst))
 
     print()
-    hdr = "%-14s %-16s %4s %-9s %7s %7s %s"
-    print(hdr % ("submit name", "source", "len", "tier", "kd", "chg", "internal"))
+    hdr = "%-14s %-16s %4s %-9s %7s %7s %-6s %s"
+    print(hdr % ("submit name", "source", "len", "tier", "instab", "GRAVY",
+                 "qc", "internal"))
     for d in final:
         print(hdr % (d["name"], d["source"], d["length"], d["tier"],
-                     "%+.2f" % d["kd_hydropathy"], "%.2f" % d["charged_frac"],
-                     d["internal_name"][:24]))
+                     "%.1f" % d["instability"], "%+.3f" % d["gravy"],
+                     d["qc_verdict"], d["internal_name"][:22]))
 
     out = os.path.join(SUB, "challenge5_final20.csv")
     with open(out, "w", newline="") as fh:
@@ -210,7 +236,8 @@ def main():
     with open(det, "w", newline="") as fh:
         w = csv.writer(fh, delimiter="\t")
         keys = ["name", "source", "internal_name", "parent", "length", "tier",
-                "kd_hydropathy", "charged_frac", "parent_identity"]
+                "kd_hydropathy", "charged_frac", "instability", "gravy",
+                "qc_verdict", "parent_identity"]
         w.writerow(keys)
         for d in final:
             w.writerow([d[k] for k in keys])
