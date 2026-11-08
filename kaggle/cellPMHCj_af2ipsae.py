@@ -172,7 +172,24 @@ def load_candidates():
             print("      %s -> dirs %s files %s" % (root, dirs[:6], files[:6]))
     for p in found:
         rows = list(csv.DictReader(open(p)))
-        print("candidates from %s: %d" % (p, len(rows)))
+        if not rows:
+            print("%s is empty, skipping" % p)
+            continue
+        # Column names differ by source: our own files use seq/name, BoltzGen's
+        # harvest writes sequence/name. Normalise instead of requiring one spelling,
+        # so this screen can score either set without a second copy of the script.
+        cols = list(rows[0].keys())
+        scol = next((c for c in cols if c.lower() in ("seq", "sequence")), None)
+        ncol = next((c for c in cols if c.lower() in ("name", "id", "design",
+                                                      "submit_name")), None)
+        if scol is None:
+            print("%s has no sequence column (%s), skipping" % (p, cols))
+            continue
+        for i, r in enumerate(rows, 1):
+            r["seq"] = (r[scol] or "").strip().upper()
+            r["name"] = (r[ncol].strip() if ncol and r.get(ncol)
+                         else "design_%03d" % i)
+        print("candidates from %s: %d  (sequence column %r)" % (p, len(rows), scol))
         AA = set("ACDEFGHIKLMNPQRSTVWY")
         bad = [r["name"] for r in rows
                if set(r["seq"]) - AA or not (10 <= len(r["seq"]) <= 250)]
