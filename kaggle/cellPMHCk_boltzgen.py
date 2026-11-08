@@ -132,6 +132,18 @@ def get_target():
     banner("TARGET")
     if not os.path.isdir(REPO):
         sh("git clone --depth 1 %s %s" % (OUR_REPO, REPO))
+    # data/ is gitignored, so the crystal structures are NOT in the clone. The first
+    # attempt assumed they were and died on a missing 7OW6.cif after installing
+    # boltzgen for five minutes. Fetch them the same way the AF2 script does.
+    import urllib.request
+    d = os.path.join(REPO, "data", "pmhc")
+    os.makedirs(d, exist_ok=True)
+    for pdb_id in ("7OW6", "7OW5"):
+        p = os.path.join(d, "%s.cif" % pdb_id)
+        if not os.path.exists(p):
+            urllib.request.urlretrieve(
+                "https://files.rcsb.org/download/%s.cif" % pdb_id, p)
+        print("%s.cif %d bytes" % (pdb_id, os.path.getsize(p)))
     sh("cd %s && python -W ignore pmhc/build_states.py" % REPO, check=False)
     sh("cd %s && python -W ignore pmhc/build_counter_states.py" % REPO, check=False)
     src = os.path.join(REPO, "data", "pmhc", "states", "target_state_g12d.pdb")
@@ -192,18 +204,47 @@ def write_spec(target_pdb):
     return path
 
 
-def run_design(spec):
-    banner("DESIGN  (design + inverse_folding only; no ESMFold2, no Boltz refold)")
+def _run(steps, label):
     os.makedirs(CACHE, exist_ok=True)
-    env = ("HF_HOME=%s/hf UV_CACHE_DIR=%s/uv " % (SCRATCH, SCRATCH))
+    env = "HF_HOME=%s/hf UV_CACHE_DIR=%s/uv " % (SCRATCH, SCRATCH)
     cmd = ("cd %s && %s boltzgen run pmhc.yaml --output %s "
-           "--protocol protein-anything --steps design inverse_folding "
+           "--protocol protein-anything --steps %s "
            "--num_designs %d --cache %s --reuse"
-           % (SPEC_DIR, env, OUT_DIR, NUM_DESIGNS, CACHE))
+           % (SPEC_DIR, env, OUT_DIR, steps, NUM_DESIGNS, CACHE))
     sh(cmd, check=False, stream=True)
     print()
-    print("[t+%.1f min] design step returned" % mins())
+    print("[t+%.1f min] %s returned" % (mins(), label))
     sh("find %s -maxdepth 2 -type d | head -40" % OUT_DIR, check=False)
+    sh("df -h /tmp | tail -1", check=False)
+
+
+def run_design(spec):
+    # STAGE 1 banks the sequences. Everything after it is a bonus, so a failure in
+    # scoring cannot cost us the GPU time already spent generating.
+    banner("STAGE 1 - design + inverse_folding (banks the sequences)")
+    _run("design inverse_folding", "stage 1")
+
+
+def run_scoring():
+    # The driver on Kaggle's T4 nodes turned out to be 580, so ESMFold2 IS available
+    # - the opposite of what I assumed when writing this. Its ipSAE ranking is
+    # BoltzGen's own quality filter and is worth having. But it wants ~33 GB of
+    # weights, so it runs second, with --reuse, after stage 1 is safely on disk.
+    banner("STAGE 2 - folding + ESMFold2 scoring + analysis + filtering (optional)")
+    _run("folding esmfold2_scoring analysis filtering", "stage 2")
+    for p in sorted(glob.glob(os.path.join(OUT_DIR, "final_ranked_designs", "*.csv"))):
+        print()
+        print("--- %s ---" % os.path.basename(p))
+        try:
+            with open(p) as fh:
+                for n, line in enumerate(fh):
+                    if n > 25:
+                        print("    ...")
+                        break
+                    print("    " + line.rstrip()[:200])
+            shutil.copy(p, os.path.join(W, os.path.basename(p)))
+        except OSError as e:
+            print("could not read %s: %s" % (p, e))
 
 
 # --------------------------------------------------------------------------
@@ -337,7 +378,16 @@ def main():
         print("too little budget left to start design; stopping after setup")
         return 0
     run_design(spec)
-    harvest()
+    got = harvest()
+    if got and mins() < BUDGET_MIN * 0.55:
+        try:
+            run_scoring()
+        except Exception as e:                               # noqa: BLE001
+            print("stage 2 failed: %s %s" % (type(e).__name__, str(e)[:300]))
+            print("the sequences from stage 1 are already written and stand.")
+    else:
+        print("skipping stage 2: %s"
+              % ("no designs to score" if not got else "not enough budget left"))
     banner("DONE")
     print("elapsed %.1f min" % mins())
     return 0
