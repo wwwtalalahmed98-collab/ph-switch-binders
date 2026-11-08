@@ -159,7 +159,7 @@ def get_target():
     # "Specified end 182..276 is higher than the length of the chain", because chain A
     # is numbered 2..276 but holds 275 residues. So build the author->ordinal map here
     # and derive every index from it instead of writing numbers by hand.
-    order = {}
+    order, seqs = {}, {}
     for line in open(dst):
         if line.startswith(("ATOM", "HETATM")):
             c, num = line[21], int(line[22:26])
@@ -167,6 +167,8 @@ def get_target():
             if not lst or lst[-1] != num:
                 if num not in lst:
                     lst.append(num)
+                    seqs.setdefault(c, []).append(
+                        T3.get(line[17:20].strip().upper(), "X"))
     print("chains in target.pdb:")
     for c in sorted(order):
         print("    %s  %d residues  author %d..%d  -> ordinals 1..%d"
@@ -177,7 +179,17 @@ def get_target():
     if len(order[PEPTIDE_CHAIN]) != 10:
         raise SystemExit("peptide chain %s has %d residues, expected 10"
                          % (PEPTIDE_CHAIN, len(order[PEPTIDE_CHAIN])))
-    return dst, order
+    # Only the chains we actually feed BoltzGen count as target sequences. The
+    # harvester subtracts these to find the designed chain, so beta-2
+    # microglobulin, which is in the file but excluded from the spec, must NOT
+    # be in this set.
+    target_seqs = ["".join(seqs[c]) for c in (MHC_CHAIN, PEPTIDE_CHAIN)]
+    for c, t in zip((MHC_CHAIN, PEPTIDE_CHAIN), target_seqs):
+        print("target chain %s: %d aa" % (c, len(t)))
+    if target_seqs[1] != "VVVGADGVGK":
+        raise SystemExit("peptide reads %s, expected VVVGADGVGK"
+                         % target_seqs[1])
+    return dst, order, target_seqs
 
 
 def ordinal_range(order, chain, author_lo, author_hi):
@@ -325,7 +337,30 @@ def seqs_from_cif(path):
     return {k: "".join(v) for k, v in out.items()}
 
 
-def harvest():
+def pick_design(ch, targets):
+    """Which chain is the design? The one that is not a target chain.
+
+    Identified by sequence, never by chain letter: BoltzGen does not carry the
+    ids from the input yaml through to its output, and keying on letters is
+    exactly what made the first completed run harvest 0 of 48 files.
+    """
+    cands = []
+    for k, v in ch.items():
+        if v in targets:
+            continue
+        if any(v and (v in t or t in v) for t in targets):
+            continue          # a crop or extension of a target chain
+        cands.append((k, v))
+    if len(cands) == 1:
+        return cands[0]
+    # fall back on the length band we asked the model for
+    inband = [(k, v) for k, v in cands if 40 <= len(v) <= 160]
+    if len(inband) == 1:
+        return inband[0]
+    return None, None
+
+
+def harvest(target_seqs=None):
     banner("HARVEST")
     pats = [os.path.join(OUT_DIR, "intermediate_designs_inverse_folded", "*.cif"),
             os.path.join(OUT_DIR, "**", "*inverse_folded*", "*.cif")]
@@ -341,29 +376,65 @@ def harvest():
         return []
     print("inverse-folded CIFs: %d" % len(files))
 
-    target_len = None
-    designs, bad = [], 0
+    # UNCONDITIONAL DIAGNOSTIC. The previous run produced all 48 CIFs and then
+    # harvested 0 of them, because the designed chain was identified by chain letter
+    # and BoltzGen does not keep the letters from the input yaml. Nothing printed, so
+    # 70 minutes of GPU bought one line saying "skipped 48". Whatever happens below,
+    # the chain map of the first files is now in the log.
+    print()
+    print("--- chain map of the first %d file(s), as written ---"
+          % min(2, len(files)))
+    for f in files[:2]:
+        ch = seqs_from_cif(f)
+        print("  %s" % os.path.basename(f))
+        if not ch:
+            print("    PARSED NOTHING - first 3 lines of the file:")
+            with open(f, errors="replace") as fh:
+                for n, line in enumerate(fh):
+                    if n >= 3:
+                        break
+                    print("      %s" % line.rstrip()[:100])
+        for k, v in ch.items():
+            print("    chain %-3s %4d aa  %s%s"
+                  % (k, len(v), v[:40], "..." if len(v) > 40 else ""))
+
+    # Identify the designed chain by SEQUENCE, not by letter: it is the chain that is
+    # not one of the target chains we fed in. target_seqs comes from the same file the
+    # yaml points at, so this does not depend on how BoltzGen labels anything.
+    targets = set(target_seqs or [])
+    if targets:
+        print()
+        print("target chains to exclude: %s"
+              % ", ".join("%d aa" % len(t) for t in sorted(targets, key=len)))
+
+    designs, bad, reasons = [], 0, {}
     for f in files:
         ch = seqs_from_cif(f)
         if not ch:
             bad += 1
+            reasons["unparsable"] = reasons.get("unparsable", 0) + 1
             continue
-        # The designed chain is the one that is NOT the target. Identify it by
-        # elimination on chain id, then sanity-check the length band.
-        cand = {k: v for k, v in ch.items() if k not in (MHC_CHAIN, PEPTIDE_CHAIN)}
-        if len(cand) != 1:
+        cid, seq = pick_design(ch, targets)
+        if cid is None:
             bad += 1
+            reasons["chain ambiguous"] = reasons.get("chain ambiguous", 0) + 1
             continue
-        cid, seq = next(iter(cand.items()))
-        if "X" in seq or not (40 <= len(seq) <= 160):
+        if "X" in seq:
             bad += 1
+            reasons["contains X"] = reasons.get("contains X", 0) + 1
+            continue
+        if not (30 <= len(seq) <= 250):
+            bad += 1
+            reasons["length %d" % len(seq)] = reasons.get(
+                "length %d" % len(seq), 0) + 1
             continue
         designs.append({"name": os.path.splitext(os.path.basename(f))[0],
                         "chain": cid, "seq": seq, "length": len(seq)})
-        if target_len is None:
-            target_len = sum(len(v) for k, v in ch.items() if k != cid)
 
+    print()
     print("parsed %d designs, skipped %d" % (len(designs), bad))
+    for k, v in sorted(reasons.items(), key=lambda kv: -kv[1]):
+        print("    skipped, %-18s %d" % (k, v))
     if not designs:
         return []
 
@@ -377,13 +448,14 @@ def harvest():
     print("length           : min %d  median %d  max %d"
           % (lens[0], lens[len(lens) // 2], lens[-1]))
     print("contain cysteine : %d of %d" % (ncys, len(designs)))
-    print("target tokens    : %s" % target_len)
 
     out = os.path.join(W, "boltzgen_designs.json")
     json.dump({"n": len(designs), "num_designs_requested": NUM_DESIGNS,
                "binder_len_spec": BINDER_LEN,
-               "binding_author": {"chain": PEPTIDE_CHAIN, "res": BIND_PEPTIDE_AUTHOR},
-               "not_binding_author": {"chain": MHC_CHAIN, "res": NO_BIND_MHC_AUTHOR},
+               "binding_author": {"chain": PEPTIDE_CHAIN,
+                                  "res": BIND_PEPTIDE_AUTHOR},
+               "not_binding_author": {"chain": MHC_CHAIN,
+                                      "res": NO_BIND_MHC_AUTHOR},
                "designs": designs}, open(out, "w"), indent=1)
     print()
     print("wrote %s" % out)
@@ -400,13 +472,13 @@ def harvest():
 def main():
     probe()
     install()
-    tgt, order = get_target()
+    tgt, order, target_seqs = get_target()
     spec = write_spec(tgt, order)
     if mins() > BUDGET_MIN * 0.6:
         print("too little budget left to start design; stopping after setup")
         return 0
     run_design(spec)
-    got = harvest()
+    got = harvest(target_seqs)
     if got and mins() < BUDGET_MIN * 0.55:
         try:
             run_scoring()
