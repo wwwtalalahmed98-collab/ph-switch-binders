@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 29 | 2026-11-08 | BoltzGen redesigned a protein the body already makes |
 | 28 | 2026-11-08 | The gate opened and the structure prediction said no |
 | 27 | 2026-11-07 | The judges published their own marking scheme, and we had been optimising the wrong order |
 | 26 | 2026-11-07 | Twenty designs, and the first time we have measured the thing we are judged on |
@@ -32,6 +33,92 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 29. 2026-11-08 — BoltzGen redesigned a protein the body already makes
+
+### Where we are
+
+The big generative model ran for two and a half hours and produced 172 copies of a human protein we had accidentally left a hole for. None of them are usable.
+
+### What this project is for
+
+Challenge 5 of the Adaptyv competition. We need a protein that sticks to a cancer-mutated fragment (`VVVGADGVGK`, the KRAS G12D peptide) while it is being displayed on the surface of a cell by a molecular display case called HLA-A*11:01 — and that does **not** stick to the healthy version of the same fragment (`VVVGAGGVGK`, one letter different), and does not stick to the empty display case. Twenty designs, deadline tomorrow, 9 Nov 11:59 UTC.
+
+### Why this step
+
+We already have 49 designs built by a different route (take a known protein shape, dock it, redesign its surface). They passed the organisers' entry gate 49 out of 49. But when we predicted their structures, none of them showed any sign of actually binding, and we could not tell whether that meant the designs were bad or our measuring stick was bad.
+
+BoltzGen was the second route: a model that *generates* a binder from scratch while being told, up front, "touch the peptide here, do not touch the display case there". It is the most-tested design method on the organisers' own leaderboard (532 designs tested in their lab). If our docked designs are dead, BoltzGen is the backup.
+
+### What we actually did
+
+Three failed attempts were already fixed (a missing structure file, a residue-numbering mismatch, and a harvesting bug that threw away 288 designs across two completed runs). The fourth run completed cleanly: 240 backbones generated, 172 unique sequences harvested, no crash.
+
+Then I read the sequences. Every single one of the 172 is **beta-2 microglobulin** — a small human protein that is a permanent part of the display case, sitting underneath the platform the peptide lies on. One of them, `pmhc_180`, is a character-for-character match to the beta-2 microglobulin chain in the crystal structure on our own disk. I checked it against that file rather than against memory.
+
+### How it works
+
+Think of the target as a jigsaw. The display case is three pieces that clip together: the big platform with the groove (the heavy chain), the peptide lying in the groove, and a small strut that clips underneath (beta-2 microglobulin).
+
+I handed BoltzGen the platform and the peptide, left the strut out, and said "design something new that fits here". It looked at the hole and filled it with the strut. From the model's point of view that is the single most obvious answer in the world — it has seen that exact completion thousands of times in training. It never went near the peptide.
+
+The constraints I wrote did not save us. "Bind the peptide at positions 4–8" was a nudge, not a wall, and the pull toward the obvious completion was stronger.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[Display case: big platform] --> S[Peptide in the groove]
+    A --> H[Hole where the strut clips in]
+    H -->|BoltzGen fills the obvious gap| B[172 copies of the strut<br/>beta-2 microglobulin]
+    S -->|what we asked it to grip| X[Nothing came here]
+    B --> R{Usable?}
+    R -->|no: a natural human protein,<br/>not a de novo design| D[Discarded]
+    R -->|no: binds under the platform,<br/>not the peptide| D
+    D --> F[Fix: put the strut in the target<br/>so there is no hole to fill]
+    style B fill:#b91c1c,stroke:#7f1d1d,color:#ffffff
+    style F fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+Red box is what we got. Blue box is the fix. "Now" is the red box.
+
+### What you have now
+
+- [pmhc/results/boltzgen_designs.csv](pmhc/results/boltzgen_designs.csv) — the 172 sequences, kept out of git. Open it and you will see the same protein 172 times with different ends trimmed off.
+- [kaggle/cellPMHCk_boltzgen.py](kaggle/cellPMHCk_boltzgen.py) — the generation script. Works. The bug is in what it was *asked for*, not in the code.
+- [pmhc/prep_boltzgen.py](pmhc/prep_boltzgen.py) — the selection step built while waiting. Tested, unused so far, still correct for whatever a fixed run produces.
+- [pmhc/test_boltzgen_harvest.py](pmhc/test_boltzgen_harvest.py) — passes. It is the reason the harvest worked this time.
+
+Nothing here is a design we can submit. The submission set is still the 20 from checkpoint 26.
+
+### Decisions made, and why
+
+| Chose | Against | Why |
+|---|---|---|
+| Discard all 172 | Submitting the best-scoring few | They are a natural human protein. Novelty level would be 0; the rules require 3 or more. They would also be rejected as "built from an existing binder". |
+| Put beta-2 microglobulin back into the target | Tightening the "bind the peptide" constraint | Removing the hole is a wall; a stronger nudge is still a nudge. It is also the more honest target — the lab tests the real three-piece complex. |
+| Treat the AF2 screen with controls as the critical path | Another BoltzGen attempt first | We still do not know whether our existing 20 designs are dead or whether the ruler is broken. That answer changes what we submit; BoltzGen is upside on top. |
+| Cut the next BoltzGen run to roughly half the designs | Another 240 | Adding the strut makes each design slower, and there are about 24 hours left. Fewer designs, in time, beats more designs, too late. |
+
+### Jargon decoder
+
+- **beta-2 microglobulin (B2M)** — a small human protein that clips under every HLA display case. Not a drug, not a binder, and not ours.
+- **de novo** — designed from nothing, not copied from an existing protein. The competition requires it.
+- **novelty level** — the organisers' 0–4 score for how unlike any known protein a design is. Level 3 is the minimum they accept.
+- **inverse folding** — given a 3D shape, write a sequence of amino acids that would fold into it. The second half of what BoltzGen just did.
+- **harvest** — pull the designed sequences out of the structure files the model wrote.
+- **three-state screen** — predicting each design against the mutant peptide, the healthy peptide, and the empty case, and comparing.
+
+### What is next, and what could go wrong
+
+Next: run the three-state prediction on our existing 20 designs **with controls** — a real TCR that is known to bind this exact target, and a scrambled sequence that cannot. Until that runs we genuinely do not know whether the earlier "nothing binds" verdict was about the designs or about the measurement. In parallel, a fixed BoltzGen run with the strut in place.
+
+What could go wrong:
+- The fixed BoltzGen run may simply produce something else obvious — a T-cell receptor-shaped thing, say — rather than a novel binder. Two and a half more GPU-hours could buy another null result.
+- If the positive control also scores near zero, our entire in-silico screen is uninformative and the submission will rest on the buildability screen alone. That is a worse position than it sounds, and I will say so plainly if it happens.
+- GPU quota and the clock are both finite. If both runs cannot finish, the controls run is the one that matters.
 
 ---
 
