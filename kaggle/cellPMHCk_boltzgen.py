@@ -48,12 +48,17 @@ CACHE = os.path.join(SCRATCH, "boltz_cache")
 SPEC_DIR = os.path.join(SCRATCH, "spec")
 OUT_DIR = os.path.join(SCRATCH, "run")
 
-NUM_DESIGNS = 240          # intermediate designs; the upstream advice is 10k-60k
+NUM_DESIGNS = 120          # halved from 240: adding B2M makes each design slower
+                           # and the deadline is 9 Nov 11:59 UTC
 BINDER_LEN = "60..110"     # our docked scaffolds ran 54-118
 BUDGET_MIN = 400
 
 PEPTIDE_CHAIN = "C"
 MHC_CHAIN = "A"
+# Run 4 left beta-2 microglobulin out, and all 172 of its designs came back AS
+# beta-2 microglobulin: the model filled the obvious hole instead of gripping the
+# peptide. B2M is now part of the target, so there is no hole left to fill.
+B2M_CHAIN = "B"
 BIND_PEPTIDE_AUTHOR = (4, 8)        # G12D sits at peptide position 6
 NO_BIND_MHC_AUTHOR = (182, 276)     # alpha-3 domain, remote from the groove
 
@@ -173,7 +178,7 @@ def get_target():
     for c in sorted(order):
         print("    %s  %d residues  author %d..%d  -> ordinals 1..%d"
               % (c, len(order[c]), order[c][0], order[c][-1], len(order[c])))
-    for need in (MHC_CHAIN, PEPTIDE_CHAIN):
+    for need in (MHC_CHAIN, PEPTIDE_CHAIN, B2M_CHAIN):
         if need not in order:
             raise SystemExit("chain %s missing from the target" % need)
     if len(order[PEPTIDE_CHAIN]) != 10:
@@ -183,8 +188,9 @@ def get_target():
     # harvester subtracts these to find the designed chain, so beta-2
     # microglobulin, which is in the file but excluded from the spec, must NOT
     # be in this set.
-    target_seqs = ["".join(seqs[c]) for c in (MHC_CHAIN, PEPTIDE_CHAIN)]
-    for c, t in zip((MHC_CHAIN, PEPTIDE_CHAIN), target_seqs):
+    target_seqs = ["".join(seqs[c])
+                   for c in (MHC_CHAIN, PEPTIDE_CHAIN, B2M_CHAIN)]
+    for c, t in zip((MHC_CHAIN, PEPTIDE_CHAIN, B2M_CHAIN), target_seqs):
         print("target chain %s: %d aa" % (c, len(t)))
     if target_seqs[1] != "VVVGADGVGK":
         raise SystemExit("peptide reads %s, expected VVVGADGVGK"
@@ -206,15 +212,19 @@ def write_spec(target_pdb, order):
     banner("DESIGN SPECIFICATION")
     bind_lo, bind_hi = ordinal_range(order, PEPTIDE_CHAIN, *BIND_PEPTIDE_AUTHOR)
     nb_lo, nb_hi = ordinal_range(order, MHC_CHAIN, *NO_BIND_MHC_AUTHOR)
+    no_bind_b2m = "1..%d" % len(order[B2M_CHAIN])
     bind = "%d..%d" % (bind_lo, bind_hi)
     no_bind = "%d..%d" % (nb_lo, nb_hi)
     print("peptide bind  : author %d..%d -> ordinals %s"
           % (BIND_PEPTIDE_AUTHOR[0], BIND_PEPTIDE_AUTHOR[1], bind))
     print("MHC not_bind  : author %d..%d -> ordinals %s"
           % (NO_BIND_MHC_AUTHOR[0], NO_BIND_MHC_AUTHOR[1], no_bind))
-    # beta-2 microglobulin is left out of generation: it sits under the platform and
-    # never contacts a groove binder. The alpha-3 domain stays in and is marked
-    # not_binding, so the underside is covered rather than left as a bare cut face.
+    print("B2M not_bind : whole chain  -> ordinals %s" % no_bind_b2m)
+    # beta-2 microglobulin is now IN the target. Leaving it out was the whole failure
+    # of run 4: an HLA heavy chain with a B2M-shaped hole in it has one overwhelmingly
+    # likely completion, and the model produced that completion 172 times out of 172.
+    # It is marked not_binding over its full length, as is the alpha-3 domain, so the
+    # underside is covered rather than offered as a landing site.
     spec = """entities:
   - protein:
       id: D
@@ -227,6 +237,8 @@ def write_spec(target_pdb, order):
             id: %s
         - chain:
             id: %s
+        - chain:
+            id: %s
       binding_types:
         - chain:
             id: %s
@@ -234,8 +246,11 @@ def write_spec(target_pdb, order):
         - chain:
             id: %s
             not_binding: "%s"
-""" % (BINDER_LEN, MHC_CHAIN, PEPTIDE_CHAIN,
-       PEPTIDE_CHAIN, bind, MHC_CHAIN, no_bind)
+        - chain:
+            id: %s
+            not_binding: "%s"
+""" % (BINDER_LEN, MHC_CHAIN, PEPTIDE_CHAIN, B2M_CHAIN,
+       PEPTIDE_CHAIN, bind, MHC_CHAIN, no_bind, B2M_CHAIN, no_bind_b2m)
     path = os.path.join(SPEC_DIR, "pmhc.yaml")
     open(path, "w").write(spec)
     print(spec)
@@ -360,6 +375,24 @@ def pick_design(ch, targets):
     return None, None
 
 
+def identity_to_targets(seq, targets):
+    """Highest ungapped identity to any target chain, over the best offset.
+
+    Run 4 harvested 172 designs and every one of them was beta-2 microglobulin; I
+    only found that out by reading the sequences by hand afterwards. This makes the
+    machine say it. Cruder than an alignment, and deliberately conservative.
+    """
+    best = 0.0
+    for t in targets:
+        a, b = (seq, t) if len(seq) <= len(t) else (t, seq)
+        if not a:
+            continue
+        for off in range(0, len(b) - len(a) + 1):
+            same = sum(1 for i, ch in enumerate(a) if ch == b[off + i])
+            best = max(best, same / float(len(a)))
+    return best
+
+
 def harvest(target_seqs=None):
     banner("HARVEST")
     pats = [os.path.join(OUT_DIR, "intermediate_designs_inverse_folded", "*.cif"),
@@ -442,12 +475,26 @@ def harvest(target_seqs=None):
     for d in designs:
         uniq.setdefault(d["seq"], d)
     designs = list(uniq.values())
+    for d in designs:
+        d["identity_to_target"] = round(identity_to_targets(d["seq"], targets), 3)
     lens = sorted(d["length"] for d in designs)
     ncys = sum(1 for d in designs if "C" in d["seq"])
     print("unique sequences : %d" % len(designs))
     print("length           : min %d  median %d  max %d"
           % (lens[0], lens[len(lens) // 2], lens[-1]))
     print("contain cysteine : %d of %d" % (ncys, len(designs)))
+    # THE CHECK RUN 4 DID NOT HAVE. If the model has simply re-drawn one of the
+    # chains we handed it, say so here rather than three hours later by eye.
+    ids = sorted(d["identity_to_target"] for d in designs)
+    echo = [d for d in designs if d["identity_to_target"] > 0.6]
+    print("identity to a target chain: min %.2f  median %.2f  max %.2f"
+          % (ids[0], ids[len(ids) // 2], ids[-1]))
+    print("more than 60%% identical to a target chain: %d of %d"
+          % (len(echo), len(designs)))
+    if len(echo) > len(designs) // 2:
+        print()
+        print("    WARNING: most of this run is a copy of the target, not a binder.")
+        print("    That is what happened in run 4. Do not screen these.")
 
     out = os.path.join(W, "boltzgen_designs.json")
     json.dump({"n": len(designs), "num_designs_requested": NUM_DESIGNS,
@@ -462,9 +509,11 @@ def harvest(target_seqs=None):
 
     csvp = os.path.join(W, "boltzgen_designs.csv")
     with open(csvp, "w", newline="") as fh:
-        fh.write("name,sequence,length\n")
+        fh.write("name,sequence,length,identity_to_target\n")
         for d in designs:
-            fh.write("%s,%s,%d\n" % (d["name"], d["seq"], d["length"]))
+            fh.write("%s,%s,%d,%.3f\n" % (d["name"], d["seq"],
+                                           d["length"],
+                                           d["identity_to_target"]))
     print("wrote %s" % csvp)
     return designs
 
