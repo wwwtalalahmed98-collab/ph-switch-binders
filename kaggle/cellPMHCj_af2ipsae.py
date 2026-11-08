@@ -156,6 +156,47 @@ def build_states():
     return states
 
 
+# --- controls -------------------------------------------------------------
+# The first run of this screen gave every design i_pTM ~0.13 and no G12D-vs-wild-type
+# margin, and I could not say whether that meant "the designs do not bind" or "this
+# pipeline scores everything 0.13". With a 384-residue target and a ~60-residue binder
+# the interface score is diluted by construction, so the number means nothing without
+# something to compare it against. These two give it a scale.
+#
+# POSITIVE: the JDI T-cell receptor from 7OW6, which is a CONFIRMED binder of this
+# exact target - it is in the prescreen's confirmed-binder set for kras-pmhc. Its two
+# V domains (chains D and E, cut at the FGxGT motif that ends each one, 115 residues
+# each) are joined by a (G4S)4 linker into a single chain, because the binder protocol
+# takes one binder chain. A single-chain TCR is an imperfect stand-in for the native
+# heterodimer, so a low score here is weaker evidence than a high score.
+#
+# NEGATIVE: a deterministic shuffle of the first candidate. Same length, same amino
+# acid composition, no designed order.
+#
+# Neither may ever be submitted. Both are named CTRL_ and build_submission.py refuses
+# anything with that prefix.
+CTRL_POS = (
+    "AQKVTQAQTEISVVEKEDVTLDCVYETRDTAYYLFWYKQPPSGELVFLIRQPWWGEQNEISGRYSWNFQKST"
+    "SSFNFTITASQVVDSAVYFCAMSVPSGDGSYQFTFGKGTKLSV"
+    "GGGGSGGGGSGGGGSGGGGS"
+    "MNAGVTQTPKFRVLKTGQSMTLLCAQDMNHEYMYWYRQDPGMGLRLIHYSVGEGTTAKGEVPDGYNVSRLKK"
+    "QNFLLGLESAAPSQTSVYFCASKVGPGQHNSPLHFGNGTRLTV")
+
+
+def add_controls(rows):
+    import random
+    out = [{"name": "CTRL_POS_scTCR_JDI", "seq": CTRL_POS}]
+    if rows:
+        s = list(rows[0]["seq"])
+        random.Random(1234).shuffle(s)
+        out.append({"name": "CTRL_NEG_shuffled", "seq": "".join(s)})
+    print()
+    print("controls prepended: %s" % ", ".join(r["name"] for r in out))
+    print("    positive is a confirmed binder of this target; negative is a shuffle")
+    print("    of candidate 1. Neither is submittable.")
+    return out + rows
+
+
 def load_candidates():
     import csv
     # Search recursively and accept any csv: Kaggle's input layout depends on how the
@@ -199,7 +240,7 @@ def load_candidates():
             print("taking the leading %d (file is ordered best-first)"
                   % MAX_CANDIDATES)
             rows = rows[:MAX_CANDIDATES]
-        return rows
+        return add_controls(rows)
     raise SystemExit("no usable candidate csv under /kaggle/input - is the "
                      "dataset attached to this notebook version?")
 

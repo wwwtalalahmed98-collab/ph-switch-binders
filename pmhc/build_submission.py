@@ -64,6 +64,16 @@ def main():
     print("candidates available: %d" % len(rows))
 
     # --- hard rules first ---
+    # Controls can never be submitted. The positive control is a confirmed binder of
+    # this exact target taken from the PDB, so submitting it would be both a rule
+    # breach and a lie. Refuse loudly rather than filter quietly.
+    ctrl = [r for r in rows
+            if str(r.get("design", r.get("name", ""))).startswith("CTRL_")]
+    if ctrl:
+        raise SystemExit(
+            "refusing to build a submission from a set containing controls: %s\n"
+            "These are measurement scales, not designs. The positive control is a "
+            "known binder of this target." % [r.get("design") for r in ctrl][:4])
     n0 = len(rows)
     rows = [r for r in rows if MIN_LEN <= r["length"] <= MAX_LEN]
     n_len = len(rows)

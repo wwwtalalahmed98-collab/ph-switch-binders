@@ -159,6 +159,46 @@ def main(argv):
     if not rows:
         raise SystemExit("nothing usable in %s" % path)
 
+    # Controls are the scale, not candidates. They are pulled out before ranking so
+    # the positive control - a confirmed binder of this target - can never be ranked
+    # first and submitted as one of our designs.
+    ctrl = [r for r in rows if (r["name"] or "").startswith("CTRL_")]
+    rows = [r for r in rows if not (r["name"] or "").startswith("CTRL_")]
+    if ctrl:
+        print()
+        print("--- controls (excluded from the ranking; this is the scale) ---")
+        for c in ctrl:
+            print("    %-22s i_pTM(g12d) %s  vs WT %s  vs apo %s"
+                  % (c["name"][:22],
+                     "%.3f" % c["iptm_g12d"] if c["iptm_g12d"] is not None else "-",
+                     "%+.3f" % c["goal_a_iptm"]
+                     if c["goal_a_iptm"] is not None else "-",
+                     "%+.3f" % c["goal_b_iptm"]
+                     if c["goal_b_iptm"] is not None else "-"))
+        pos = next((c for c in ctrl if "POS" in c["name"]), None)
+        neg = next((c for c in ctrl if "NEG" in c["name"]), None)
+        if pos and neg and pos["iptm_g12d"] is not None \
+                and neg["iptm_g12d"] is not None:
+            sep = pos["iptm_g12d"] - neg["iptm_g12d"]
+            print()
+            print("    positive minus negative: %+.3f" % sep)
+            if sep < 0.05:
+                print("    THE PIPELINE DOES NOT DISCRIMINATE. A confirmed binder of")
+                print("    this target scores no better than a shuffled sequence, so")
+                print("    these i_pTM values say nothing about our designs either.")
+                print("    Report as a failed measurement, not as evidence against")
+                print("    the designs.")
+            else:
+                best = max((r["iptm_g12d"] or 0) for r in rows) if rows else 0
+                print("    the pipeline separates a real binder from noise by %.3f,"
+                      % sep)
+                print("    so it is reading something. Our best design scores %.3f."
+                      % best)
+    if not rows:
+        raise SystemExit("only controls present - nothing to rank")
+    # recount on the candidates alone, so the figure below has one denominator
+    n_ipsae = sum(1 for r in rows if r.get("goal_a_ipsae") is not None)
+
     print()
     print("--- what the output actually looked like (discovered, not assumed) ---")
     print("    chain sets seen in ipsae output : %s"
