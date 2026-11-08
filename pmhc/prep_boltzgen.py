@@ -24,6 +24,7 @@ Run:  python pmhc/prep_boltzgen.py [boltzgen_designs.csv]
 import csv
 import json
 import os
+import random
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -38,21 +39,63 @@ TIER_ORDER = {"good": 0, "marginal": 1, "fail": 2, "fold-breaker": 3}
 
 
 def best_offset_identity(a, b):
-    """Highest ungapped positional identity over any offset, on the shorter string.
+    """Highest ungapped positional identity over any offset, scored on the shorter one.
 
-    Conservative on purpose: it finds the best-matching register rather than assuming
-    position 1 lines up, so two designs that share a motif at different offsets are
-    still counted as similar.
+    The shorter sequence is slid across the longer one through EVERY register,
+    including ones where it hangs off either end; positions with no partner simply
+    count as mismatches. The earlier version only slid from offset 0 rightwards, so a
+    design carrying one extra residue at the front - a bare leading M, say - was
+    thrown a register out and scored 0.20 against a chain it was 90% identical to.
+    Nine of the BoltzGen designs were mis-scored exactly that way.
     """
     if not a or not b:
         return 0.0
     if len(a) > len(b):
         a, b = b, a
-    best = 0.0
-    for off in range(0, len(b) - len(a) + 1):
-        same = sum(1 for i, ch in enumerate(a) if ch == b[off + i])
-        best = max(best, same / float(len(a)))
-    return round(best, 4)
+    n, m, best = len(a), len(b), 0
+    for off in range(-(n - 1), m):
+        same = 0
+        for i, ch in enumerate(a):
+            j = off + i
+            if 0 <= j < m and ch == b[j]:
+                same += 1
+        best = max(best, same)
+    return round(best / float(n), 4)
+
+
+# Immunoglobulin / T-cell-receptor variable-domain framework motifs. A TCR is the
+# natural binder of a pMHC and the official prescreen for this target holds 144 of
+# them, so a design that is one is a de novo rule risk, whatever it scores.
+IG_MOTIFS = ("WYRQ", "WYQQ", "WYKQ", "WYKY", "YRQK", "GAGTKLTV", "GQGTKLTV",
+             "GGGTKLTV", "GPGTKLTV", "GAGTKVTV", "GGGTQVTV", "YYCA", "YYCV",
+             "YYCQ", "TLTCT", "TLSCR", "TLTCR", "VTLTC", "TITCT")
+
+
+def ig_hits(seq):
+    return sum(1 for m in IG_MOTIFS if m in seq)
+
+
+def target_chains():
+    """Sequences of the chains BoltzGen was given, read from the structure itself."""
+    t3 = {"ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q",
+          "GLU": "E", "GLY": "G", "HIS": "H", "ILE": "I", "LEU": "L", "LYS": "K",
+          "MET": "M", "PHE": "F", "PRO": "P", "SER": "S", "THR": "T", "TRP": "W",
+          "TYR": "Y", "VAL": "V"}
+    path = os.path.join(ROOT, "data", "pmhc", "states", "target_state_g12d.pdb")
+    if not os.path.exists(path):
+        raise SystemExit(
+            "no target structure at %s - run build_states.py and then "
+            "build_counter_states.py first." % path)
+    seqs, seen = {}, set()
+    for line in open(path):
+        if line.startswith(("ATOM", "HETATM")):
+            key = (line[21], line[22:26])
+            if key in seen:
+                continue
+            seen.add(key)
+            seqs.setdefault(line[21], []).append(
+                t3.get(line[17:20].strip().upper(), "X"))
+    return {c: "".join(v) for c, v in seqs.items()}
 
 
 def main(argv):
@@ -83,6 +126,53 @@ def main(argv):
         designs.append(d)
 
     print("unique designs: %d of %d rows" % (len(designs), len(rows)))
+
+    # --- Is it a binder, or is it one of the things we handed the model? ---
+    # Run 4 returned 172 copies of beta-2 microglobulin. Run 5 put B2M into the
+    # target to close that hole; this measures how much of run 5 is still an echo,
+    # and separately how much of it is a T-cell receptor, which is the OTHER obvious
+    # answer for a pMHC and a de novo rule risk.
+    tgt = target_chains()
+    print()
+    print("--- what the model was given, and what it gave back ---")
+    for c in sorted(tgt):
+        print("    target chain %s  %3d aa" % (c, len(tgt[c])))
+    # A flat identity threshold is wrong here. A 60-residue design slid across a
+    # 275-residue chain gets ~216 chances to line up, so it scores 0.3-0.4 on chance
+    # alone, while a 100-residue one scores lower by chance. The null is measured per
+    # design instead: shuffle it, which keeps its length and composition and destroys
+    # its order, and see what identity that gets. Real echoes sit far above it.
+    rnd = random.Random(20261108)
+    for d in designs:
+        d["id_target"] = max(best_offset_identity(d["seq"], t) for t in tgt.values())
+        nulls = []
+        for _ in range(5):
+            sh = list(d["seq"])
+            rnd.shuffle(sh)
+            sh = "".join(sh)
+            nulls.append(max(best_offset_identity(sh, t) for t in tgt.values()))
+        d["id_null"] = round(sum(nulls) / len(nulls), 4)
+        d["id_excess"] = round(d["id_target"] - d["id_null"], 4)
+        d["ig"] = ig_hits(d["seq"])
+    echo = [d for d in designs if d["id_excess"] > 0.12 or d["id_target"] > 0.6]
+    ex = sorted(d["id_excess"] for d in designs)
+    print("    chance identity to a target, per design   : median %.2f"
+          % sorted(d["id_null"] for d in designs)[len(designs) // 2])
+    print("    excess over that chance level             : median %+.2f  max %+.2f"
+          % (ex[len(ex) // 2], ex[-1]))
+    igs = [d for d in designs if d["ig"] >= 2 and d not in echo]
+    print("    more than 60%% identical to a target chain : %d of %d"
+          % (len(echo), len(designs)))
+    print("    immunoglobulin / TCR framework motifs     : %d of %d"
+          % (len(igs), len(designs)))
+    keep = {id(d) for d in echo} | {id(d) for d in igs}
+    designs = [d for d in designs if id(d) not in keep]
+    print("    left after removing both                  : %d" % len(designs))
+    if not designs:
+        print()
+        print("NOTHING SURVIVES. Every design is either a copy of the target or an")
+        print("antibody/TCR framework. Report that, do not lower the bar.")
+        return 1
     tiers = {}
     for d in designs:
         tiers[d["tier"]] = tiers.get(d["tier"], 0) + 1
@@ -133,11 +223,12 @@ def main(argv):
         print("highest identity between any two selected: %.2f" % pair)
 
     print()
-    print("%-22s %4s %-9s %6s %6s %6s" % ("name", "len", "tier", "kd", "chg", "dist"))
+    print("%-22s %4s %-9s %6s %6s %6s %6s"
+          % ("name", "len", "tier", "kd", "chg", "dist", "excess"))
     for d in picked:
-        print("%-22s %4d %-9s %+6.2f %6.2f %6.2f"
+        print("%-22s %4d %-9s %+6.2f %6.2f %6.2f %6.2f"
               % (d["name"][:22], d["length"], d["tier"], d["kd"],
-                 d["charged_frac"], d["distance"]))
+                 d["charged_frac"], d["distance"], d["id_excess"]))
 
     out_csv = os.path.join(RESULTS, "boltzgen_selected.csv")
     with open(out_csv, "w", newline="") as fh:
