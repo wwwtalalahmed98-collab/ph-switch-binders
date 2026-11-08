@@ -86,7 +86,7 @@ Red box is what we got. Blue box is the fix. "Now" is the red box.
 
 ### What you have now
 
-- [pmhc/results/boltzgen_designs.csv](pmhc/results/boltzgen_designs.csv) — the 172 sequences, kept out of git. Open it and you will see the same protein 172 times with different ends trimmed off.
+- The 172 sequences live in the Kaggle run output (`boltzgen_designs.csv`), not on this machine. I read them there rather than copying them down, because nothing downstream needs them. Open that file and you see the same protein 172 times with different ends trimmed off.
 - [kaggle/cellPMHCk_boltzgen.py](kaggle/cellPMHCk_boltzgen.py) — the generation script. Works. The bug is in what it was *asked for*, not in the code.
 - [pmhc/prep_boltzgen.py](pmhc/prep_boltzgen.py) — the selection step built while waiting. Tested, unused so far, still correct for whatever a fixed run produces.
 - [pmhc/test_boltzgen_harvest.py](pmhc/test_boltzgen_harvest.py) — passes. It is the reason the harvest worked this time.
