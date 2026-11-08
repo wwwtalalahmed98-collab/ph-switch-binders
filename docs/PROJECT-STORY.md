@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 30 | 2026-11-08 | The ruler cannot tell a real binder from a shuffle |
 | 29 | 2026-11-08 | BoltzGen redesigned a protein the body already makes |
 | 28 | 2026-11-08 | The gate opened and the structure prediction said no |
 | 27 | 2026-11-07 | The judges published their own marking scheme, and we had been optimising the wrong order |
@@ -33,6 +34,112 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 30. 2026-11-08 — The ruler cannot tell a real binder from a shuffle
+
+### Where we are
+
+We finally measured our measuring stick, and it does not work. Everything we concluded from it has to be withdrawn — including the bad news.
+
+### What this project is for
+
+Challenge 5 of the Adaptyv competition: a protein that grips the cancer-mutated fragment `VVVGADGVGK` while it sits in the HLA-A\*11:01 display case, and ignores the healthy version `VVVGAGGVGK`, which differs by one letter, and ignores the empty case. Twenty designs. Deadline 9 Nov 11:59 UTC — about nineteen hours from this entry.
+
+### Why this step
+
+Yesterday the structure prediction said none of our 24 designs bind. I could not tell whether that meant the designs were dead or the test was. There is exactly one way to find out: run the same test on something whose answer you already know.
+
+So this run included two sequences that are not candidates and can never be submitted:
+
+- **A real binder.** The JDI T-cell receptor from the crystal structure 7OW6 — a protein that is *known* to grip this exact peptide on this exact display case, joined into a single chain.
+- **A real non-binder.** One of our own designs with its letters shuffled into a random order. Same length, same composition, no structure.
+
+If the test is any good, the real binder scores clearly above the shuffle. That gap is the whole experiment.
+
+### What we actually did
+
+156 structure predictions: 24 designs plus the 2 controls, each against the mutant peptide, the healthy peptide, and the empty case, each twice with two different AlphaFold models. Two hours and twenty minutes of GPU.
+
+The gap came out at **+0.024**, on a scale where the same protein predicted twice disagrees with itself by **0.022**.
+
+| | score (i-pTM) | |
+|---|---|---|
+| Real binder (JDI TCR) | 0.158 | the ceiling we were measuring against |
+| Our best design | 0.153 | |
+| Our worst design | 0.119 | |
+| Shuffled nonsense | 0.134 | the floor |
+| **Real binder minus shuffle** | **+0.024** | |
+| Disagreement between two runs of the same thing | 0.022 | |
+
+The gap is the same size as the noise. Worse: the real binder's own preference for the mutant peptide over the healthy one came out at **−0.001** — it "prefers" the wrong one, by nothing. A protein that genuinely discriminates registered no discrimination at all.
+
+The second scoring method, ipSAE, failed on **156 of 156** predictions, as it did on all 144 of the previous run. Three hundred failures and I still have not diagnosed it.
+
+### How it works
+
+Imagine checking whether a kitchen scale works by weighing a 1 kg bag of flour. The display says 1.003 kg. Then you weigh an empty bag: 1.001 kg. Then you weigh it again: 1.023 kg.
+
+The scale is not reading weight. It is reading something else — the room, the table, the electronics — and whatever that is swamps the thing you wanted to measure. Every number you took off it yesterday is worthless, and that includes the ones that looked like bad news.
+
+Why it fails here is not mysterious. The thing being scored is a 384-residue complex, and the binder is 56 to 110 residues of it. The score is dominated by how confident the model is about the display case's own well-known structure, which is the same in all three states. The actual question — does this small thing touch that groove — is a rounding error inside it.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    Q[Do our designs bind?] --> T[Three-state AlphaFold screen]
+    T --> D[24 designs<br/>0.119 to 0.153]
+    T --> P[Real binder, JDI TCR<br/>0.158]
+    T --> N[Shuffled nonsense<br/>0.134]
+    P --> G{Gap between<br/>real and nonsense}
+    N --> G
+    G -->|+0.024, versus 0.022 noise| B[The screen cannot tell<br/>a binder from a shuffle]
+    B --> W[Yesterday's 'nothing binds'<br/>is withdrawn, not confirmed]
+    D -.->|unreadable| B
+    style B fill:#b91c1c,stroke:#7f1d1d,color:#ffffff
+    style W fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+Red box is the finding. Blue box is what follows from it. "Now" is the red box.
+
+### What you have now
+
+- The controls run: [notebook4f6bc6039a](https://www.kaggle.com/code/talalahmed2003/notebook4f6bc6039a) version 4, 2 h 20 m, successful. The two control lines are in its log at entries 157 and 178.
+- [pmhc/rank_official.py](pmhc/rank_official.py) — the ranking script. It already contains the rule that fires here: when the positive-minus-negative gap is under 0.05, print "THE PIPELINE DOES NOT DISCRIMINATE" and refuse to treat the numbers as evidence. That threshold was written *before* this run, not after it.
+- [pmhc/results/boltzgen_designs.csv](pmhc/results/boltzgen_designs.csv) — 120 BoltzGen designs from run 5, with each one's similarity to the chains we fed the model.
+- [pmhc/results/boltzgen_selected.csv](pmhc/results/boltzgen_selected.csv) — the 24 that survived the echo filter, the TCR filter and the buildability screen.
+- The submission set is unchanged: the 20 from checkpoint 26, all 49 of which passed the organisers' entry gate.
+
+### Decisions made, and why
+
+| Chose | Against | Why |
+|---|---|---|
+| Withdraw yesterday's negative verdict | Letting "nothing binds" stand | A test that cannot see a known binder cannot see ours either. Reporting it as a negative would have been reporting noise as a result. |
+| Stop using AlphaFold i-pTM to rank | Ranking on it anyway, with a caveat | A caveat does not fix a blind instrument. Ranking on it would put an arbitrary order in front of the judges and call it evidence. |
+| Rank on what can still be defended | Waiting for a working binding predictor | Nineteen hours. Buildability, diversity, novelty and the official entry gate are all measurable today and all count in the published rubric. |
+| Run the official prescreen on the BoltzGen 24 | Skipping straight to submission | It is CPU-only, about nine minutes, costs no GPU quota, and reports the one criterion that now matters most: novelty. |
+
+### Jargon decoder
+
+- **i-pTM** — AlphaFold's own confidence that two parts of a predicted structure are correctly placed *relative to each other*. A confidence, never a binding strength.
+- **positive control** — something with a known answer, run through the test to check the test. Here, a TCR that really does bind this target.
+- **negative control** — something that cannot possibly work, for the same purpose. Here, a shuffled sequence.
+- **noise floor** — how much a measurement disagrees with itself when nothing has changed. A result smaller than the noise floor is not a result.
+- **ipSAE** — a second scoring method, meant to focus on the contact surface rather than the whole complex. It has failed on every prediction we have fed it.
+- **echo filter** — our check for designs that are just a copy of something we handed the model.
+
+### What is next, and what could go wrong
+
+Next: the official prescreen on the 24 BoltzGen designs, then a decision about what the final twenty are made of — the existing scaffold-docked set, the new de novo set, or a mix.
+
+What could go wrong, stated plainly:
+
+- **We are now submitting without any working prediction of binding.** The designs are chosen for being expressible, distinct, de novo and inside the rules. That is honest, it matches what the organisers can verify themselves, and it is weaker than having a working screen. There is no way to fix that in nineteen hours.
+- Roughly five GPU-hours went into the two AlphaFold screens and both are now uninterpretable. The controls should have been in the first one.
+- The ipSAE failure is still undiagnosed after 300 attempts. It is the method the organisers themselves use, so getting it working would have mattered; I did not.
+- The scaffold-docked designs may be capped at novelty level 2, below the level-3 floor. The prescreen will not tell us this — it explicitly does not judge whether a scaffold is de novo — so it remains a live risk on the existing twenty.
 
 ---
 
