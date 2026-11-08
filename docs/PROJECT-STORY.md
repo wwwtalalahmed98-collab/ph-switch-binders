@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 28 | 2026-11-08 | The gate opened and the structure prediction said no |
 | 27 | 2026-11-07 | The judges published their own marking scheme, and we had been optimising the wrong order |
 | 26 | 2026-11-07 | Twenty designs, and the first time we have measured the thing we are judged on |
 | 25 | 2026-11-06 | Somebody already solved this, and published the parts |
@@ -33,6 +34,118 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
 
 ---
+
+## 28. 2026-11-08 — The gate opened and the structure prediction said no
+
+### Where we are
+
+Our twenty designs are allowed into the competition — the organisers' own screen passed every one of them — and the first independent check of whether they actually bind came back negative.
+
+### What this project is for
+
+Challenge 5: a protein that grabs the KRAS G12D mutation while it is displayed on HLA-A*11:01, and ignores the wild-type version that differs by one atom-group. Adaptyv's robot lab measures the selected designs. Submissions close **tonight, 8 November 23:59 Anywhere-on-Earth** (9 November 11:59 UTC).
+
+### Why this step
+
+Checkpoint 27 found the organisers' published rubric and their public screening code. This step ran both against what we had, instead of reasoning about them. Three jobs went to Kaggle overnight.
+
+### What we actually did, and what came back
+
+**1. The official pre-submission screen: 49 of 49 passed.** This is the real gate, `adaptyvbio/binder-prescreen`, run with every reference database it ships except the USPTO patent arm — PDB, Swiss-Prot, PLAbDab, PLAbDab-nano, Thera-SAbDab, THPdb and the published Proteinbase designs. Every design came back `verdict: pass`, with prior-art similarity, existing-design similarity and target similarity all **0.0**. Its classifier also typed them as `miniprotein`, agreeing with what we declared.
+
+That closes the worry I raised in checkpoint 27 about reusing published scaffolds — at the sequence level, measured, not argued. The separate structural novelty level from ProteinTyper is still not measured.
+
+**2. The three-state AlphaFold screen: a clear no.** 24 designs × 3 states × 2 models, 2 hours 8 minutes of GPU. The numbers were the same for every design:
+
+| Quantity | What it measures | Result |
+|---|---|---|
+| pLDDT ≈ 0.86 | is the binder a real, folded protein? | **yes** |
+| pTM ≈ 0.81 | is its overall shape confident? | **yes** |
+| i_pTM ≈ 0.12–0.15 | does it bind the target? | **no** |
+| margin vs wild type | does it prefer G12D? | **±0.001, i.e. nothing** |
+| model-to-model noise | how much scatter is there? | 0.004–0.036 |
+
+Every margin is smaller than its own noise floor. Not one of the 24 clears the gate I set in advance. Read plainly: AlphaFold thinks these are well-made little proteins that do not bind this target, and cannot tell the mutant from the wild type.
+
+**3. ipSAE failed on all 144 predictions** and I have not diagnosed why. The error text came back empty, so I cannot currently distinguish "ipsae.py found no interface to score", which would be consistent with the low i_pTM and would be a true negative, from "ipsae.py did not run properly", which would be my bug. I am reporting it as undiagnosed rather than as either.
+
+**4. BoltzGen's first run died in five minutes** on a missing file. `data/` is gitignored, so the crystal structures are not in the repository clone and the target builder found no `7OW6.cif`. That is the same mistake as the last three Kaggle failures — assuming the environment contained something instead of checking. Fixed, relaunched, now running.
+
+**5. I was wrong about the driver.** I said Kaggle's T4 nodes could not run BoltzGen's ESMFold2 scoring because it needs a CUDA 13 driver. The probe printed **580.178.04**, which qualifies. The relaunched run now banks its sequences first, then attempts the full scoring pipeline — so BoltzGen's own quality filter is available after all.
+
+### The honest limit of finding 2
+
+There is no positive control. I did not run anything that is **known** to bind this target through the same pipeline, so I cannot yet separate "these designs are bad" from "this pipeline scores everything at 0.13". With a 384-residue target and a 56-residue binder, the interface score is diluted by construction.
+
+The control arrives for free: the BoltzGen designs go through the identical screen. If they score materially higher, the pipeline works and our scaffold-docked designs are genuinely weak. If they also sit at 0.13, the measurement is the problem, not the molecules. Either way we learn it before submitting.
+
+### How it works
+
+The project has been judging designs by asking a sequence model which amino acid it expects in the peptide's sixth position — a question about *sequence preference*. AlphaFold asks a different question: fold these two chains together and say how confident you are that they touch. The first question we were scoring well on. The second one, asked for the first time, we fail.
+
+It is the difference between a lock-maker checking that the key's teeth look plausible, and someone trying the key in the lock.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[20 scaffold-docked designs] --> B{Official screen<br/>already published?}
+    B -->|49 of 49 pass<br/>similarity 0.0| C{AlphaFold<br/>three states}
+    C -->|"folded: pLDDT 0.86"| D[Good proteins]
+    C -->|"interface: i-pTM 0.13"| E[Do not bind]
+    C -->|"G12D vs wild type: ±0.001"| F[No discrimination]
+    E --> G{Is it them, or the ruler?}
+    F --> G
+    G -->|no positive control run| H[BoltzGen designs<br/>through the same screen]
+    H -->|score higher| I[Designs were weak]
+    H -->|score the same| J[Measurement is weak]
+    style C fill:#2563eb,stroke:#1e40af,color:#ffffff
+    style G fill:#b45309,stroke:#78350f,color:#ffffff
+```
+
+"Now" is the blue box, just finished, and the amber box, which is the question we cannot yet answer.
+
+### What you have now
+
+- `submission/challenge5_kras_g12d.csv` — 20 designs. Admissible, screened clean, and with **no structural evidence that they bind**. Still a complete submission.
+- `pmhc/rank_official.py` — ranks on the organisers' published goal order behind a noise-floor gate. Tested on fixtures; it correctly demotes a large margin swamped by scatter. It has not yet been given real data worth ranking.
+- `kaggle/cellPMHCl_prescreen.py` — the official screen, which produced finding 1.
+- `kaggle/cellPMHCk_boltzgen.py` — running now.
+- Kaggle outputs `report_full_report.csv` and `af2_ipsae_results.json`.
+
+### Decisions made, and why
+
+| Decision | Chosen against | Why |
+|---|---|---|
+| Report the AF2 result as a failure of the designs | Quietly re-ranking on the old MPNN score | The old score is the one AF2 just contradicted; keeping it as the headline would be presenting a number I now have reason to disbelieve |
+| Do not spend GPU on a dedicated positive control | Running a known binder through the pipeline | The BoltzGen batch supplies the same control for free, and GPU hours are the scarce thing today |
+| Bank BoltzGen sequences before scoring them | Running its full pipeline in one go | Its first run cost five minutes and produced nothing; staging means a late failure cannot destroy the generation work |
+| Keep the existing 20 as the submission of record | Withdrawing them | They are admissible and screened; a weak submission beats none, and the lab result is what settles it |
+
+### Jargon decoder
+
+- **i_pTM (interface predicted TM-score)** — AlphaFold's confidence that two chains touch where it has placed them. Low means "I do not believe this interface".
+- **pTM** — the same kind of confidence for the whole structure, not the interface.
+- **pLDDT** — per-residue confidence in the local shape. High means a well-defined fold.
+- **Noise floor** — here, the disagreement between two AlphaFold models shown the same thing. A difference smaller than this is not evidence.
+- **Positive control** — something known to work, run through the same measurement, to check the measurement.
+- **Prior art** — anything already published that a submission might be a copy of.
+- **Verdict `pass`** — the screen found no match to any public sequence or known binder of this target.
+- **ipSAE** — a sharper interface score than i_pTM; it needs an interface to exist before it can score one.
+
+### What is next, and what could go wrong
+
+1. BoltzGen finishes and we see whether a model that was *told* to bind the peptide produces anything AlphaFold believes in.
+2. Those designs go through the same three-state screen — which doubles as the missing control.
+3. Whatever ranks best under the published goal order gets submitted tonight.
+
+Risks, stated plainly:
+
+- **BoltzGen may produce nothing usable in time.** It is one attempt with one fix applied, on hardware slower than it was built for.
+- **It may also score 0.13.** Then we submit the existing 20 and say openly that no structure prediction supported them.
+- The ipSAE failure is undiagnosed, so the sharper of our two interface measures is unavailable.
+- The structural novelty level is still unmeasured and could still cap these designs below the level-3 floor.
+- There are hours left, not days. Anything not working by tonight does not exist.
 
 ## 27. 2026-11-07 — The judges published their own marking scheme, and we had been optimising the wrong order
 
