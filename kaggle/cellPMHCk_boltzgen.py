@@ -54,8 +54,8 @@ BUDGET_MIN = 400
 
 PEPTIDE_CHAIN = "C"
 MHC_CHAIN = "A"
-BIND_PEPTIDE = "4..8"      # G12D sits at peptide position 6
-NO_BIND_MHC = "182..276"   # alpha-3 domain: structurally remote from the groove
+BIND_PEPTIDE_AUTHOR = (4, 8)        # G12D sits at peptide position 6
+NO_BIND_MHC_AUTHOR = (182, 276)     # alpha-3 domain, remote from the groove
 
 T3 = {"ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q",
       "GLU": "E", "GLY": "G", "HIS": "H", "ILE": "I", "LEU": "L", "LYS": "K",
@@ -153,25 +153,53 @@ def get_target():
     dst = os.path.join(SPEC_DIR, "target.pdb")
     shutil.copy(src, dst)
 
-    chains = {}
+    # Residue numbers in order of appearance, per chain. BoltzGen indexes residues by
+    # ORDINAL POSITION in the chain, not by the author numbering in the file: the first
+    # attempt wrote the alpha-3 domain as its author range 182..276 and got
+    # "Specified end 182..276 is higher than the length of the chain", because chain A
+    # is numbered 2..276 but holds 275 residues. So build the author->ordinal map here
+    # and derive every index from it instead of writing numbers by hand.
+    order = {}
     for line in open(dst):
         if line.startswith(("ATOM", "HETATM")):
-            chains.setdefault(line[21], set()).add(int(line[22:26]))
+            c, num = line[21], int(line[22:26])
+            lst = order.setdefault(c, [])
+            if not lst or lst[-1] != num:
+                if num not in lst:
+                    lst.append(num)
     print("chains in target.pdb:")
-    for c in sorted(chains):
-        print("    %s  %d residues  %d..%d"
-              % (c, len(chains[c]), min(chains[c]), max(chains[c])))
+    for c in sorted(order):
+        print("    %s  %d residues  author %d..%d  -> ordinals 1..%d"
+              % (c, len(order[c]), order[c][0], order[c][-1], len(order[c])))
     for need in (MHC_CHAIN, PEPTIDE_CHAIN):
-        if need not in chains:
+        if need not in order:
             raise SystemExit("chain %s missing from the target" % need)
-    if len(chains[PEPTIDE_CHAIN]) != 10:
+    if len(order[PEPTIDE_CHAIN]) != 10:
         raise SystemExit("peptide chain %s has %d residues, expected 10"
-                         % (PEPTIDE_CHAIN, len(chains[PEPTIDE_CHAIN])))
-    return dst
+                         % (PEPTIDE_CHAIN, len(order[PEPTIDE_CHAIN])))
+    return dst, order
 
 
-def write_spec(target_pdb):
+def ordinal_range(order, chain, author_lo, author_hi):
+    """Author residue range -> 1-based ordinal range, clipped to what exists."""
+    nums = order[chain]
+    idx = [i + 1 for i, n in enumerate(nums) if author_lo <= n <= author_hi]
+    if not idx:
+        raise SystemExit("chain %s has no residues in author range %d..%d"
+                         % (chain, author_lo, author_hi))
+    return idx[0], idx[-1]
+
+
+def write_spec(target_pdb, order):
     banner("DESIGN SPECIFICATION")
+    bind_lo, bind_hi = ordinal_range(order, PEPTIDE_CHAIN, *BIND_PEPTIDE_AUTHOR)
+    nb_lo, nb_hi = ordinal_range(order, MHC_CHAIN, *NO_BIND_MHC_AUTHOR)
+    bind = "%d..%d" % (bind_lo, bind_hi)
+    no_bind = "%d..%d" % (nb_lo, nb_hi)
+    print("peptide bind  : author %d..%d -> ordinals %s"
+          % (BIND_PEPTIDE_AUTHOR[0], BIND_PEPTIDE_AUTHOR[1], bind))
+    print("MHC not_bind  : author %d..%d -> ordinals %s"
+          % (NO_BIND_MHC_AUTHOR[0], NO_BIND_MHC_AUTHOR[1], no_bind))
     # beta-2 microglobulin is left out of generation: it sits under the platform and
     # never contacts a groove binder. The alpha-3 domain stays in and is marked
     # not_binding, so the underside is covered rather than left as a bare cut face.
@@ -195,7 +223,7 @@ def write_spec(target_pdb):
             id: %s
             not_binding: "%s"
 """ % (BINDER_LEN, MHC_CHAIN, PEPTIDE_CHAIN,
-       PEPTIDE_CHAIN, BIND_PEPTIDE, MHC_CHAIN, NO_BIND_MHC)
+       PEPTIDE_CHAIN, bind, MHC_CHAIN, no_bind)
     path = os.path.join(SPEC_DIR, "pmhc.yaml")
     open(path, "w").write(spec)
     print(spec)
@@ -354,8 +382,8 @@ def harvest():
     out = os.path.join(W, "boltzgen_designs.json")
     json.dump({"n": len(designs), "num_designs_requested": NUM_DESIGNS,
                "binder_len_spec": BINDER_LEN,
-               "binding": {"chain": PEPTIDE_CHAIN, "res": BIND_PEPTIDE},
-               "not_binding": {"chain": MHC_CHAIN, "res": NO_BIND_MHC},
+               "binding_author": {"chain": PEPTIDE_CHAIN, "res": BIND_PEPTIDE_AUTHOR},
+               "not_binding_author": {"chain": MHC_CHAIN, "res": NO_BIND_MHC_AUTHOR},
                "designs": designs}, open(out, "w"), indent=1)
     print()
     print("wrote %s" % out)
@@ -372,8 +400,8 @@ def harvest():
 def main():
     probe()
     install()
-    tgt = get_target()
-    spec = write_spec(tgt)
+    tgt, order = get_target()
+    spec = write_spec(tgt, order)
     if mins() > BUDGET_MIN * 0.6:
         print("too little budget left to start design; stopping after setup")
         return 0
