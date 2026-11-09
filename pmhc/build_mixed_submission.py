@@ -141,8 +141,24 @@ def main():
     # 8 Nov. The dominant one is the instability index: 12 of the first 20 we built
     # failed it. Anything at redesign level is now excluded outright, and 'clean'
     # beats 'flag' in the ordering.
+    # ESM2 pseudo-log-likelihood, computed on Kaggle. Adaptyv's own QC guide reports
+    # ROC AUCs for predicting whether a design binds: ipTM 0.64, PAE 0.65, ESM2 PLL
+    # 0.72 - the best single metric they publish, and the only ranking signal in this
+    # project with a published AUC behind it. The value stored is the excess over the
+    # same sequence shuffled, which is our normalisation, not theirs.
+    pll = {}
+    pllf = os.path.join(RESULTS, "esm2_pll.csv")
+    if os.path.exists(pllf):
+        for r in csv.DictReader(open(pllf)):
+            try:
+                pll[r["name"]] = float(r["pll_excess"])
+            except (KeyError, ValueError):
+                pass
+    print("    ESM2 PLL available for %d designs" % len(pll))
+
     for d in scaf + bolt:
         d["qc"] = liabilities(d["seq"])
+        d["pll_excess"] = pll.get(d["name"])
     def qc_ok(d):
         return d["qc"]["verdict"] != "redesign"
     for tag, pool in (("scaffold-docked", scaf), ("boltzgen", bolt)):
@@ -166,13 +182,14 @@ def main():
             return 0.0
 
     # Scaffold half: buildability first, then the unvalidated specificity tie-break.
-    scaf_ok.sort(key=lambda d: (0 if d["qc"]["verdict"] == "clean" else 1,
-                                0 if d["tier_calc"] == "good" else 1,
-                                -fnum(d, "delta_vs_shuffled"),
-                                -fnum(d, "pep_fraction")))
-    bolt_ok.sort(key=lambda d: (0 if d["qc"]["verdict"] == "clean" else 1,
-                                0 if d["tier_calc"] == "good" else 1,
-                                d["qc"]["instability"]))
+    # Ranked on ESM2 PLL first, because it is the only criterion we hold with a
+    # published AUC. Designs with no PLL sort last rather than silently mid-table.
+    def key(d):
+        return (-(d["pll_excess"] if d["pll_excess"] is not None else -9.0),
+                0 if d["tier_calc"] == "good" else 1,
+                d["qc"]["instability"])
+    scaf_ok.sort(key=key)
+    bolt_ok.sort(key=key)
     # BoltzGen half: the file already arrives ordered by tier then distance.
 
     a, sa, pa = pick(scaf_ok, N_EACH, per_parent=MAX_PER_PARENT)
@@ -201,6 +218,7 @@ def main():
                       "instability": d["qc"]["instability"],
                       "gravy": d["qc"]["gravy"],
                       "qc_verdict": d["qc"]["verdict"],
+                      "esm2_pll_excess": d["pll_excess"],
                       "parent_identity": d.get("parent_identity", "")})
 
     seqs = [d["sequence"] for d in final]
@@ -218,11 +236,13 @@ def main():
                          max(len(s) for s in seqs), worst))
 
     print()
-    hdr = "%-14s %-16s %4s %-9s %7s %7s %-6s %s"
-    print(hdr % ("submit name", "source", "len", "tier", "instab", "GRAVY",
+    hdr = "%-14s %-16s %4s %8s %7s %7s %-6s %s"
+    print(hdr % ("submit name", "source", "len", "ESM2 PLL", "instab", "GRAVY",
                  "qc", "internal"))
     for d in final:
-        print(hdr % (d["name"], d["source"], d["length"], d["tier"],
+        print(hdr % (d["name"], d["source"], d["length"],
+                     ("%+.4f" % d["esm2_pll_excess"]
+                      if d["esm2_pll_excess"] is not None else "-"),
                      "%.1f" % d["instability"], "%+.3f" % d["gravy"],
                      d["qc_verdict"], d["internal_name"][:22]))
 
@@ -237,7 +257,7 @@ def main():
         w = csv.writer(fh, delimiter="\t")
         keys = ["name", "source", "internal_name", "parent", "length", "tier",
                 "kd_hydropathy", "charged_frac", "instability", "gravy",
-                "qc_verdict", "parent_identity"]
+                "qc_verdict", "esm2_pll_excess", "parent_identity"]
         w.writerow(keys)
         for d in final:
             w.writerow([d[k] for k in keys])
@@ -246,8 +266,11 @@ def main():
     print("wrote %s" % out)
     print("wrote %s" % det)
     print()
-    print("The order of these twenty is not a confidence ranking. Nothing in this")
-    print("project currently predicts binding for either half.")
+    print("ORDER. These are ranked on ESM2 pseudo-log-likelihood, the best single")
+    print("metric in the organisers' own QC guide at ROC AUC 0.72. That is a weak")
+    print("signal and it is not an affinity. Two structure-based screens - AF2")
+    print("i-pTM and pae_interaction - were both shown blind on this target using")
+    print("a known binder and a shuffled control, so neither contributes here.")
     return 0
 
 
