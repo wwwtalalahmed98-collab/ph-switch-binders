@@ -5,10 +5,12 @@
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-1d9e75)](LICENSE)
 [![Competition](https://img.shields.io/badge/competition-Anthropic%20%C3%97%20Adaptyv%202026-534ab7)](https://proteinbase.com/competitions/anthropic-adaptyv-2026)
 [![Track](https://img.shields.io/badge/track-3%20(open)-888780)](https://proteinbase.com/competitions/anthropic-adaptyv-2026)
-[![Designs](https://img.shields.io/badge/designs%20submitted-45-185fa5)](#what-was-submitted)
+[![Designs](https://img.shields.io/badge/designs%20submitted-65-185fa5)](#what-was-submitted)
+[![Checkpoints](https://img.shields.io/badge/checkpoints-32-993c1d)](docs/PROJECT-STORY.md)
 
 Small proteins designed to bind a chosen human target **under a condition** — a pH window,
-a second species, or a mechanism — and submitted for wet-lab testing.
+a second species, a mechanism, or a single-letter mutation — and submitted for wet-lab
+testing. Five challenges, four of them entered, 65 designs now in the queue.
 
 **[Interactive viewers →](https://wwwtalalahmed98-collab.github.io/ph-switch-binders/)**
 Rotate the designs inside their targets, and pull the pH dial.
@@ -19,12 +21,37 @@ Rotate the designs inside their targets, and pull the pH dial.
 
 ---
 
-## Three results
+## Four results
 
 The useful findings here are negative. Each came from checking something that already
 looked like it was working.
 
-### 1. Model confidence points the wrong way on this problem
+### 1. We measured our own measuring stick, and it could not read
+
+The last challenge ranked designs on an AlphaFold screen — 300 predictions over two runs.
+Before trusting it we pushed two sequences through the identical pipeline: the **JDI
+T-cell receptor from 7OW6**, a crystallographically confirmed binder of that exact target,
+and one of our own designs with its letters **shuffled**, which cannot bind anything.
+
+| | i-pTM on the target state |
+|---|---|
+| confirmed binder | 0.158 |
+| shuffled nonsense | 0.134 |
+| **separation** | **+0.024** |
+| disagreement between two runs of the same input | 0.022 |
+
+The gap *is* the noise. The confirmed binder's own preference for the mutant peptide over
+the healthy one came out at **−0.001**. A second metric agreed, and put the real binder
+marginally *worse* than the shuffle.
+
+So the screen could not tell a real binder from a shuffle, and **the conclusion we had
+already drawn from it — that none of our designs bound — was withdrawn as unmeasured**.
+The submitted methods file leads with this rather than burying it:
+[submission/challenge5_final20_methods.md](submission/challenge5_final20_methods.md).
+
+The lesson is cheap and we learned it late: **run the control first, not last.**
+
+### 2. Model confidence points the wrong way on this problem
 
 For GLP-1R, a design only matters if it reaches the residues the natural hormone uses to
 switch the receptor on. Ranking candidates by AlphaFold2 interface confidence — the
@@ -43,7 +70,7 @@ metric, on direct geometric measurement, with the reasoning fixed before the ran
 applied — [glp1r/select_v2.py](glp1r/select_v2.py) states its own limitations in its
 header.
 
-### 2. A truncated target invented a binding site
+### 3. A truncated target invented a binding site
 
 GLP-1R is a membrane receptor, and the usual way to make one computationally affordable is
 to cut away everything far from the binding site. That crop removed the floor of the
@@ -59,7 +86,7 @@ experiment with one variable changed. The channel-only designs failed again, whi
 the fault in the method rather than only in the crop —
 [glp1r/results/THREADER_FAILURE.md](glp1r/results/THREADER_FAILURE.md).
 
-### 3. A ranking metric with the wrong sign, caught before submission
+### 4. A ranking metric with the wrong sign, caught before submission
 
 The pH-switchable TNF-α binders were first ranked by the distance from each histidine to a
 nearby charge. Checked afterwards against the effect it was supposed to predict, across
@@ -107,15 +134,35 @@ parameters and a comment explaining what the previous version got wrong.
 | **Challenge 1** | EGFR ectodomain (6ARU) | hold on at pH 6.5, let go at 7.4 | 5 |
 | **Challenge 2** | TNF-α trimer (1TNF) | the reverse switch, **and** cross-react with mouse | 20 |
 | **Challenge 3** | GLP-1R (6X18) | **activate** the receptor, not block it | 20 |
-| **Challenge 4** | TfR1 ectodomain (11QC) | release in the endosome, **and** cross-react with mouse | in progress |
+| **Challenge 4** | TfR1 ectodomain (1IQC) | release in the endosome, **and** cross-react with mouse | designed, **never submitted** |
+| **Challenge 5** | KRAS G12D on HLA-A\*11:01 (7OW6) | reject the healthy peptide that differs by **one letter** | 20 |
 
-Challenge 3 ships a methods file that opens with the words *activation is unscreened*,
-because nothing in this pipeline tests it —
+**65 designs submitted across four challenges. None has been made or measured yet.**
+
+Challenge 4 is reported as it happened: one usable candidate, no fold check run on it, work
+stopped on 29 October, nothing sent. Challenge 3 ships a methods file that opens with the
+words *activation is unscreened*, because nothing in this pipeline tests it —
 [submission/METHODS_GLP1R.md](submission/METHODS_GLP1R.md).
 
-Challenge 1 sequences are in the repository. Challenges 2 and 3 are withheld pending lab
-results, by pattern in `.gitignore`. Structures and reference data are downloaded by the
-scripts rather than committed.
+**All sequences are now published.** Each challenge's designs were withheld only while its
+submission window was open; the last window closed 9 November 2026 and the final twenty
+went into the repository with the methods file that cites them. The `.gitignore` keeps the
+retired rules and the record of the five times the withholding pattern was written too
+narrowly — it is a worked example of why such a rule has to match by pattern, not by name.
+
+### Challenge 5, in one paragraph
+
+KRAS G12D is a common cancer driver sitting *inside* the cell, out of reach. But cells
+shred their own proteins and display the fragments on their surface in a holder called
+HLA — so the mutated fragment `VVVGADGVGK` appears on the outside of a cancer cell, a flag
+reading *this cell is malignant*. The healthy version `VVVGAGGVGK` differs by one letter
+and is displayed by every healthy cell in the body. Bind that one and you have built an
+autoimmune disease, which is why the competition scores rejecting it **first** and raw
+strength last. Twenty designs went in from two independent routes, ten each: published de
+novo scaffolds fully resurfaced by ProteinMPNN, and BoltzGen generation against the full
+three-chain complex. An earlier BoltzGen run is reported in the methods too — β2-microglobulin
+was left out of the target, and **all 172 harvested designs came back as β2-microglobulin**.
+Leave a hole in the target and the model fills the hole.
 
 ---
 
@@ -165,22 +212,72 @@ reproduced to 0.63 Å — [tfr1/results/EPITOPE_CHOICE.md](tfr1/results/EPITOPE_
 
 ---
 
+## After the competition: does any of this work, for anyone?
+
+Finding that our own screen was blind raised an obvious question — **is it our pipeline,
+or are the field's metrics weak?** That is answerable now, because three large datasets
+have been published that pair designed binders with their *measured* laboratory outcome.
+
+[`benchmark/`](benchmark/) holds eight read-only scripts that download those datasets and
+re-measure them. [`docs/RESEARCH-LANDSCAPE.md`](docs/RESEARCH-LANDSCAPE.md) is the written
+dossier — every claim marked **[verified]** when it was downloaded and run here, or
+**[reported]** when relayed from a paper. Nothing is cited from memory.
+
+| dataset | designs | what it adds | licence |
+|---|---|---|---|
+| [Proteinbase](https://proteinbase.com/download) (Adaptyv) | 4,280 | one lab, one protocol, 40 targets, 1,062 affinities | ODC-BY |
+| [Claude binder release](https://huggingface.co/datasets/Anthropic/claude-protein-binder-design) | 1,440 | **two** independent CROs, ten predictors, counter-screens | CC-BY-4.0 |
+| [DTU meta-analysis](https://doi.org/10.5281/zenodo.15722219) | 3,676 | 312 features per design, re-predicted with AF2/AF3/Boltz-1 | CC-BY-4.0 |
+
+Four things came out, and one of them was my own idea dying:
+
+**ipSAE scores 0.56, 0.74 and 0.81 on the three datasets.** Same metric, same question,
+real laboratory outcomes — a **0.25 AUC spread** driven by how it is computed and how
+clean the labels are. Published filter thresholds do not transfer between pipelines. That
+alone explains why our cheap screen was blind.
+
+**Chai-1 and OpenFold3 beat AlphaFold3 at this job** (0.744 / 0.741 / 0.733), with Boltz-2
+near the bottom at 0.692 — measured on 1,320 identical designs with dual-CRO labels, which
+is the cleanest head-to-head available.
+
+**Nothing predicts affinity.** Across 1,062 measured designs the best correlation is
+−0.26, and a trained model under leave-one-target-out does *worse* than that single number.
+Splitting affinity into on-rate and off-rate does not help either. Boltz-2's own
+documentation confirms it **does not support protein–protein affinity at all**.
+
+**A claim I had drafted turned out to be false.** I suspected published benchmarks were
+inflated by pooling across targets. Measured: the drop is 0.036 and 0.003. The metrics
+really do rank within a target. It is in the dossier as a failed hypothesis because it was
+the most attractive idea I had.
+
+---
+
 ## What is here
 
 ```
+pmhc/         Challenge 5: three-state target build, docking, BoltzGen triage, selection
+benchmark/    does the field's scoring actually work? scripts over three open datasets
 tfr1/         Challenge 4: conservation mapping, epitope ranking, species check
 glp1r/        Challenge 3: target scoping, depth analysis, selection rule
 tnf/          Challenge 2: epitope selection, switch placement, submission assembly
 scripts/      conservation, epitope finding, novelty screen, pipeline stages
 kaggle/       the notebook cells that ran on GPU, one per run, with their failure notes
 viz/          builders for the interactive structure viewers
-docs/         the published viewers, and PROJECT-STORY.md
-submission/   methods files and metrics for each challenge
+docs/         the published viewers, PROJECT-STORY.md, RESEARCH-LANDSCAPE.md
+submission/   designs, methods files and metrics for every challenge
 ```
 
-[docs/PROJECT-STORY.md](docs/PROJECT-STORY.md) is the narrative record — eleven checkpoints
-of what was chosen, what was rejected, and which assumptions turned out to be wrong. It is
-written for a reader who does not read code.
+[docs/PROJECT-STORY.md](docs/PROJECT-STORY.md) is the narrative record — **32 checkpoints**
+of what was chosen, what was rejected, and which assumptions turned out to be wrong, newest
+first. It is written for a reader who does not read code, and every reversal is logged as a
+reversal. Checkpoint 31 retells the whole month from the problem that created it;
+checkpoint 32 opens the three public datasets above.
+
+[docs/RESEARCH-LANDSCAPE.md](docs/RESEARCH-LANDSCAPE.md) is the separate research dossier:
+what validated data exists, who produced it, how trustworthy it is, what the field runs,
+and where the holes are — including the patent claim that covers polypeptides *at least 35%
+identical* to any of ~1,570 published designed miniproteins, which is worth knowing before
+anyone commercialises a de novo binder.
 
 ---
 

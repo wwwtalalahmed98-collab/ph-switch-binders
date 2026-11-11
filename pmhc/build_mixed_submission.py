@@ -56,7 +56,9 @@ RESULTS = os.path.join(ROOT, "pmhc", "results")
 N_EACH = 10
 MAX_IDENTITY = 0.60      # between any two designs in the final twenty
 MAX_PER_PARENT = 3       # scaffold-docked half only
-MOLECULE_CLASS = "miniprotein"   # what ProteinTyper called both sets
+MOLECULE_CLASS = "single_chain"   # the submission form accepts single_chain,
+                                  # nanobody, scfv, fab_kappa, fab_lambda - not
+                                  # ProteinTyper's "miniprotein"
 
 
 def load(path, scol_names, ncol_names):

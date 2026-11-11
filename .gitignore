@@ -48,10 +48,27 @@ __pycache__/
 # FIFTH guard, 7 Nov: the json rule was inverted but the csv rule was still
 # name-based (*sequences*), which would not cover boltzgen_designs.csv. Inverted
 # too: every csv and fasta in pmhc/results is withheld by default.
-pmhc/results/*.json
-pmhc/results/*.csv
-pmhc/results/*.fasta
-submission/challenge5_*
+#
+# WINDOW CLOSED 9 Nov 2026 11:59 UTC. Challenge 5 was submitted (20 designs, novelty
+# check passed) and the submission window is shut, so the condition every rule above
+# was waiting on has been met. The four withholding patterns below are therefore
+# retired, exactly as challenges 1-4 were retired on 3 Nov, and the sequences are
+# published with the write-ups that cite them. The comments above are kept because
+# the five mistakes they record are the reason the rule was eventually written by
+# pattern and by inversion rather than by name.
+#
+#   pmhc/results/*.json
+#   pmhc/results/*.csv
+#   pmhc/results/*.fasta
+#   submission/challenge5_*
+
+# Datasets downloaded for the benchmark work - 52 MB and 82 MB, re-fetched by the
+# scripts in benchmark/ from Proteinbase and Zenodo, not ours to redistribute.
+benchmark/data/
+*.parquet
+proteinbase_latest.csv
+final_dataset.csv
+design_summary.csv
 
 # The two exceptions, allowed deliberately: both carry scaffold_seq, which is the Baker
 # lab's already-published scaffold sequence (Zenodo 10.5281/zenodo.15169815), not ours.

@@ -4,6 +4,8 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 32 | 2026-11-10 | There is a 4,280-protein answer key, and it says the field's rulers barely work |
+| 31 | 2026-11-10 | One month, five challenges, and what the whole thing was for |
 | 30 | 2026-11-08 | The ruler cannot tell a real binder from a shuffle |
 | 29 | 2026-11-08 | BoltzGen redesigned a protein the body already makes |
 | 28 | 2026-11-08 | The gate opened and the structure prediction said no |
@@ -34,6 +36,438 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 32. 2026-11-10 — There is a 4,280-protein answer key, and it says the field's rulers barely work
+
+### Where we are
+
+You asked whether the Adaptyv database could become a project of its own. I downloaded it,
+counted it, and ran the test that our challenge-5 pipeline failed. The dataset is real,
+open, and large enough to settle the question that cost us this month. The first pass says
+the metrics the whole field filters on are close to coin flips.
+
+### Why this step
+
+All month we ranked designs on numbers nobody had checked against reality. On the last
+days of challenge 5 we finally ran a control and found our screen could not tell a known
+binder from a shuffled sequence. That left an obvious question we had no way to answer:
+**is it our pipeline, or is it the metrics?**
+
+Proteinbase answers it, because it is the one thing we never had — designs *with* their
+predicted scores *and* their measured laboratory outcome, side by side.
+
+### What is actually in it
+
+Downloaded `https://storage.proteinbase.com/proteinbase_latest.csv`, 52 MB, ODC-BY
+licence (free to use with attribution). Also on HuggingFace as `adaptyvbio/proteinbase`
+with pinnable snapshots.
+
+| | count |
+|---|---|
+| proteins | **4,280** |
+| with at least one experimental measurement | 4,278 |
+| with at least one computational metric | 4,251 |
+| **with both** | **4,249** |
+| experimental measurement rows | 64,026 |
+| computational metric rows | 141,352 |
+| distinct targets | 40 |
+| distinct design methods | 140 |
+
+The experimental side: `expressed` on 4,278 proteins, `binding` on 4,271, `binding_strength`
+on 4,270, and a real dissociation constant (`kd`) on **1,062 proteins** across 2,661
+replicate measurements, spanning 57 pM to 32 µM. The computational side: ESMFold pLDDT,
+ProteinMPNN score and sequence recovery, and for ~2,400 proteins the full Boltz-2 panel —
+ipTM, ipSAE, pDockQ, pDockQ2, interface pLDDT, shape complementarity.
+
+Targets are dominated by Nipah glycoprotein G, PD-L1, SARS-CoV-2 RBD, EGFR and VEGF110.
+Design methods include BoltzGen (519), BindCraft (174) and RFdiffusion (162) — so our own
+two routes are both represented by other people's designs with known outcomes.
+
+### What we actually did
+
+Wrote two short read-only surveys and ran them. Then the thing that matters: for every
+numeric computational metric, joined it to the measured binding outcome on the same
+protein and computed a rank-based ROC AUC. **0.50 is a coin flip. Below 0.50 means the
+metric points the wrong way.**
+
+Of 4,271 proteins with a binding label, **1,082 bound (25.3%)**.
+
+| metric | AUC vs measured binding |
+|---|---|
+| ProteinMPNN sequence recovery | 0.727 |
+| ESMFold pLDDT | 0.712 |
+| Boltz-2 complex pLDDT | 0.639 |
+| shape complementarity | 0.634 |
+| **Boltz-2 ipTM** | **0.561** |
+| **Boltz-2 ipSAE** | **0.557** |
+| **Boltz-2 pDockQ / pDockQ2** | **0.454 — backwards** |
+| ProteinMPNN score | 0.402 — backwards |
+
+### The confound, and killing it
+
+A design that never expressed cannot bind. So a metric that merely predicts *expression*
+would look like it predicts binding. **3,918 of 4,278 proteins expressed (91.6%)**, and
+among those, 1,082 of 3,911 bound (27.7%).
+
+Restricting to proteins that did express:
+
+| metric | predicts expression | predicts binding, given it expressed |
+|---|---|---|
+| Boltz-2 complex pLDDT | **0.761** | 0.616 |
+| Boltz-2 interface pLDDT | 0.738 | 0.592 |
+| ProteinMPNN seq recovery | 0.718 | **0.713** |
+| ESMFold pLDDT | 0.692 | 0.697 |
+| Boltz-2 ipSAE | 0.537 | 0.556 |
+| Boltz-2 pDockQ2 | 0.547 | 0.447 |
+
+Two things fall out. Complex pLDDT's apparent power is **largely an expression signal** —
+0.76 for "will it be made at all", only 0.62 for "will it bind once made". And ProteinMPNN
+sequence recovery survives the correction almost untouched, which means it is measuring
+something real about design quality rather than manufacturability.
+
+And the interface metrics — ipSAE, ipTM, pDockQ — the ones the entire field ranks on, and
+the ones Adaptyv themselves record for every submission, sit between **0.45 and 0.56**.
+
+### The result that makes this a project
+
+Per target, among designs that expressed, ipSAE behaves completely differently:
+
+| target | designs | binders | ipSAE AUC |
+|---|---|---|---|
+| TREM2 | 98 | 46 | 0.732 |
+| SARS-CoV-2 RBD | 265 | 228 | 0.633 |
+| Nipah glycoprotein G | 884 | 102 | 0.623 |
+| PD-L1 | 370 | 222 | 0.600 |
+| VEGF110 | 269 | 160 | 0.593 |
+
+**The same metric is useful on one target and near-useless on another.** A single global
+threshold — which is what everyone, including us, applies — is therefore the wrong tool.
+That is a concrete, testable claim, and the data to settle it is sitting on disk.
+
+### What this does NOT establish
+
+Said plainly, because the numbers above look more solid than they are:
+
+- **This is a first pass of about thirty minutes.** No confidence intervals, no
+  significance testing, no correction for multiple comparisons across ~30 metrics.
+- **Target and method are entangled.** Different design methods were aimed at different
+  targets, so "this metric works on TREM2" may partly mean "the people who designed for
+  TREM2 used better methods". Nothing here separates those.
+- **Replicates were aggregated by majority vote**, which is crude; the documentation says
+  experimental replicates should be averaged, and a KD-weighted treatment would be better.
+- **"Binding" is a threshold, not a fact.** The source paper says as much: at high enough
+  concentration almost anything binds something, and different groups set the bar
+  differently.
+- **We are not first.** At least three groups are working this seam: the Adaptyv community
+  paper (EGFR only, ~600 expressed designs, already reports ipTM ≈ 0.64), a nanobody
+  folding-model comparison, and "Revisiting Structure-Based Filtering for AI-Designed
+  Antibodies". What does not appear to exist yet is a **multi-target, expression-conditioned**
+  benchmark across all 40 targets.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Download and count before proposing | Propose a project from the marketing page | The page says "5,000+"; the file says 4,280 proteins, and the difference matters |
+| Rank-based AUC, no libraries | Fit a model straight away | A model would hide which metric carries the signal |
+| Condition on expression | Report the headline AUCs | Without it we would have repeated the field's own confound |
+| Report per-target AUCs | Report one pooled number | The pooled number averages away the only actionable finding |
+| Name the three competing groups | Present this as untouched ground | It is not untouched, and discovering that late would be worse |
+
+### Jargon decoder
+
+- **ROC AUC** — the chance that a randomly chosen binder scores higher than a randomly
+  chosen non-binder. 0.5 is a coin flip; 1.0 is perfect; below 0.5 is backwards.
+- **ipSAE / ipTM / pDockQ** — numbers a structure-prediction model reports about how
+  confident it is in the *interface* between two proteins. What the field filters on.
+- **pLDDT** — the model's confidence in its own structure, per residue. Measures
+  foldability, not binding.
+- **ProteinMPNN sequence recovery** — how often the sequence-designer re-picks the same
+  amino acid as the original. A proxy for "is this backbone a sensible protein".
+- **expression** — whether the protein could be manufactured at all. The first gate; 8.4%
+  of designs never get past it.
+- **ODC-BY** — an open licence: use it for anything, credit Adaptyv.
+
+### What is next, and what could go wrong
+
+Three project shapes come out of this, put to you separately. The risk that applies to all
+of them: this is an **observational** dataset, not a designed experiment. Target, method,
+designer skill and metric availability are all correlated, and no amount of careful
+statistics fully untangles them. Any claim we make has to be stated as "in this dataset",
+not "in general" — which is exactly the discipline we spent the month learning.
+
+---
+
+## 31. 2026-11-10 — One month, five challenges, and what the whole thing was for
+
+This entry re-tells the entire project from the problem that created it. Checkpoints 1–30
+are the running account; this one is written to be readable on its own, like checkpoint 9
+was at the one-week mark.
+
+### Where we are
+
+Five challenges are over. Four of them carry submitted designs — challenges 1, 2, 3 and
+5, sixty-five designs in total. Challenge 4 was designed but never submitted. Not one
+design has been made or measured in a laboratory, so the honest score of this month is: a
+working method, a long list of named mistakes, and zero confirmed results.
+
+### The problem in the field, before any competition existed
+
+Almost every modern drug works by sticking to one specific thing in the body and holding
+on. A molecule that does that is a **binder**. The body's own version is the antibody,
+and antibodies are how most biological drugs are built.
+
+Antibodies have three problems. They are large, so they cannot get inside cells or cross
+into the brain. They are grown in living cells, so they are slow and expensive to make
+and to change. And you discover them rather than design them — you immunise an animal or
+screen a library of billions and see what comes out.
+
+The alternative is to **design a small protein from scratch** on a computer, aimed at a
+patch you chose in advance. Small, cheap to manufacture, heat-stable, and — the real
+prize — editable. If you can design the gripper rather than fish for it, you can also
+re-design it when you need it to behave differently.
+
+Over the last few years AI made the generating part easy. Programs like RFdiffusion and
+BoltzGen will produce a thousand plausible-looking binders overnight. That created a new
+bottleneck, and it is the one this competition is actually about:
+
+> **We can now generate far more candidate designs than anyone can afford to test, and we
+> cannot reliably tell in advance which ones will work.**
+
+Published success rates for designed binders are often a few percent. So the expensive
+step is no longer design. It is **verification**.
+
+### Why Anthropic and Adaptyv built this
+
+Adaptyv runs an automated laboratory that makes a protein from its sequence and measures
+whether it binds. That machine is exactly the missing ingredient.
+
+So the two companies put up more than $1 million of free laboratory testing, promised to
+test over 5,000 designs, and said: send us your designs, we will make them, and **we will
+publish every result openly**. Anthropic added over $1 million of Claude credits for
+selected teams.
+
+The designs are not the point. The **paired data** is: thousands of designs, each with its
+predicted scores and its real measured outcome, published together. That is the dataset
+the field needs to learn which predictions actually mean anything. We have been
+contributing to a measurement problem, not a design contest.
+
+### Why the challenges all add a condition
+
+Plain "stick to this protein" is close to solved. Every challenge therefore added a
+condition about **when** or **how** the gripper must hold — and conditional binding is
+where the field still fails.
+
+There is a medical reason too. A drug that binds its target *and* three other things
+causes side effects. Specificity is not a refinement; it is most of what makes a molecule
+a medicine rather than a poison. Challenge 5 is the extreme version: tell apart two things
+that differ by a single letter.
+
+### The five challenges, in order
+
+Carry one picture through all of them: a **custom-made hand built to grip one particular
+handle**. Designing a hand that grips at all is the basic job. Each challenge adds a rule
+about when the hand is allowed to close.
+
+**Challenge 1 — EGFR. "Grip only where it is sour."** EGFR sits on many cancer cells, but
+also on healthy ones. Tumours are more acidic than healthy tissue. So: hold on at tumour
+acidity, let go in normal tissue, and the drug acts only where the disease is.
+
+We used **histidine** — the one amino acid whose electrical charge flips in exactly that
+acidity window — and placed it across the gripping surface. We also chose the patch to
+grip *before* designing anything, picking one identical in humans and mice so that a mouse
+experiment would mean something. **5 designs submitted, 17 October.**
+
+**Challenge 2 — TNF-alpha. "Let go where it is sour, and grip the mouse version too."**
+The same switch run backwards, plus a second species.
+
+This is where the first real lesson landed. We ranked our designs by a rule nobody had
+tested: distance from each histidine to a nearby positive charge. Then we checked whether
+that rule predicted the acid switch at all. It correlated **+0.24 — the wrong sign**. A
+different measure, how buried the histidine becomes when the hand closes, correlated
+**−0.58**. We rebuilt the set on the better measure before sending. **20 submitted,
+18 October.**
+
+Two more things came out of that. Our shortcut for "does it work in mouse" — counting how
+many contact points are spelled the same — was wrong, and six of ten switches failed the
+mouse requirement; the strongest binder in the set made **zero** contacts with mouse TNF.
+And two histidines are not twice one: in every pair we measured, one partner was doing no
+work at all.
+
+**Challenge 3 — GLP-1R. "Grip the handle and turn it."** The receptor behind Ozempic.
+Binding is not enough; the design has to switch the receptor **on**. A design that binds
+without activating is a blocker, and a blocker already exists as a drug.
+
+The natural hormone does two jobs: its back half grips a groove outside the cell, its
+first eight residues thread about 33 ångström down a channel through the membrane, and
+that threading is what flips the switch.
+
+Our mistake here was self-inflicted and instructive. To make the receptor cheap enough to
+compute against, we had **cut the bottom off it** — and our designs were diving into the
+hole we had made. At the depth they reached, the real receptor has 211 atoms and our
+cut-down copy had 4. We sealed the floor, checked the real hormone still docked correctly
+*before* spending a night of compute, and built the thing we had never attempted: one
+chain that grips and threads. **20 designs submitted.** This entry carried the submission
+as *unconfirmed* for two weeks — the browser session was lost overnight on 26 October and
+I would not assume it had gone through. Confirmed on 10 November that it did.
+
+The most valuable finding of that challenge was not a design. **The model's own confidence
+pointed the wrong way.** Across 11 designs on one target and 14 on another, the ones the
+AI rated highest touched the fewest residues the real hormone uses (−0.963 and −0.651).
+Sorting by confidence is the obvious thing anybody would do, and here it picked the worst
+designs.
+
+**Challenge 4 — TfR1. "Grip at blood pH, not in acid, and in mouse too."** The receptor
+that ferries iron into cells and the main route for getting drugs into the brain.
+
+Two things went wrong. The organisers recommended targeting the tip of the receptor — but
+their own page says human and mouse differ at six of nine positions there, so the
+recommended site was the worst possible place to meet the mouse requirement. And our
+design runs were producing shapes that were not real proteins: when we asked the
+sequence-writing program for sequences, it returned glycine-and-proline mush on all
+fifteen shapes we tried, 720 sequences, none usable. We had set that test in advance as
+the thing that would make us stop, and it came back no.
+
+We also found we had been writing quality screens that each caught the failure that had
+just bitten us and silently waved through the next one — one screen passed a 64%-oily
+aggregate, the next passed a sequence that was 32% proline, a stiff rod rather than a
+protein. **Challenge 4 ended unsubmitted.**
+
+**Challenge 5 — KRAS G12D on HLA-A\*11:01. "Tell apart a one-letter change."** The hardest
+and the most interesting.
+
+KRAS is one of the most common cancer drivers, and the G12D mutation sits inside the cell
+where an ordinary drug cannot reach it. But cells chop up their own proteins and display
+the fragments on their surface in a holder called HLA, for the immune system to inspect.
+So the mutated fragment `VVVGADGVGK` appears on the outside of a cancer cell — a flag
+saying *this cell is malignant*. A binder for that flag could aim an immune attack at
+cancer cells and nothing else.
+
+The catch is literal life-or-death specificity. The healthy version `VVVGAGGVGK` differs
+by one letter, sits in the same holder, and is displayed by every healthy cell in the
+body. The competition ranks on rejecting the healthy one **first**, rejecting the empty
+holder second, and strength only as a tie-break.
+
+What we did, after three failed runs of inventing shapes ourselves: stopped, read the
+literature properly, and found that the Baker lab had published this exact problem solved
+in July 2025, with the parts downloadable. We built on those scaffolds and rewrote every
+residue for our target, and separately ran BoltzGen against the full complex. **20 designs
+submitted on 9 November**, ten from each route, confirmed on 10 November.
+
+### The diagram
+
+Five challenges, each adding one condition to the same basic job. The orange box is the
+one we designed for and never sent; the blue box is the last one, closed on 9 November.
+
+```mermaid
+flowchart TD
+    A[Designs are cheap to generate,<br/>expensive to verify] --> B[Five challenges,<br/>each adding one condition]
+    B -->|grip only when acidic| C[C1 EGFR · 5 submitted]
+    B -->|release in acid,<br/>plus mouse| D[C2 TNF-alpha · 20 submitted]
+    B -->|grip and switch it on| E[C3 GLP-1R · 20 submitted]
+    B -->|not in acid,<br/>plus mouse| F[C4 TfR1 · never submitted]
+    B -->|one-letter difference| G[C5 pMHC · 20 submitted]
+    C --> H[65 designs submitted,<br/>none yet measured in a lab]
+    D --> H
+    E --> H
+    G --> H
+    style G fill:#2563eb,stroke:#1e40af,color:#ffffff
+    style F fill:#993C1D,stroke:#712B13,color:#ffffff
+```
+
+### The mistakes, collected
+
+This is the part worth keeping. Every one of these was found by checking, not by being
+clever, and most were found late.
+
+| What happened | What it taught |
+|---|---|
+| Ranked challenge 2 on a rule that correlated **+0.24** — the wrong sign | Never rank on a proxy you have not tested against the thing it stands for |
+| Judged mouse cross-reactivity by spelling instead of binding; 6 of 10 failed | A plausible shortcut is still a guess until measured |
+| Cut the bottom off the GLP-1 receptor; designs dived into the hole | The optimiser finds your preparation errors before it finds the binding site |
+| Trusted the model's confidence; it anti-correlated at −0.96 and −0.65 | The obvious ranking can be worse than no ranking |
+| Wrote three quality screens, each blind to the next failure | A screen built from past failures is incomplete by construction |
+| Spent 16 hours of GPU time polishing shapes that were not proteins | Set the stopping test *before* the run, and honour it |
+| Left beta-2 microglobulin out of the challenge-5 target; all **172** designs came back as beta-2 microglobulin | Leave a hole in the target and the model will fill the hole |
+| Wrote an identity check that slid only one direction; 9 designs mis-scored | My own new measurements need controls too |
+| Ran 300 structure predictions, then found the test could not tell a real binder from a shuffle | Run the control first, not last |
+| Never ran the organisers' own published expression filters until the final day; **12 of the first 20** failed them | Read the judges' instructions before optimising |
+
+### The single most important one
+
+On the last days of challenge 5 we finally did the thing we should have done in week one:
+ran a **known** binder and a **shuffled nonsense sequence** through our own scoring
+pipeline to see whether it could tell them apart.
+
+It could not. The real binder scored 0.158 and the nonsense 0.134 — a gap of **+0.024**,
+against a run-to-run noise of **0.022**. A second metric agreed: the known binder scored
+marginally *worse* than the shuffle. The known binder's own preference for the mutant over
+the healthy peptide came out at **−0.001**.
+
+So we withdrew the conclusion we had drawn from it — including the bad news that none of
+our designs bound. We had not shown the designs were dead. We had shown our ruler had no
+markings.
+
+### How the method changed over the month
+
+The direction of travel is the real result:
+
+1. **From guessing to measuring.** Challenge 1 placed histidines on chemical reasoning.
+   Challenge 4's plan replaced the proxy with a direct calculation of the quantity that
+   actually controls the switch.
+2. **From designing first to deciding first.** Early on we designed and checked for
+   problems at the end. By challenge 5 the off-target check was built in from the first
+   hour, because the off-target check *is* the score.
+3. **From inventing to reading.** Three failed runs in challenge 5 were cured by
+   discovering that the problem had already been solved and published.
+4. **From trusting scores to controlling them.** The final week's work was almost entirely
+   about testing our own instruments rather than our designs.
+
+### What you have now
+
+Works now:
+
+- A repeatable pipeline: choose the patch, build the target states, generate, screen on
+  the organisers' own published thresholds, check novelty, assemble and document.
+- Written-up failures a stranger could learn from, in `glp1r/results/` and `pmhc/results/`.
+- [submission/challenge5_final20_methods.md](../submission/challenge5_final20_methods.md)
+  — the methods document, which states the failed measurement rather than hiding it.
+- This file — 31 checkpoints, covering every reversal as well as every result.
+
+Not done, and not verified:
+
+- **No design from any challenge has been made or measured in a laboratory.** Every number
+  in this project is a prediction or a geometric measurement.
+- **Challenge 4 was designed but never submitted.** Work stopped on 29 October with one
+  usable candidate and no fold check run on it.
+- We never got a working binding prediction for challenge 5. The AF2 initial-guess
+  protocol, the most likely fix, was identified and never run.
+- ipSAE failed on all 300 predictions and was never diagnosed.
+
+### Jargon decoder
+
+- **binder** — a small protein designed to stick to a chosen target.
+- **epitope** — the exact patch on the target that a binder grips.
+- **histidine** — the amino acid whose charge flips around pH 6–7, which is what makes a
+  pH switch possible at all.
+- **pMHC** — a fragment of a chopped-up protein held up on the cell surface for the immune
+  system to inspect. HLA is the human holder.
+- **KRAS G12D** — a single-letter cancer mutation, normally unreachable inside the cell,
+  but visible as a displayed fragment on the surface.
+- **control** — something whose answer you already know, run through your own test to find
+  out whether the test works. The thing we did last and should have done first.
+- **ipTM / PAE / ESM2 PLL** — numbers a model reports about its own prediction. Useful
+  only once you have shown they separate a known binder from nonsense.
+
+### What is next, and what could go wrong
+
+Adaptyv publishes the laboratory results openly when the testing is done. That is when
+this month stops being unverified, and it is the first moment any of it can be scored.
+The risk worth naming: if none of our designs is selected for the lab, we get no
+measurement at all, and the month's output stays a method and a list of lessons rather
+than a result.
 
 ---
 

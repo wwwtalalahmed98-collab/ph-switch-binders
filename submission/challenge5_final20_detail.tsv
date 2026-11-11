@@ -1,0 +1,21 @@
+name	source	internal_name	parent	length	tier	kd_hydropathy	charged_frac	instability	gravy	qc_verdict	esm2_pll_excess	parent_identity
+krasG12D_01	scaffold-docked	g12d_scaf102_dive_051	scaf102	71	marginal	-0.279	0.324	36.46	-0.279	flag	0.2456	0.2958
+krasG12D_02	scaffold-docked	g12d_scaf110_dive_032	scaf110	56	marginal	-0.763	0.411	38.75	-0.763	flag	0.2092	0.3393
+krasG12D_03	scaffold-docked	g12d_scaf45_dive_001	scaf45	56	good	-0.698	0.393	30.53	-0.698	flag	0.2069	0.3036
+krasG12D_04	scaffold-docked	g12d_scaf19_dive_040	scaf19	78	marginal	-0.533	0.372	23.03	-0.533	clean	0.2052	0.3205
+krasG12D_05	scaffold-docked	g12d_scaf102_dive_052	scaf102	71	marginal	-0.211	0.268	24.92	-0.211	flag	0.1986	0.2817
+krasG12D_06	scaffold-docked	g12d_scaf110_dive_006	scaf110	56	good	-0.52	0.286	31.04	-0.52	flag	0.1337	0.3214
+krasG12D_07	scaffold-docked	g12d_scaf164_dive_011	scaf164	66	good	-0.32	0.318	39.18	-0.32	flag	0.0838	0.3485
+krasG12D_08	scaffold-docked	g12d_scaf141_plai_056	scaf141	86	marginal	-0.11	0.279	30.02	-0.11	flag	0.0756	0.3023
+krasG12D_09	scaffold-docked	g12d_scaf110_dive_007	scaf110	56	good	-0.839	0.304	18.77	-0.839	flag	0.0732	0.3214
+krasG12D_10	scaffold-docked	g12d_scaf141_plai_054	scaf141	86	marginal	-0.357	0.337	36.48	-0.357	flag	0.0429	0.3488
+krasG12D_11	boltzgen	pmhc_041		61	good	-0.487	0.361	26.18	-0.487	clean	0.2657	
+krasG12D_12	boltzgen	pmhc_035		104	marginal	0.052	0.24	16.36	0.052	clean	0.2028	
+krasG12D_13	boltzgen	pmhc_094		70	marginal	-0.049	0.286	38.28	-0.049	flag	0.17	
+krasG12D_14	boltzgen	pmhc_093		70	good	-0.054	0.286	8.27	-0.054	clean	0.1665	
+krasG12D_15	boltzgen	pmhc_014		60	good	-0.148	0.317	33.37	-0.148	flag	0.1638	
+krasG12D_16	boltzgen	pmhc_048		61	good	-0.579	0.361	31.47	-0.579	flag	0.1617	
+krasG12D_17	boltzgen	pmhc_057		61	good	-0.352	0.361	34.11	-0.352	flag	0.1615	
+krasG12D_18	boltzgen	pmhc_011		60	marginal	-0.298	0.35	36.43	-0.298	flag	0.1465	
+krasG12D_19	boltzgen	pmhc_042		61	marginal	-0.177	0.279	26.05	-0.177	flag	0.138	
+krasG12D_20	boltzgen	pmhc_054		61	good	-0.389	0.295	19.45	-0.389	clean	0.1238	

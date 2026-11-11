@@ -1,0 +1,633 @@
+# The de novo binder design landscape: data, tools, validation, gaps
+
+Research dossier, compiled 10 November 2026. **No project is proposed here.** This is the
+evidence base for choosing one later.
+
+Everything below is marked **[verified]** when I downloaded it, ran it, or read the primary
+source myself in this session, and **[reported]** when I am relaying a claim from a paper,
+blog or vendor page without independent checking. That distinction matters: a lot of the
+headline numbers in this field come from the people selling the method.
+
+
+> **Correction, second pass (10 Nov 2026).** Section 5 of this dossier originally reported
+> ipSAE at AUC 0.557 and implied the metric is near-useless. That was measured on
+> Proteinbase's single-run Boltz-2 pipeline. On two other datasets, computed properly, the
+> same metric reaches **0.69–0.74** and **0.79–0.81**. The metric is not the problem; **how
+> it is computed, and how clean the labels are, moves it by 0.25 AUC**. See section 8.
+
+---
+
+## 1. The one-paragraph summary of where the field stands
+
+In April 2026 David Baker's group published a review in *Nature* stating that "the
+long-standing challenges of designing new protein structures, assemblies and protein
+binders are close to being solved", and that "the main question in the protein binder
+design area is no longer how to design binders, but **what to design binders to and
+for**." **[reported]**
+
+That is the strategic fact. Generation is commoditised. What is *not* solved, and what the
+same literature says repeatedly, is everything downstream of generation: deciding which
+designs to make, predicting how tightly they will bind, making them specific, and having
+standard data to measure any of it against.
+
+---
+
+## 2. Part A — the data: who has produced validated binder measurements
+
+### 2.1 Proteinbase (Adaptyv Bio) — the single-protocol corpus
+
+**[verified]** Downloaded `https://storage.proteinbase.com/proteinbase_latest.csv`, 52 MB,
+and counted it directly.
+
+| | |
+|---|---|
+| proteins | **4,280** |
+| with experimental measurements | 4,278 |
+| with computational metrics | 4,251 |
+| **with both** | **4,249** |
+| experimental measurement rows | 64,026 |
+| computational metric rows | 141,352 |
+| distinct targets | 40 |
+| distinct design methods | 140 |
+| designs with a real K<sub>D</sub> | **1,062** (2,661 replicate measurements) |
+| K<sub>D</sub> range | 57 pM to 32 µM |
+| licence | ODC-BY (free use with attribution) |
+| also at | `huggingface.co/datasets/adaptyvbio/proteinbase`, parquet, snapshot-pinnable |
+
+Targets are concentrated: Nipah glycoprotein G, PD-L1, SARS-CoV-2 RBD, EGFR, VEGF110
+carry most of the weight. Design methods include BoltzGen (519), BindCraft (174),
+RFdiffusion (162).
+
+**Why it matters:** one laboratory, one protocol, one set of definitions, across 40
+targets. That is rare. Most datasets in this field are pooled from papers that each used
+different assays and different binding thresholds.
+
+**[verified]** HuggingFace metadata: 395 downloads, 3 likes, last updated 1 Nov 2026. It
+is new and barely used yet.
+
+### 2.2 The Anthropic / Claude binder release — the validation gold standard
+
+**[verified]** Read the dataset documentation at
+`huggingface.co/datasets/Anthropic/claude-protein-binder-design`.
+
+| | |
+|---|---|
+| designs | **1,440** (50–120 residues), 16 targets |
+| with reliable wet-lab measurements | 1,320 (mature GDF-8 excluded, antigen aggregated) |
+| binders | **354** on 14 of 15 targets; hit rate 27% |
+| validated by | **two independent CROs**: Adaptyv Bio and Twist Bioscience |
+| licence | CC BY 4.0 (data), MIT (scripts) |
+| files | ~100,000 — raw response curves, replicate reads, standardized re-fits, sensorgram images, ten co-fold predictors per design, PAE matrices in a companion release |
+| **[verified]** uptake | 35,946 downloads, 240 likes |
+
+**The number that makes this dataset unique:** of 1,235 designs measured by both CROs,
+253 bound at both, 846 at neither, **69 at Adaptyv only and 67 at Twist only — 89.0%
+agreement, Cohen's κ = 0.71**. **[reported, from the release docs]**
+
+That 11% disagreement is a *direct, empirical measurement of label noise* in this field.
+It sets a ceiling on how well any predictor can ever appear to perform against this kind
+of label, and nobody else has published the equivalent. It also carries counter-screens:
+mouse and cynomolgus orthologs, and an unrelated off-target control (CLEC12A).
+
+### 2.3 The DTU meta-analysis — the current benchmark of record
+
+**[verified]** Read the full text of *"Predicting Experimental Success in De Novo Binder
+Design: A Meta-Analysis of 3,766 Experimentally Characterised Binders"*, bioRxiv
+2025.08.14.670059.
+
+- **3,766** binders across **15 targets** (including two pMHC complexes), pooled from
+  multiple published sources.
+- Only **436 (11.6%)** were binders — heavily imbalanced.
+- Re-predicted every complex with AF2 initial guess, ColabFold, Boltz-1x and AF3; over
+  **200 features** per design.
+- **Finding: AF3 ipSAE_min was the best predictor across all targets**, a 1.4× increase in
+  average precision over the ipAE score RFdiffusion filters on. ipTM performed well at low
+  recall. Per-target precision at best-F1 ranged **0.1 to 1.0** — i.e. wildly target-dependent.
+- Data: Zenodo `10.5281/zenodo.15722219`. Code: `github.com/DigBioLab/de_novo_binder_scoring`.
+
+**Their own stated limitations, quoted because they define the gap precisely:**
+
+> "For most targets only limited number of tested designs were available with only a
+> handful of true binders... heterogeneous assay types and binding thresholds introduced
+> label noise, and **affinity data was only available for a small subset and thus not
+> incorporated**. More standardized, publicly available datasets linking binder structure
+> to binding affinity are needed."
+
+Proteinbase and the Anthropic release are, between them, exactly the datasets they are
+asking for — and both postdate or sit outside their analysis.
+
+### 2.4 The Adaptyv EGFR competition rounds
+
+**[reported]** Rounds 1 and 2, data at `github.com/adaptyvbio/egfr_competition_1` and
+`_2`. Over **1,800 designs submitted, 601 expressed and characterised by BLI, 60 bound**.
+Hit rate rose from ~3% (round 1) to 13% (round 2). Community paper: Cotet et al., bioRxiv
+2025.04.17.648362, which reported ipTM ROC AUC **0.64** and ESM2 log-likelihood correlating
+with expression.
+
+### 2.5 Larger but less accessible: the industrial-scale sets
+
+- **[reported]** NVIDIA **Proteina-Complexa**: ~**1 million** binder candidates tested
+  against **133 targets** by multiplexed phage screening, with partners including Manifold
+  Bio, Novo Nordisk, Viva Biotech, Duke and Cambridge. Described as "one of the largest
+  binder design benchmarks to date". *Public availability of the measurements is not
+  established — I did not find an open release.*
+- **[reported]** Baker lab, Cao et al. *Nature* 2022: experimental data on "nearly half a
+  million computational designs and hundreds of thousands of point mutants".
+- **[reported]** Chevalier et al. *Nature* 2017: **22,660** designed miniproteins plus
+  **6,286** controls against influenza HA and botulinum neurotoxin B; 2,618 high-affinity
+  binders.
+
+These are the biggest numbers in the field, and they come from yeast-display or phage
+selection, not from per-design kinetic measurement. Different data, different uses: huge
+scale, much coarser labels.
+
+### 2.6 BenchBB
+
+**[reported]** Adaptyv's "Bench-tested Binder Benchmark" — a curated set of targets chosen
+for ease of E. coli expression and availability of antibody controls (BHRF1, MBP and
+others), intended as a standard benchmark for the community.
+
+---
+
+## 3. Part B — how trustworthy is this data?
+
+This is the part that is usually skipped, and it determines what any model built on it can
+possibly achieve.
+
+**Assay format changes the answer.** Adaptyv expresses designs cell-free and immobilises
+them as a monovalent ligand with the antigen as analyte. Twist expresses them as human
+IgG1 Fc fusions in HEK293 cells, captured on an anti-Fc surface — a *bivalent* ligand.
+Avidity effects differ. Many reported K<sub>D</sub> values on oligomeric targets are
+"apparent", not true 1:1 affinities. **[reported, from the Anthropic release docs]**
+
+**"Binding" is a threshold, not a fact.** The EGFR community paper notes that RFdiffusion
+counted any design reaching 50% of the positive control signal as a hit, while BindCraft
+used a different micromolar cut-off — so published hit rates are not comparable.
+**[reported]**
+
+**Inter-laboratory disagreement is ~11%** on the one dataset where it has been measured
+(§2.2). Any classifier scoring above roughly that level of apparent accuracy should be
+treated with suspicion.
+
+**Expression is a hidden gate.** **[verified]** In Proteinbase, 3,918 of 4,278 designs
+expressed (91.6%). A design that does not express is recorded as a non-binder, so any
+metric that predicts manufacturability will masquerade as a binding predictor. I measured
+this directly: Boltz-2 complex pLDDT scores **AUC 0.761 for expression** but only
+**0.616 for binding among designs that expressed**.
+
+**Self-reported metrics dominate the literature.** Adaptyv's own competition guidance says
+plainly that unverifiable self-reported claims weigh little. Most published hit rates are
+reported by the authors of the method being evaluated.
+
+---
+
+## 4. Part C — the tools the field actually runs
+
+### 4.1 Generators
+
+| Tool | Approach | Notes |
+|---|---|---|
+| **RFdiffusion** | backbone diffusion from target structure | the workhorse; Watson et al. 2023 reported ~19% experimental hit rate **[reported]** |
+| **BindCraft** | AF2 hallucination, one-shot | reported experimental success 10–100% **[reported]**; 6 of 7 de novo leaderboard spots in EGFR round 2 **[reported]** |
+| **AlphaProteo** (DeepMind) | generative, target-conditioned | reported 88% hit rate on BHRF1; **failed entirely on TNF-α** **[reported]** |
+| **BoltzGen** | all-atom diffusion, any target type | 519 designs in Proteinbase **[verified]** |
+| **Proteina-Complexa** (NVIDIA) | generative, trained on PDB + AFDB + PLINDER + Teddymer | ~1M candidates tested **[reported]** |
+| **ProteinMPNN / LigandMPNN / SolubleMPNN** | inverse folding — sequence for a backbone | universal downstream step |
+
+### 4.2 Scorers — what people filter on
+
+| Metric | What it is | Measured performance |
+|---|---|---|
+| **ipAE / pAE_interaction** | AF2 interface error; the RFdiffusion filter (<10) | baseline; meta-analysis found AF3 ipSAE_min beats it 1.4× in AP **[reported]** |
+| **ipTM** | interface predicted TM-score; BindCraft's filter | 0.64 AUC (EGFR paper) **[reported]**; **0.561** in Proteinbase **[verified]** |
+| **ipSAE** | interface score from aligned errors | best in the meta-analysis **[reported]**; **0.557** in Proteinbase **[verified]** |
+| **pDockQ / pDockQ2** | interface quality from AF2 | **0.454 — points backwards** in Proteinbase **[verified]** |
+| **ESM2 pseudo-log-likelihood** | sequence plausibility | correlates with *expression* **[reported]** |
+| **pLDDT** | per-residue fold confidence | mostly an expression signal (§3) **[verified]** |
+
+### 4.3 The emerging specificity tools
+
+**[reported]** **Odin-Multi** (bioRxiv 2026.09.08.749745, Jenkins group at DTU with
+Johansen and Scapolo — the same people behind the *Science* 2025 pMHC binder work this
+project built on in challenge 5) treats cross-reactivity and specificity as explicit
+design objectives with counter-selection, rather than leaving them to downstream
+screening. On a pMHC benchmark where target and off-target **differ by a single peptide
+residue** — our challenge 5 problem exactly — counter-selection raised the fraction of
+designs meeting both the target-confidence criterion and a 2.5× target-to-off-target ratio
+from **6.0% to 14.2%**.
+
+**It is an in-silico benchmark. No wet-lab validation is reported.**
+
+---
+
+## 5. Part D — what I measured myself on Proteinbase
+
+Three read-only scripts, in [`benchmark/`](../benchmark/). All **[verified]**.
+
+**Binary binding.** 4,271 labelled proteins, 1,082 binders (25.3%). ROC AUC against the
+measured outcome:
+
+| metric | AUC |
+|---|---|
+| ProteinMPNN sequence recovery | 0.727 |
+| ESMFold pLDDT | 0.712 |
+| Boltz-2 complex pLDDT | 0.639 |
+| shape complementarity | 0.634 |
+| Boltz-2 ipTM | 0.561 |
+| Boltz-2 ipSAE | 0.557 |
+| Boltz-2 pDockQ2 | 0.454 (backwards) |
+
+**Conditioned on expression** (3,911 expressed and labelled, 1,082 binders, 27.7%): the
+pLDDT family loses most of its advantage; ProteinMPNN sequence recovery holds at 0.713;
+the interface metrics stay between 0.45 and 0.58.
+
+**Per target, among expressed designs**, ipSAE ranges from **0.732 (TREM2, n=98)** down to
+**0.593 (VEGF110, n=269)**. One global threshold cannot be right for all of them.
+
+**Affinity — the sharpest result.** Among the **1,062** designs with a measured
+K<sub>D</sub>, Spearman rank correlation against log K<sub>D</sub>:
+
+| metric | rho |
+|---|---|
+| TM-score to AFDB50 | −0.350 |
+| sequence identity to PDB100 | −0.348 |
+| molecular weight | −0.219 |
+| novelty | −0.154 |
+| Boltz-2 complex pLDDT | +0.101 |
+| **ipSAE, ipTM** | **absent from the top 22; ipTM reaches −0.14 on PD-L1 alone** |
+
+**Nothing predicts affinity.** The strongest signals are *similarity to structures already
+in the databases* — i.e. "resembles something known" beats every interface score at
+predicting how tightly a design will bind. This is consistent with the EGFR community
+paper, which found ipAE and ipTM had no significant correlation with K<sub>D</sub> and
+"both trended opposite to the assumed direction". **[reported]**
+
+**Caveats on my own numbers:** single pass, no confidence intervals, no multiple-comparison
+correction across ~30 metrics, replicates aggregated by majority vote rather than averaged,
+and target/design-method/designer-skill are entangled throughout. These are indicative, not
+publishable as they stand.
+
+---
+
+## 6. Part E — the gaps, ranked by how open they are
+
+**1. Affinity prediction. Wide open.** No published method and no metric in any dataset I
+examined predicts K<sub>D</sub> usefully. The meta-analysis explicitly excluded affinity
+for lack of data. Proteinbase has 1,062 affinity measurements under one protocol, and the
+Anthropic release adds ~354 more with dual-CRO kinetics and raw curves. This gap now has
+data behind it for the first time.
+
+**2. Specificity and counter-selection. Barely started.** One tool (Odin-Multi), in silico
+only, September 2026. The field's reviews name negative design and counter-screening as
+required and under-served. Almost no public dataset pairs designs with *measured*
+off-target behaviour — the Anthropic release's ortholog and CLEC12A counter-screens are a
+rare exception.
+
+**3. Target-conditional selection rules. Open.** Everyone applies one global threshold.
+Both the meta-analysis (precision 0.1 to 1.0 across targets) and my own measurement
+(ipSAE 0.59 to 0.73 across targets) show the right threshold is target-dependent. Nobody
+has published a rule for choosing it.
+
+**4. A standard benchmark. Named as missing.** A 2026 review states the field "lacks a
+unified, ImageNet-like benchmark". Partially addressed by the DTU meta-analysis and
+BenchBB, but neither is standardised across assay protocol.
+
+**5. Expression / developability as a first-class objective. Under-served.** 8.4% of
+Proteinbase designs never express, and expression confounds every binding benchmark that
+does not control for it. Most design pipelines do not optimise for it at all.
+
+**6. Everything after binding. Wide open and largely untouched by this community.**
+Immunogenicity, pharmacokinetics, manufacturability. The Baker review names these as the
+remaining obstacles; almost no open data exists.
+
+---
+
+## 7. What this research did NOT cover
+
+Stated so the dossier is not read as more complete than it is.
+
+- I did not download or verify the Zenodo deposit behind the DTU meta-analysis, the EGFR
+  competition GitHub repos, or the Anthropic release's actual tables — only its
+  documentation. Counts from those are **[reported]**.
+- I did not establish whether the NVIDIA Proteina-Complexa measurements are public.
+- I did not survey the classical affinity databases (SKEMPI, PDBbind, BindingDB) or the
+  antibody-specific ones (SAbDab, FLAb). They cover natural and mutational data rather
+  than de novo designs, and may or may not be relevant depending on the direction chosen.
+- I did not read the Baker *Nature* 2026 review in full — only the abstract and the
+  portions surfaced in search. Its quoted claims should be checked against the PDF before
+  being relied on.
+- No patent or freedom-to-operate research at all.
+- Competitor analysis is shallow: I found three groups working the scoring-benchmark seam
+  and did not systematically search for others.
+
+---
+
+## 8. Second research pass — the seven gaps from section 7, closed
+
+Everything in this section is **[verified]**: I downloaded the files and ran the numbers.
+Scripts in [`benchmark/`](../benchmark/).
+
+### 8.1 The DTU Zenodo deposit — opened, and its conclusion stress-tested
+
+Zenodo `10.5281/zenodo.15722219`, CC-BY-4.0, published 14 Aug 2025, 7,037 downloads.
+Six files; `final_dataset.csv` is 82 MB with **3,676 rows and 312 columns** — every AF2,
+ColabFold, Boltz-1 and AF3 confidence score, Rosetta energies, SASA, hydrogen bonds,
+secondary structure, SAP scores.
+
+Label column `binder`: **394 True, 3,275 False (10.7%)**.
+
+**The problem the paper does not foreground: one target is 58% of the data.**
+
+| target | rows |
+|---|---|
+| FGFR2 | **2,123** |
+| EGFR | 434 |
+| IL7Ra | 171 |
+| TrkA | 128 |
+| InsulinR | 117 |
+| VirB8, SARS-CoV-2 RBD | 99 each |
+| pMHC_SILSY1 | 96 |
+| Mdm2 | 96 |
+| Pdl1 | 95 |
+| IL2Ra | 66 |
+| sntx | 49 |
+| pMHC_NY1 | 41 |
+| LTK | 33 |
+| IL10Ra | 22 |
+
+So "15 diverse targets" is really one large target plus fourteen small ones, several with
+fewer than ten binders.
+
+**I re-ran their comparison three ways.** Their headline conclusion survives — and gets
+stronger — when the dominant target is removed:
+
+| metric | all rows | FGFR2 only | everything except FGFR2 |
+|---|---|---|---|
+| **AF3 ipSAE_min** | **0.787** | 0.753 (12th of 15) | **0.813** |
+| Boltz-1 ipSAE_min | 0.768 | **0.781 (1st)** | 0.761 |
+| AF3 ipAE | 0.762 | 0.759 | 0.746 |
+| AF2 pae_interaction (the RFdiffusion filter) | 0.721 | 0.754 | 0.681 |
+| AF2 pLDDT (binder) | 0.673 | 0.723 | 0.596 |
+
+Note that on FGFR2 alone, **AF3 ipSAE is not the best metric** — Boltz-1 is. The published
+ranking is a property of the pooled set, not a universal truth.
+
+Per-target AUC for AF3 ipSAE_min ranges **0.573 (Mdm2, n=96) to 0.973 (sntx, n=49)**, with
+EGFR 0.800, IL7Ra 0.802, PD-L1 0.876. Several of those rest on fewer than 15 binders.
+
+### 8.2 The Anthropic tables — the single most useful file I found
+
+`data/tables/design_summary.csv`, **1,440 rows and 65 columns**. It carries something no
+other public dataset does: **ipSAE_min from ten different structure predictors on
+identical designs**, scored against a dual-CRO integrated label.
+
+Generators represented: PXDesign 387, RFdiffusion3 298, Genie3 213, BoltzGen 158,
+FreeBindCraft 142, RFdiffusion 120, **Proteina-Complexa 104**, FoldCraft 14.
+
+Labels: 1,320 usable, **354 binders (26.8%)**. Vendor agreement: both bind 253, neither
+846, Twist only 67, Adaptyv only 69.
+
+**Ten-predictor head-to-head, same designs, same labels:**
+
+| predictor | ipSAE_min AUC | sc_dockQ AUC |
+|---|---|---|
+| **Chai-1** | **0.744** | 0.679 |
+| **OpenFold3** | **0.741** | 0.679 |
+| AlphaFold-Multimer 3 | 0.733 | **0.689** |
+| ESMFold2 (full) | 0.721 | 0.632 |
+| ESMFold2 (fast) | 0.720 | 0.656 |
+| AF3/OF3 ensemble | 0.710 | 0.655 |
+| Odde | 0.696 | 0.652 |
+| Protenix v2 | 0.692 | 0.627 |
+| **Boltz-2** | **0.692** | 0.682 |
+| RF3 | 0.688 | 0.657 |
+
+Chai-1 and OpenFold3 beat AlphaFold3 here; Boltz-2 sits near the bottom. **This
+contradicts the common assumption that AF3 is the best scorer**, and it is the cleanest
+head-to-head available because every predictor saw the identical design set.
+
+**Affinity, again, fails.** Spearman rho of ipSAE_min against log K<sub>D</sub> among the
+354 binders: best is AFM3 at **-0.264**, then OF3 -0.243; Chai-1 -0.059 and Boltz-2 -0.054
+are effectively zero. **The predictor that best separates binders from non-binders is not
+the one that best ranks affinity.**
+
+**Counter-screen data — rarer than I realised.** The table has measured off-target
+columns: mouse ortholog (157 binders / 562 non-binders tested), cynomolgus (170 / 429),
+**CLEC12A as an unrelated control** (19 / 426), and Cas9-apo (11 / 79).
+
+**Of the 354 confirmed binders, 0 also bound CLEC12A.** The designs were clean against an
+unrelated protein. This is one of the only public datasets carrying measured specificity
+on designed binders.
+
+### 8.3 The EGFR competition repositories — exist, but note the licence
+
+| repo | stars | licence | last push |
+|---|---|---|---|
+| `adaptyvbio/egfr_competition_1` | 37 | **NOASSERTION** | Dec 2024 |
+| `adaptyvbio/egfr_competition_2` | 22 | **NOASSERTION** | Mar 2025 |
+| `adaptyvbio/binder-prescreen` | 7 | NOASSERTION | 9 Nov 2026 |
+| `DigBioLab/de_novo_binder_scoring` | 33 | **MIT** | Apr 2026 |
+
+"NOASSERTION" means GitHub could not identify a standard licence. Anything built on the
+EGFR competition data needs the licence read properly first — unlike Proteinbase (ODC-BY)
+and the Anthropic release (CC-BY-4.0), which are unambiguous.
+
+### 8.4 NVIDIA Proteina-Complexa — models open, measurements not
+
+**The models and weights are public**: `NV-Proteina-Complexa-Protein-Target-160M-v1`
+(3,766 downloads), ligand-target and AME variants, plus the Teddymer training dataset and
+code on GitHub. Licence is `license:other` — NVIDIA's own terms, not a standard open
+licence.
+
+**The million-candidate screening data is not.** I searched NVIDIA's HuggingFace datasets
+and found only `RFD4-Proteina`; no binder measurement release. Their reproducibility
+statement promises "source code, model weights, and the novel Teddymer dataset" — it does
+not promise the wet-lab measurements.
+
+So the largest binder screen ever run (1M+ candidates, 133 targets, up to 63.5% hit rates
+**[reported]**) contributes a model to the commons and keeps its data.
+
+### 8.5 The classical affinity databases — smaller than their reputations
+
+| resource | size | what it actually is | access |
+|---|---|---|---|
+| **SKEMPI 2.0** | 7,085 records, but only **345 crystal structures** | affinity *changes on mutation*, mostly mutants of a few complexes | free |
+| **AB-Bind** | subset of SKEMPI | antibody mutations | free |
+| **SAbDab** | >7,000 antibody–antigen structures | **14,148 records carry no affinity at all** | free |
+| **PDBbind v2020** | 23,496 complexes, of which **2,789 protein–protein** | natural complexes; does not mark which chain is ligand | **v2025 is commercial**; free users get v2020 only |
+| **Affinity Benchmark v5.5** | **207** protein–protein samples | curated docking benchmark | free |
+| **BindingDB** | 1,342,167 measurements, 3,176 targets | overwhelmingly protein–**small molecule** | free |
+| **PPB-Affinity** | integrates the above | largest public PP affinity set | free |
+
+**The implication for any affinity-modelling idea:** the entire curated world of
+*structurally resolved protein–protein* affinity is a few thousand complexes, mostly
+natural, mostly mutational series around a handful of scaffolds. Proteinbase's **1,062**
+de novo designs with K<sub>D</sub> under one protocol, plus the Anthropic release's
+**354** with dual-CRO kinetics, are therefore not small by the standards of this field —
+they are a meaningful fraction of what exists, and far more homogeneous.
+
+### 8.6 Patents — one broad claim sits across this whole area
+
+**[verified]** `WO2023288191A1`, "Multiple de novo designed protein binding proteins",
+inventors Stewart, **Baker**, Cao, Coventry, Goreshnik, Huang, Bennett, Strauch,
+Schlichthaerle (University of Washington).
+
+Claim 1 covers a polypeptide **"at least 35% ... identical to the amino acid sequence
+selected from the group consisting of SEQ ID NO:1-1559 and 1561-1570"**.
+
+A **35% identity floor across about 1,570 designed miniprotein sequences** is a wide net.
+Designed miniproteins are short and share a limited fold vocabulary, so incidental 35%
+identity is not hard to hit. Anyone intending to commercialise a de novo miniprotein
+should take advice before relying on "we designed it ourselves".
+
+This also explains a detail of our own work: Adaptyv's pre-screen has a **USPTO patent
+corpus arm** — the one arm we skipped, on grounds of download size and runtime. A
+reasonable call for a competition deadline; not a reasonable call for anything commercial.
+
+I did **not** do a systematic patent search. One landscape analysis and one representative
+patent is not freedom-to-operate work, and nothing here is legal advice.
+
+### 8.7 The competitor picture
+
+Groups actively working the scoring and benchmark seam, as far as I found:
+
+1. **DTU DigBioLab / Jenkins group** (Denmark) — the 3,766-binder meta-analysis, the
+   `de_novo_binder_scoring` pipeline, **and** Odin-Multi for specificity. They also
+   co-authored the *Science* 2025 pMHC work this project built on in challenge 5. The most
+   directly overlapping group, and they are moving fast.
+2. **Adaptyv Bio** — generating the data, publishing the community paper, running
+   Proteinbase and the prescreen.
+3. **Anthropic** — the 1,440-design dual-CRO release.
+4. One-off efforts: a nanobody folding-model comparison, and "Revisiting Structure-Based
+   Filtering for AI-Designed Antibodies".
+
+The seam is occupied but not closed. What nobody has published, as far as I can tell: a
+cross-dataset reconciliation of why the same metric scores 0.56, 0.74 and 0.81 on three
+different datasets.
+
+### 8.8 The finding that ties this pass together
+
+The same metric, ipSAE, measured against real laboratory outcomes:
+
+| dataset | how it was computed | labels | AUC |
+|---|---|---|---|
+| Proteinbase | single Boltz-2 pipeline run | one lab, one call | **0.557** |
+| Anthropic release | best-of-five seeds, ipSAE_min, ten predictors | **two labs, integrated** | **0.69–0.74** |
+| DTU meta-analysis | AF3, re-predicted, ipSAE_min | pooled from papers | **0.787–0.813** |
+
+That is a **0.25 AUC spread on the same quantity**. Published filter thresholds are
+therefore not transferable between pipelines, and a paper reporting "ipSAE works" or
+"ipSAE does not work" is substantially reporting its own compute protocol and label
+quality.
+
+Confounds I have not separated: the three datasets also differ in target mix, binder
+rate (10.7% / 26.8% / 25.3%) and design method mix, any of which could move AUC on its
+own. The spread is real; the attribution to protocol and labels is a hypothesis, not a
+result.
+
+---
+
+## 9. Third pass — feasibility tested, not speculated
+
+Section 6 ranked the gaps. This section asks a harder question about the top one:
+**is the affinity gap fillable with the data and features that exist?** Three tests, run
+with leave-one-target-out cross-validation so no model can cheat by memorising a target.
+All **[verified]**; scripts `benchmark/feasibility.py`, `pooled_vs_within.py`,
+`kinetics.py`.
+
+### 9.1 The confirmed blocker
+
+**[verified, from the Boltz-2 documentation]** *"Boltz-2 does not support computation of
+protein–protein binding affinity; only small molecules are supported for binding-affinity
+predictions."* The team state publicly that they are working on extending it.
+
+So the single most capable affinity model in biology today does not cover this problem,
+and the gap is real rather than an artefact of my searching.
+
+### 9.2 Test 1 — can a trained combination beat the best single score? No.
+
+Anthropic release, 1,154 designs with complete features across 15 targets, 27.0% binders,
+31 features (ten predictors' ipSAE_min, ten sc_dockQ, length, epitope size, nine sequence
+composition features).
+
+| approach | AUC |
+|---|---|
+| best single score, pooled (optimistic, no held-out penalty) | **0.746** (Chai-1 ipSAE) |
+| logistic regression, leave-one-target-out | 0.731 |
+| gradient boosting, leave-one-target-out | 0.663 |
+
+**A trained model does not beat the single best number.** Gradient boosting is clearly
+overfitting. The ceiling is in the features, not in the modelling.
+
+### 9.3 Test 2 — are published pooled benchmarks inflated? Mostly no. *My hypothesis was wrong.*
+
+I suspected that pooled AUCs overstate real usefulness, because a designer only ever ranks
+candidates **within one target**, and pooling can score well purely from between-target
+differences in mean score. I tested it on both datasets.
+
+| dataset | mean pooled AUC | mean within-target AUC | difference |
+|---|---|---|---|
+| Anthropic release (20 metrics) | 0.687 | 0.652 | **0.036** |
+| DTU meta-analysis (11 metrics) | 0.741 | 0.738 | **0.003** |
+
+**The inflation is small and on the DTU set essentially zero.** The metrics really do rank
+within a target. I record this because I had drafted the opposite claim from a partial
+view of the data, and it did not survive being computed properly.
+
+The honest within-target picture: Chai-1 ipSAE averages **0.698** across 12 Anthropic
+targets (range 0.51 to 0.85, two targets below 0.60, none backwards); AF3 ipSAE_min
+averages **0.771** across 11 DTU targets (range 0.57 to 0.97). Useful. Not decisive.
+
+### 9.4 Test 3 — affinity, including splitting it into its two halves
+
+Among confirmed binders with a measured K<sub>D</sub>:
+
+| approach | Spearman rho vs log K<sub>D</sub> |
+|---|---|
+| best single feature, pooled (optimistic) | **−0.260** (OpenFold3 ipSAE) |
+| ridge regression, leave-one-target-out | −0.121 |
+| gradient boosting, leave-one-target-out | −0.176 |
+
+**Again the trained model is worse than the single feature.** There is no combination of
+these scores that predicts affinity.
+
+K<sub>D</sub> is a ratio of two separately measurable things — how fast a binder finds its
+target (k<sub>on</sub>) and how fast it falls off (k<sub>off</sub>). Almost nobody reports
+these separately, so I checked whether one half hides a signal the ratio obscures. 327
+binders with full Adaptyv kinetics, 272 with full Twist kinetics:
+
+- **k<sub>off</sub> drives affinity in this data**: rho with K<sub>D</sub> **+0.70**
+  (Adaptyv) and **+0.73** (Twist), against −0.62 and −0.61 for k<sub>on</sub>.
+- But the predictors track k<sub>off</sub> only weakly: best is **−0.27**.
+- On k<sub>on</sub>, **the predictors disagree about the sign**: AFM3 +0.25 and OpenFold3
+  +0.19 against Boltz-2 −0.26 and Protenix −0.17, on identical designs. They are not
+  measuring the same thing.
+
+**Splitting affinity into its physical halves does not open the door either.**
+
+### 9.5 What these three tests establish
+
+1. **The binary selection problem is at its feature ceiling.** Within-target AUC of about
+   0.70 to 0.77 is what current structure-prediction confidence gives you, and combining
+   those confidences does not improve it. A better classifier is not the project.
+2. **The affinity gap is real, confirmed, and not closable by modelling existing scores.**
+   Every honest held-out attempt lands between −0.12 and −0.26. Closing it needs a
+   different representation (a learned affinity head, as Boltz-2 did for small molecules)
+   or different data — not better regression on confidence numbers.
+3. **The people best placed to close it have said they are doing so.** The Boltz team is
+   extending Boltz-2 to protein–protein affinity.
+
+### 9.6 What was NOT tested
+
+- No structure-derived features beyond what the two releases ship: no Rosetta energies, no
+  buried surface area, no hydrogen-bond counts computed by me. The DTU deposit has 312
+  such columns and I used it only for metric comparison, not for modelling.
+- No learned representation of any kind — no fine-tuning, no embeddings from a protein
+  language model.
+- No use of the raw sensorgram curves, which both Adaptyv and Twist ship per replicate.
+  Those contain information the fitted K<sub>D</sub> throws away.
+- Only one dataset (Anthropic) was used for the modelling tests, because it is the only
+  one carrying ten predictors, dual-CRO labels and full kinetics together.
+
+Each of those is a live route rather than a closed door. The tests above rule out the
+cheap version of the affinity project, not the expensive one.
