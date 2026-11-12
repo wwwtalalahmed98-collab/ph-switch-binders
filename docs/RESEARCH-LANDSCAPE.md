@@ -631,3 +631,142 @@ binders with full Adaptyv kinetics, 272 with full Twist kinetics:
 
 Each of those is a live route rather than a closed door. The tests above rule out the
 cheap version of the affinity project, not the expensive one.
+
+---
+
+## 10. Fourth pass — the recent literature, and a fourth dataset that changes the question
+
+Sections 1–9 asked whether the field's scores predict **binding**. This pass started from
+the November 2026 literature and ended somewhere else: at a dataset where binding is not
+the outcome being measured, and where the scores stop working entirely.
+
+### 10.1 What the recent literature says is blocking the field
+
+Forty-plus papers from 2025–2026 were surveyed (search tools, abstracts read; full texts
+read only where cited below). The bottlenecks the field names for itself, in its own
+words:
+
+| named bottleneck | where it is stated | status |
+|---|---|---|
+| Affinity is not predictable | our own tests, §9; no method found | **open** |
+| Scores disagree depending on which predictor verifies them | ProtDBench, arXiv 2605.04118 **[verified, abstract]**: "substantial verifier-dependent bias and limited agreement under identical filtering protocols" | **named, now being worked** |
+| The right filtering threshold is target-dependent and nobody knows how to pick it | DTU meta-analysis full text **[verified]**: precision "ranged from 0.1 to 1.0 across targets at the maximum F1 threshold"; "choosing the right threshold ... remains challenging" | **open, explicitly unsolved** |
+| Specificity and counter-selection are left to downstream screening | Odin-Multi (Sep 2026) **[reported]**: deep-learning design methods "typically optimise one interaction at a time, leaving cross-reactivity and specificity to emerge during downstream screening" | **barely started** |
+| Some targets yield zero binders from unconstrained methods | MIMOSA (Sep 2026) **[reported]**: 20–26% hit rates on KEAP1, uPA and IL-8, "on which unconstrained methods produce zero or near-zero binders" | **being worked** |
+| Designs are made far faster than they can be tested | cell-free FIDA pipeline (Oct 2026) **[reported]**: existing validation "take 2 to 8 weeks" | wet-lab, not ours |
+| Shortlisting from large pools is the practical bottleneck | LLM-shortlisting paper (Aug 2026) **[reported]**: Recall@10 of 0.589 against 0.571 for the best single score | **attempted, barely moved** |
+| **Evaluation stops at binding and ignores higher-order function** | Bits to Binders (Mol Syst Biol, Mar 2026) **[verified, full data]**: "most evaluations emphasize binding affinity rather than higher-order biological function" | **open — and now has data** |
+
+Two of these deserve flagging because they overlap our own work. ProtDBench's
+verifier-dependent bias **is the same phenomenon as our 0.25 AUC spread** in §8.8, found
+independently and published first. And the LLM-shortlisting result — a trained ranking
+policy beating the best single score by 0.018 — **replicates our §9.2 finding** that
+combining confidence scores does not help.
+
+### 10.2 The fourth dataset: Bits to Binders
+
+**[verified]** Downloaded and analysed here. `github.com/kosonocky/bits-to-binders`, MIT
+licence; also Zenodo 20451404. Scripts: `benchmark/b2b_*.py`.
+
+| | |
+|---|---|
+| designs | 12,000 CD20-targeting 80-mers |
+| teams | 29, from 42 countries |
+| features | **433 computed columns** — Boltz-2, Chai-1, ESMFold at four linker positions, Rosetta interface energies, ESM2 likelihoods, MPNN scores, solubility, composition |
+| outcome | not binding — **CAR-T proliferation in a pooled screen** |
+| labels | 707 Up, 5,941 Not Sig, 166 Down, 5,186 never recovered |
+| plus | 101 designs with Adaptyv SPR (K<sub>D</sub>, k<sub>on</sub>, k<sub>off</sub>), and full cytotoxicity / cytokine / expansion assays on the top ten |
+
+This is the **mirror image** of the three datasets in §2: those are many targets measured
+by few methods; this is one target measured by 29 methods, scored against function rather
+than affinity.
+
+### 10.3 Test 4 — does measured binding predict measured function? No detectable relation.
+
+100 designs carry both an SPR call and a CAR-T outcome.
+
+| SPR says | drove proliferation (Up) | did not | rate |
+|---|---|---|---|
+| binds | 5 | 9 | **36%** |
+| does not bind | 19 | 50 | **28%** |
+| did not express for SPR | 6 | 11 | 35% |
+
+Fisher exact p = **0.53**. The designs that bind and the designs that do not bind succeed
+as CARs at indistinguishable rates.
+
+**Read this carefully, in both directions.** The sample is tiny — 14 binders — so this
+does not *prove* the two are unrelated; it shows no evidence that they are related, with
+nothing like the power to establish equivalence. The 101 were also selected rather than
+random, which can flatten any real difference. And there is an innocent explanation that
+is probably part of the truth: SPR measures a soluble protein in a cuvette, while the CAR
+assay measures the same sequence anchored in a membrane at high density, where avidity and
+geometry do work that affinity does not.
+
+But that explanation is itself the point. The number the whole field optimises is measured
+in the cuvette, and the thing anybody actually wants happens in the membrane.
+
+### 10.4 Test 5 — do the 433 scores predict function? The structural ones do not.
+
+Among the 6,814 recovered designs, 707 Up:
+
+| metric | AUC for function | the same family's AUC for *binding* elsewhere in this dossier |
+|---|---|---|
+| Boltz-2 ipSAE (binder vs whole target) | **0.477** | 0.56 / 0.69 / 0.79 |
+| Chai-1 ipSAE | **0.507** | 0.744 (best in the Anthropic set) |
+| Rosetta ΔG separated | **0.441** | — |
+| Boltz SAP (aggregation) | 0.447 | — |
+| binder pLDDT | 0.584 | 0.712 |
+| ESM2 binder log-likelihood in CAR context | 0.585 | 0.72 reported by Adaptyv |
+
+**Every interface-confidence score is at or below chance.** Not weak — *absent*. The same
+metrics that reach 0.69–0.81 on binding sit at 0.44–0.51 here.
+
+### 10.5 Test 6 — and the features that *do* score are mostly a team fingerprint
+
+The top of the function table is not structural at all. It is composition:
+`ratio_KE` 0.726, `ratio_E` 0.708, poly-E stretches 0.673, poly-A DNA repeats 0.682.
+
+That looked like a finding until it was tested against the obvious confound. Team hit
+rates run from under 1% to **48.2%** (Nucleate UK London, 159 of 330). Any feature
+describing a strong team's house style will score well when teams are pooled.
+
+| feature | pooled AUC | mean **within-team** AUC (25 teams) |
+|---|---|---|
+| `ratio_KE` | 0.726 | **0.576** (range 0.43–0.75) |
+| Boltz ipSAE | 0.477 | 0.498 (range 0.37–0.78) |
+
+**Three quarters of the composition signal is team identity, not biology.** What survives
+— 0.576 — is weak but not nothing, and it is the strongest honest signal in the table.
+
+Note this cuts against §9.3, where pooling across *targets* inflated AUC by only 0.036.
+Pooling across *designers* inflates it by 0.15. Designer skill is a bigger confound than
+target identity, and no published benchmark I have seen controls for it.
+
+### 10.6 What this pass establishes
+
+1. **The field's scoring stack predicts binding and does not predict function.** That is
+   not a claim about one bad metric; it is twelve metrics from four predictors, all at
+   chance, on 6,814 designs with 707 positives.
+2. **Measured binding itself did not predict function** in the only sample where both were
+   measured, though that sample is too small to settle it.
+3. **The confound that matters most in multi-designer benchmarks is who designed it**, and
+   it is larger than the target confound everybody does control for.
+4. The gaps the literature names as open and unclaimed are: **target-conditional
+   thresholds** (the DTU authors say plainly they could not solve it), **specificity with
+   measured off-target data**, and **anything downstream of binding**.
+
+### 10.7 What was NOT done in this pass
+
+- The Bits to Binders paper's own analysis has not been read in full — only its abstract
+  and the data. Some of §10.4–10.6 may duplicate analysis already in their figures, and
+  that needs checking before any of it is called new.
+- "Beyond Structure and Affinity" (Apr 2026) already mined this same dataset with
+  biology-informed sequence features and reports lifting hit rate 13.8% → 38.6%. Its
+  relationship to §10.5 is unexamined; it may already cover the composition finding, and
+  it is not clear whether it controlled for team.
+- No statistical correction across the 433 features tested. The top AUCs are not corrected
+  for multiple comparisons.
+- The 5,186 never-recovered designs are excluded from every function number above. That is
+  43% of the dataset, dropped on an outcome that is itself predictable.
+- No reading of the `misc/` team-methods files, which would say what each team actually ran
+  and would let the team confound be replaced with a *method* variable.

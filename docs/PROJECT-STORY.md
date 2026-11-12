@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 33 | 2026-11-12 | Everyone is grading the wrong exam |
 | 32 | 2026-11-10 | There is a 4,280-protein answer key, and it says the field's rulers barely work |
 | 31 | 2026-11-10 | One month, five challenges, and what the whole thing was for |
 | 30 | 2026-11-08 | The ruler cannot tell a real binder from a shuffle |
@@ -36,6 +37,169 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 33. 2026-11-12 — Everyone is grading the wrong exam
+
+### Where we are
+
+We went looking through the newest papers for a gap worth working on, and found one by
+accident: the whole field scores designs on whether they stick to a target, and on the one
+dataset where somebody measured whether the design actually *works*, every one of those
+scores is useless.
+
+### What this project is for
+
+The month of competition work is finished — five challenges, 65 designs, all published.
+The question now is what to build next: a tool or a model that fills a real hole in de
+novo protein design, using data that has already been measured in a lab rather than
+predicted by a computer. This checkpoint is the research that was supposed to find the
+hole. It found one, and it is bigger than expected.
+
+### Why this step
+
+You asked me not to decide, twice, and instead to research until a gap appeared. The risk
+in that is picking a gap that sounds open but is already closed — somebody published it
+last month and we would not know. So this pass read the recent literature first, listed
+what the field says is blocking *itself*, and only then tested something.
+
+### What we actually did
+
+**First, the reading.** Around forty papers from 2025 and 2026. Two of them matter
+uncomfortably: a benchmark called ProtDBench found that the answer you get depends on
+which structure predictor you use to check it — which is the same thing we found
+independently last week, and they published first. And a paper on using language models to
+shortlist designs got 0.589 where the best single score gets 0.571 — which is our finding
+from three days ago that combining scores does not help, confirmed by someone else.
+
+Being scooped twice in one week is worth saying out loud. It means our instincts about
+this field are calibrated. It also means those two particular doors are closed.
+
+**Then, the dataset.** A competition called **Bits to Binders** put 12,000 designs from 29
+teams through a test that nobody else has run at scale. Instead of asking "does this stick
+to CD20?", they built every design into a **chimeric antigen receptor** — a CAR, the
+engineered receptor that turns a patient's own T cells into cancer killers — and measured
+whether the T cells actually multiplied when they met the target. That is not binding.
+That is the thing binding is supposed to be *for*.
+
+The data is public, MIT-licensed, 433 computed scores per design. I downloaded it and ran
+three tests.
+
+### How it works
+
+Think of the field as a driving school that only ever tests parallel parking.
+
+Everyone has got very good at parallel parking. The scores — ipSAE, ipTM, pDockQ, Rosetta
+energies — measure parallel parking, and on a parallel-parking test they score 0.69 to
+0.81 out of 1.0, where 0.5 is a coin flip. Respectable.
+
+Bits to Binders ran a driving test on an actual road. The question was not "can you park"
+but "can you drive to the shops". And on that test the same scores come out at **0.44 to
+0.51** — coin flips, every one of them. The two best structure predictors in the world,
+Boltz-2 and Chai-1, land on 0.477 and 0.507.
+
+For 100 of these designs there is also a real parallel-parking score: an SPR machine
+measured whether the protein binds. Of the 14 that bind, 5 worked as CARs. Of the 69 that
+**do not bind at all**, 19 worked as CARs. 36% against 28%, and a statistical test says
+those are indistinguishable (p = 0.53).
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[12,000 designs<br/>29 teams, one target] -->|433 computed scores| B[What the field measures:<br/>does it stick?]
+    A -->|built into a CAR<br/>and put in T cells| C[What the patient needs:<br/>does it work?]
+    B -->|AUC 0.69 - 0.81<br/>on 3 other datasets| D[Scores predict<br/>sticking]
+    B -.->|AUC 0.44 - 0.51| E[Scores do NOT<br/>predict working]
+    C --> E
+    F[100 designs measured<br/>BOTH ways] --> G{Do binders<br/>work more often?}
+    G -->|36% vs 28%, p=0.53| E
+    E --> H[The gap:<br/>nothing predicts function]
+    style E fill:#b91c1c,stroke:#7f1d1d,color:#ffffff
+    style H fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+*We are at the blue box. The red box is the measurement that got us there.*
+
+### What you have now
+
+- [`docs/RESEARCH-LANDSCAPE.md`](RESEARCH-LANDSCAPE.md) — the dossier, now 772 lines, with
+  a new section 10. Open it to the bottom and you will find the literature table, the three
+  new tests, and a list of what I did not do.
+- [`benchmark/b2b_binding_vs_function.py`](../benchmark/b2b_binding_vs_function.py) — the
+  100-design cross-tabulation. Running it prints the 36%-vs-28% table.
+- [`benchmark/b2b_gates.py`](../benchmark/b2b_gates.py) — scores all 433 metrics against
+  three gates: could the DNA be made, was it recovered, did it work.
+- [`benchmark/b2b_team_confound.py`](../benchmark/b2b_team_confound.py) — the test that
+  killed my own best finding of the day.
+
+Nothing here is a tool yet. These are four measurements and a reading list.
+
+### The finding I had to withdraw
+
+The top of the function table looked exciting. Composition features — the ratio of lysine
+and glutamate in the sequence — scored 0.726, far above every structural metric. A real
+signal where the expensive models had none.
+
+Then I checked it against the obvious confound. Team hit rates in this competition run
+from under 1% to **48%**. If one very good team happens to write K/E-rich sequences, that
+feature is not measuring biology, it is measuring *which team you are*. Testing it
+separately within each of 25 teams drops it from 0.726 to **0.576**.
+
+So three quarters of my best result was a fingerprint. What is left is weak but real, and
+it is still the strongest honest number on the board — which tells you how empty the board
+is.
+
+There is a side effect worth keeping: **who designed it is a bigger confound than which
+target it is.** Pooling across targets inflated our earlier numbers by 0.036. Pooling
+across designers inflates this one by 0.15. No published benchmark I have read controls
+for the designer.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Read the literature before testing anything | Testing the dataset first | Two of our recent findings were published by others within weeks. Testing without reading risks spending a month on a closed door |
+| Downloaded and ran the data ourselves | Citing the paper's own analysis | Section 10's numbers are ours, reproducible from two scripts and a public CSV |
+| Reported the team confound against my own finding | Publishing 0.726 | 0.726 was the headline. It was three quarters artefact |
+| Did not pick a project yet | Picking one now | You asked for the gap first. It is now on the table and the choice is yours |
+
+### Jargon decoder
+
+- **CAR / chimeric antigen receptor** — an engineered receptor spliced into a patient's T
+  cells so they recognise and kill a chosen cell type. Our binder would be its nose.
+- **CD20** — a protein on the surface of B cells; the target of several approved lymphoma
+  drugs, so a realistic thing to aim a CAR at.
+- **AUC** — how well a score sorts winners from losers. 1.0 perfect, 0.5 a coin flip,
+  below 0.5 means it is sorting backwards.
+- **SPR / surface plasmon resonance** — the standard lab machine for measuring whether and
+  how tightly two proteins stick together, in solution.
+- **ipSAE, ipTM, pDockQ** — confidence numbers a structure predictor emits about an
+  interface it has drawn. The field filters designs on these.
+- **Confound** — something that moves with your result for a reason you did not intend, so
+  the result measures that instead.
+- **p = 0.53** — the probability of seeing a difference this big by luck alone when there
+  is no real difference. 0.53 means: easily luck.
+
+### What is next, and what could go wrong
+
+Next is your decision, and section 10.7 of the dossier lists what would have to be checked
+first. The two that could change everything:
+
+1. **The Bits to Binders authors may already have published some of this.** I read their
+   abstract and their data, not their figures. If their paper already contains the
+   structural-metrics-at-chance result, then section 10.4 is a replication, not a finding.
+   This needs an hour with the PDF before anybody builds on it.
+2. **Another group has already mined this dataset** — a paper from April 2026 using
+   sequence features to lift the hit rate from 13.8% to 38.6%. If they controlled for team,
+   they have been where section 10.5 is. If they did not, their lift may be partly the same
+   artefact I just caught in my own work.
+
+The honest risk in the whole direction: this is **one target, in one assay format, in one
+competition**. A binder that fails in a membrane-anchored CAR may be perfectly good as a
+soluble drug. The finding is that the scores do not transfer to this format — not that
+the scores are worthless.
 
 ---
 
