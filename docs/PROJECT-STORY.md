@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 35 | 2026-11-13 | The field is finished with proteins that stick, and stuck on proteins that move |
 | 34 | 2026-11-13 | I read the two papers, and yesterday's findings were already published |
 | 33 | 2026-11-12 | Everyone is grading the wrong exam |
 | 32 | 2026-11-10 | There is a 4,280-protein answer key, and it says the field's rulers barely work |
@@ -38,6 +39,178 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 35. 2026-11-13 — The field is finished with proteins that stick, and stuck on proteins that move
+
+### Where we are
+
+I read about 120 recent papers and two roadmaps written by the people who built this field.
+They agree with each other: making proteins that stick to things is a solved problem, and the
+next decade is about making proteins that **move**. And the thing blocking that decade is
+that nobody can measure, or check, how a protein moves.
+
+### What this project is for
+
+You asked for a gap big enough to build an ambitious project on — something that answers a
+question for the next decade, not a narrow re-analysis. You also asked me not to come back
+until I had one. This is it, with its competition and its weaknesses stated.
+
+### Why this step
+
+The last two weeks taught a specific lesson: three times, a direction this project picked was
+already in print. Each time the direction was "re-analyse a public dataset." That is a race
+we start behind, because the people who made the data are already running it. So this pass
+started one level up — not "what analysis could we do" but "what is this entire field trying
+to do next, and what is stopping it."
+
+### What we actually did
+
+**Read the two roadmaps.** The Baker lab's, in *Nature* this April, says structures,
+assemblies and binders are "close to being solved" and that the open problems are "switches
+and nanomachines that integrate binding, conformational change and catalysis." Tanja
+Kortemme's, in *Molecular Cell* last month, says the field must move from single
+lock-and-key binding to **networks** of proteins that amplify signals, make decisions and
+correct their own errors — the things living cells actually do.
+
+Worth saying plainly: the month we spent on binders was spent on the problem both of these
+papers call finished.
+
+**Then found what is blocking the next part.** Kortemme names it twice, and the words are
+almost identical both times: the bottleneck is **datasets about how proteins move**, at a
+scale big enough to train models that generalise.
+
+**Then checked whether that is really true, from three independent directions.** It is.
+
+### How it works
+
+Here is the whole situation in one analogy, and it is the same analogy as our own project.
+
+For binders, we discovered the field was using a ruler that could not read — scoring numbers
+that do not predict what happens in the lab. That was one level of the problem.
+
+Now go one level up. The field wants to build proteins that **move** — that open and close,
+switch on and off, pass a signal along. To build those you need a model of how a protein
+moves. There are now **dozens** of such models, with names like BioEmu, AlphaFlow, BBFlow,
+ConformFlow, TopoFlow, trFlow. They are impressive and they are fast.
+
+And they disagree with each other. An independent comparison this May put it bluntly: since
+every tool produces a different answer, "it is impossible that all the tools generate
+ensembles of high biophysical quality" — and worse, the authors say they **cannot tell which
+one is right**, because there is nothing to check them against.
+
+Why is there nothing to check them against? Because almost all of them are trained on
+computer simulations and tested against computer simulations. Simulation is a model, not a
+measurement. **The field is grading its own homework.** And an ablation study published ten
+days ago, which stripped one of these models down and varied every part of it, concluded that
+the limiting factor is "the training data, rather than the architecture."
+
+How thin is the real, measured data? Three numbers:
+
+- The official competition that assesses this, CASP, ran its conformational-ensemble category
+  on **10 targets**. Its single-structure category had 300. CASP itself says the category is
+  limited by how few suitable targets exist.
+- On those 10, predictors "**generally failed** to capture key structural details
+  distinguishing the states."
+- The public database of small-angle scattering data holds 5,716 experiments — and **298**
+  ensemble models.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[Binders: proteins<br/>that stick] -->|both roadmaps:<br/>close to solved| B[The next decade:<br/>proteins that MOVE]
+    B --> C[Needs a model of<br/>how proteins move]
+    C --> D[Dozens of models exist]
+    D -->|they disagree<br/>with each other| E{Which one<br/>is right?}
+    E -->|trained and tested<br/>on simulations| F[Nobody can say.<br/>No measured ground truth]
+    F --> G[CASP: 10 targets.<br/>Predictors failed]
+    F --> H[SASBDB: 298<br/>ensemble models]
+    F --> I[THE GAP:<br/>measuring how<br/>designed proteins move]
+    style F fill:#b91c1c,stroke:#7f1d1d,color:#ffffff
+    style I fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+*We are pointing at the blue box. The red box is why it is open.*
+
+### The sharpest version of the gap
+
+Everything above is about **natural** proteins. CASP's targets are natural. The training sets
+are natural. But the proteins the next decade wants to build are **designed** ones — and
+designed proteins are the case these models have least right to work on, because they have no
+evolutionary family, and most of these methods lean on exactly that.
+
+So the question is: **can we predict how a protein we invented will move?**
+
+### The competition, honestly
+
+Not empty. One group got there nine months ago and it is impressive work. In February they
+published an automated NMR pipeline — hundreds of proteins a week from one person — ran it on
+**384 de novo designed proteins**, got usable data on **239**, and reported that the designs
+folded as intended but "revealed **unexpected local dynamics that are not captured by current
+computational models**."
+
+That is our thesis, measured, by someone else, first.
+
+But look at the scale difference against the last gap we chased. In the binder-benchmark
+space there were 4,280-row answer keys and a dozen groups mining them, and we were scooped
+three times in two weeks. Here there are **three papers and one dataset of 239 spectra**.
+That is not a race already run. That is a field in its first year.
+
+### What you have now
+
+- [`docs/RESEARCH-LANDSCAPE.md`](RESEARCH-LANDSCAPE.md) — now 1,016 lines, with a new
+  **section 11**. Open it at the bottom: the two roadmap quotes, the three independent
+  measurements of the blockage, the table of how thin the real data is, and an honest list of
+  what I did not check.
+
+Nothing was built this session. This is reading and judgement, not code.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Started from the field's roadmaps, not from a dataset | Looking for another dataset to analyse | Three scoopings in two weeks all came from dataset-first thinking |
+| Reported the group that got there first, prominently | Presenting the thesis as ours | It is theirs. What is ours is the judgement about scale and timing |
+| Named the weakest claim in the section | Leaving it to look as solid as the rest | The "no HDX repository" claim is an inference from two searches, not a check |
+
+### Jargon decoder
+
+- **Conformational ensemble** — the set of shapes one protein actually visits, with how often
+  it visits each. A real protein is a crowd of shapes, not a statue.
+- **Allostery** — squeezing a protein in one place changes its behaviour somewhere else. How
+  most biological switches work.
+- **Kinetic proofreading** — a trick cells use to be far more accurate than simple chemistry
+  allows, by spending energy to double-check. Nobody has built one from scratch.
+- **Molecular dynamics (MD)** — simulating every atom's motion. The field's substitute for
+  measuring motion. Slow, and only as good as its force field.
+- **NMR** — a way of measuring where atoms are, and how they move, in solution. Slow and
+  expensive, which is why there is so little of it.
+- **SAXS** — bouncing X-rays off proteins in solution to get their overall shape and size.
+- **MSA / multiple sequence alignment** — the evolutionary family of a protein, used by
+  AlphaFold and most of these models. A designed protein does not have one.
+- **CASP** — the field's biennial exam, where methods are tested blind on structures nobody
+  has published yet.
+
+### What is next, and what could go wrong
+
+Three facts would decide whether this is buildable, and I have checked none of them:
+
+1. **Is the 384-design NMR dataset public?** That single answer changes everything about what
+   can be started from a desk.
+2. **Is there measured ensemble data in cryo-EM** — heterogeneity analyses, EMDB depositions —
+   that nobody has pulled together? I did not look at this at all, and it is plausibly the
+   biggest untapped source.
+3. **Who is funding this?** It would say how long the field stays small.
+
+The honest risks. This area needs **measurement**, and measurement needs a lab — which is the
+one thing this project does not have. There is real work here that can be done from a desk,
+but a project whose conclusion is "someone should measure this" is not a project. And the
+competition, while thin, is excellent and well-resourced.
+
+That is the gap, with its edges shown. The next move is yours, and I would spend the next hour
+on those three questions before anything else.
 
 ---
 

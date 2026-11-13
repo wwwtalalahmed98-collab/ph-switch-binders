@@ -862,3 +862,155 @@ Of the gaps in §6 and §10.1, the one that has now been looked at hardest and s
 nobody on it is **target-conditional thresholds** — the DTU authors say in print that they
 could not solve it, and no paper found in this pass claims to have. That is not a
 recommendation; it is the one door that was still shut after this pass.
+
+---
+
+## 11. Fifth pass — the decade question, and where it is blocked
+
+Sections 1–10 worked on binders, because that is what this project built. This pass asked a
+larger question: what is the field's next decade actually about, and what is stopping it?
+Roughly 120 papers and two authoritative roadmaps were surveyed; everything below is marked
+**[verified]** where the source was read, **[reported]** where only an abstract was.
+
+### 11.1 Two roadmaps, written independently, say the same thing
+
+**[verified, abstract]** *The past, present and future of de novo protein design*, Yang,
+Wang, Lee, Zhang … Baker, **Nature**, April 2026:
+
+> "the long-standing challenges of designing new protein structures, assemblies and protein
+> binders are **close to being solved**. The key current questions in these areas are not how
+> to design, but **what to design** … Current challenges for methods development include
+> design of catalysts for reactions with high energy barriers and, more generally, **design
+> of switches and nanomachines that integrate binding, conformational change and catalysis**."
+
+**[verified, full text]** *Programming biological behavior with AI-guided de novo protein
+design*, Huettemann & Kortemme, **Molecular Cell**, October 2026. Its thesis is that the
+field must move from bimolecular recognition to **multi-component reaction networks** —
+signal amplification, switch-like responses, kinetic proofreading, error correction, and
+directionality driven by energy expenditure. It names the blocker twice:
+
+> "A key bottleneck is **datasets that inform on protein conformational landscapes at a scale
+> that is sufficient to develop models that generalize** across proteins and mechanisms."
+
+> "Critical to improved models are large-scale datasets of both informative parameters that
+> quantify protein function (enzymatic activities, binding rates, affinities, **protein
+> dynamics**) and their dependency on changes in atom-level interactions and cellular context."
+
+Two groups that do not agree about much agree on this: **binders are finished; the decade is
+about proteins that move; and the thing standing in the way is data about how proteins move.**
+
+This project spent a month on binders — the problem both roadmaps call close to solved.
+
+### 11.2 The blocker is real, and three independent sources measure it
+
+**CASP has a category for this and it is starving. [verified]** The Critical Assessment of
+Structure Prediction added *Macromolecular Conformational Ensembles* in 2022. The CASP16
+assessment (Dube, Ramelot, … Moult, Kryshtafovych, Montelione, 2025; PubMed, [DOI](https://doi.org/10.1101/2025.09.02.673835)):
+
+- **Ten** ensembles were released as community challenges. Single-structure CASP16 had 300 targets.
+- "predictors **generally failed to capture key structural details distinguishing the states**"
+- "accuracy was **significantly lower than for single-state targets**"
+- CASP's own call for targets: "**Success of the macromolecular ensembles category depends on
+  the availability of targets with multiple experimentally observed conformations**", and asks
+  the community for cryo-EM, NMR, X-ray, SAXS or cross-link data to assess ensembles with.
+
+**The models disagree with each other and nobody can score them. [reported]** An independent
+comparison of BioEmu, AFSample2 and ESMFlow (Otten, Leung, Chong, Zuckerman, May 2026):
+
+> "each tool produces clearly distinct conformational distributions. Thus, **it is impossible
+> that all the tools generate ensembles of high biophysical quality** … our current analysis
+> **cannot evaluate the absolute quality of an ensemble, and hence cannot identify a
+> best-performing AI tool**."
+
+A separate assessment of BioEmu (March 2026) finds it "does not reproduce a right
+Boltzmann-weighted ensemble" and "fails to predict a mutation-induced shift in conformational
+distribution" — which is precisely the operation a designer needs.
+
+**The constraint is data, not architecture. [reported]** An ablation study published
+**3 November 2026** — ten days before this was written — strips a flow-matching ensemble
+generator down and varies architecture, conditioning, alignment and training source against
+experimental SAXS and NMR:
+
+> "This points to **the training data, rather than the architecture, as the main constraint**."
+
+### 11.3 How thin the experimental ground truth is
+
+| resource | what it holds | **[verified]** |
+|---|---|---|
+| SASBDB (small-angle scattering) | 5,716 experimental datasets, 4,508 protein — but only **298 ensemble models** | read from the site, 13 Nov 2026 |
+| CASP16 ensemble category | **10** targets | assessment paper |
+| ProteinConformers (Zhang group, Feb 2026) | 2.7M conformations — **generated by MD**, not measured | abstract |
+| ATLAS / mdCATH | MD trajectories — simulation, not observation | abstract |
+| HDX-MS | ~20 analysis packages found, **no standardised public repository** | absence of evidence, see caveat |
+
+The pattern: nearly every ensemble model in this field is trained on molecular dynamics and
+evaluated against molecular dynamics. MD is a model with a force field, not a measurement.
+The field is, for the second time in this dossier, **grading its own homework** — and this
+time at the exact point where its next decade depends on the answer.
+
+### 11.4 The opening — and the group that got there nine months ago
+
+Everything above concerns **natural** proteins. CASP targets are natural. ATLAS is natural.
+Fold-switch benchmarks are natural. But the application both roadmaps name is **designed**
+proteins — switches, receptors, machines — and designed proteins are the one class these
+models have the least right to work on, because they have no evolutionary history and most of
+these methods lean on multiple sequence alignments.
+
+Three papers establish that this matters, and that the work has started:
+
+- **[reported]** *Fold-switching proteins push the boundaries of conformational ensemble
+  prediction* (Jan 2026): "DL models often predict conformational ensembles **by association
+  with training-set structures**, limiting generalizability."
+- **[reported]** *Mutational Robustness Predicts Protein Dynamics* (Mar 2026) covers ~2,000
+  natural proteins and **~400 de novo designs**, and reports the "largest gains on designed
+  proteins", with the signal "equally strong on de novo designs that lack any evolutionary
+  history, pointing to a biophysical effect rather than a proxy for sequence conservation."
+- **[reported], and the most important paper in this pass:** *Large-scale exploration of
+  protein space by automated NMR* (Feb 2026). A pipeline producing **hundreds of isotopically
+  labelled proteins per week** with one operator. They ran **384 de novo designs**, got usable
+  2D NMR for **239 (62%)**, and report:
+
+  > "NMR characterization confirmed that the designed proteins adopt their intended folds, and
+  > **revealed unexpected local dynamics that are not captured by current computational
+  > models**."
+
+So the thesis — *the field cannot predict the dynamics of the designed proteins it now wants
+to build* — is **not unclaimed**. One group has measured it on 384 designs and said so.
+
+But note the scale. In the binder-benchmark space there were 4,280-row answer keys and a
+dozen groups mining them, and this project was scooped three times in two weeks. Here there
+are **three papers and one dataset of 239 spectra**. This is a field at its beginning, not a
+race already run.
+
+### 11.5 What this pass establishes
+
+1. **The decade's question is designed dynamics** — proteins that switch, transduce, compute
+   and expend energy, not proteins that stick. Two independent authoritative roadmaps.
+2. **The blocker is measured ground truth about motion**, named by Kortemme, by CASP, and by a
+   November 2026 ablation that puts it on data rather than architecture.
+3. **The field currently validates motion models against simulations of motion.** That is the
+   same category of error this project documented for binder scoring in §8 and §10 — one level
+   up, and far more consequential.
+4. **Designed proteins are the hardest and most relevant case**, and the one with almost no
+   data. 239 NMR spectra exist. That is the entire public corpus I could find.
+
+### 11.6 What was NOT done, and what would change the conclusion
+
+- The Nature roadmap is **paywalled**; only its abstract was read. Its own list of challenges
+  may be more specific than quoted here.
+- The automated-NMR paper was read as an abstract only. **Whether its 384 designs and 239
+  spectra are publicly downloadable has not been checked**, and that single fact changes what
+  is buildable.
+- "No standardised public HDX-MS repository" is an inference from not finding one across two
+  searches. It is the weakest claim in this section and should be checked directly before
+  anyone relies on it.
+- No survey of cryo-EM conformational heterogeneity resources (cryoDRGN outputs, EMDB
+  heterogeneity depositions), which is a plausible large and growing source of measured
+  ensembles and was not examined at all.
+- No assessment of who is funding this area, which would say how fast it is about to get
+  crowded.
+- Smaller frontier topics surfaced and were not pursued: de novo enzymes for high-barrier
+  reactions (Nature, Oct 2026: de novo cysteine proteases still short of native activity),
+  nanopores, protein materials, and the "de novo binderome" idea — a designed binder for every
+  protein in a proteome, with BindCraft already reporting high-confidence design models against
+  over 40% of the human proteome.
