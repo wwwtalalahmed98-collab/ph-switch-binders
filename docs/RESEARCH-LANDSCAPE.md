@@ -683,6 +683,9 @@ than affinity.
 
 ### 10.3 Test 4 — does measured binding predict measured function? No detectable relation.
 
+> **Corrected in §10.8.** The 100 designs were sampled by outcome, so the percentages below
+> are not population rates. The association test stands; the framing does not.
+
 100 designs carry both an SPR call and a CAR-T outcome.
 
 | SPR says | drove proliferation (Up) | did not | rate |
@@ -707,6 +710,9 @@ in the cuvette, and the thing anybody actually wants happens in the membrane.
 
 ### 10.4 Test 5 — do the 433 scores predict function? The structural ones do not.
 
+> **This is a replication, not a finding — see §10.8.** The Bits to Binders paper reports
+> the same result for the same metric list.
+
 Among the 6,814 recovered designs, 707 Up:
 
 | metric | AUC for function | the same family's AUC for *binding* elsewhere in this dossier |
@@ -722,6 +728,9 @@ Among the 6,814 recovered designs, 707 Up:
 metrics that reach 0.69–0.81 on binding sit at 0.44–0.51 here.
 
 ### 10.5 Test 6 — and the features that *do* score are mostly a team fingerprint
+
+> **Largely superseded — see §10.8.** The source paper found this signal first, at 0.91 for
+> recovery, and gave it a molecular explanation this section does not have.
 
 The top of the function table is not structural at all. It is composition:
 `ratio_KE` 0.726, `ratio_E` 0.708, poly-E stretches 0.673, poly-A DNA repeats 0.682.
@@ -770,3 +779,86 @@ target identity, and no published benchmark I have seen controls for it.
   43% of the dataset, dropped on an outcome that is itself predictable.
 - No reading of the `misc/` team-methods files, which would say what each team actually ran
   and would let the team confound be replaced with a *method* variable.
+
+### 10.8 Correction — the two papers were read, and most of §10.3–10.6 is not new
+
+Section 10.7 said the Bits to Binders figures were unread and that §10.4 might be a
+replication. Both papers have now been read in full. **It is a replication, and so is most
+of §10.5.** Recorded here rather than quietly edited, because the previous sections were
+written as findings and were circulated as findings.
+
+**On §10.4 (structure metrics at chance).** The Bits to Binders paper states it directly,
+with a supplementary table behind it **[verified, full text]**:
+
+> "global confidence statistics from structure prediction models, such as ipTM and pLDDT,
+> did not predict experimental outcomes (Table SA1). Likewise, ipSAE, LIS score, SAP
+> score, Rosetta InterfaceAnalyzer metrics, PDockQ..."
+
+That is the same metric list and the same conclusion. §10.4 is an **independent
+replication** with per-metric AUCs, not a finding.
+
+**On §10.5 (the composition signal and its confound).** Worse: they found the signal,
+quantified it better, and explained it.
+
+| what | theirs | mine (§10.4–10.5) |
+|---|---|---|
+| strongest predictor of recovery | K+E α-helix ratio, **0.91** | DNA sequence entropy, 0.897 |
+| DNA sequence entropy for recovery | **0.90** | 0.897 |
+| K+E also enriched in functional hits | yes, Fig 5G, "to a lesser extent" | ratio_KE 0.726 pooled |
+| why | **98.9%** of non-recovered designs came from ProteinMPNN/SolubleMPNN, which preferentially emit K and E; EE repeats and poly-A codons stall the ribosome | "a team fingerprint" |
+| confound control | restricted analyses to MPNN-only subsets | within-team AUC |
+
+Their explanation is better than mine and is mechanistic. My "team fingerprint" and their
+"MPNN artefact" are the same confound seen from different sides — teams that used MPNN
+produced K/E-rich helices — except they named the molecular cause and I named a proxy for
+it. The within-team drop 0.726 → 0.576 is consistent with their account and adds a number
+they did not publish, which is the most that can be claimed for it.
+
+**On §10.3 (binding vs function), two corrections.**
+
+First, the 100 SPR designs were **not a random sample**. The paper states they were
+stratified by outcome in advance: the top ten, 20 more that enriched ≥2-fold, 10 that
+depleted ≥2-fold, and 60 with no significant change. So the "36% of binders worked versus
+28% of non-binders" framing in §10.3 reports rates that the sampling design fixed. **That
+framing was wrong and is withdrawn.** The association test survives — this is a
+case-control layout and Fisher's p = 0.53 on it is legitimate — but the percentages are
+not population rates and must not be read as any.
+
+Turned the right way round, the same 100 designs say:
+
+| CAR-T outcome | fraction with detectable SPR binding |
+|---|---|
+| enriched (Up) | 5 of 30 — **17%** |
+| no change | 7 of 60 — 12% |
+| depleted (Down) | 2 of 10 — 20% |
+
+Second, the paper already reports this qualitatively for its top ten: only three showed
+appreciable binding, and the single quantifiable one came in at **K<sub>D</sub> = 643 nM**
+against **1.75 nM** for the known scFv positive control. Extending it to all 100 is a
+modest addition, not a discovery.
+
+### 10.9 What survives, and what this costs us
+
+**Survives as ours:**
+
+- The cross-dataset confound comparison. Pooling across targets inflates AUC by **0.036**
+  (§9.3); pooling across designers inflates it by **0.15** (§10.5). Neither paper makes
+  that comparison, because neither has the other three datasets open beside this one.
+- A harness that reproduces published numbers from raw data — DNA entropy 0.897 against
+  their 0.90 — which is the reason to trust the rest of `benchmark/`.
+
+**Does not survive:** both headline claims from the previous section. §10.4 is a
+replication; §10.5 is a weaker version of a published result.
+
+**What this costs strategically.** The "nobody can predict function" gap is **not
+unclaimed**. At least two groups are working this dataset: its own authors, and the April
+2026 biology-informed-features group. That is three times in two weeks that a direction
+this project identified was already in print. The pattern is consistent and it is worth
+stating as a conclusion rather than an accident: **the obvious analyses on the public
+datasets are being done, quickly, by people closer to the data.** Any project that is
+"re-analyse a public benchmark" is a race we start behind.
+
+Of the gaps in §6 and §10.1, the one that has now been looked at hardest and still has
+nobody on it is **target-conditional thresholds** — the DTU authors say in print that they
+could not solve it, and no paper found in this pass claims to have. That is not a
+recommendation; it is the one door that was still shut after this pass.

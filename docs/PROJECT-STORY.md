@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 34 | 2026-11-13 | I read the two papers, and yesterday's findings were already published |
 | 33 | 2026-11-12 | Everyone is grading the wrong exam |
 | 32 | 2026-11-10 | There is a 4,280-protein answer key, and it says the field's rulers barely work |
 | 31 | 2026-11-10 | One month, five challenges, and what the whole thing was for |
@@ -40,7 +41,152 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 ---
 
+## 34. 2026-11-13 — I read the two papers, and yesterday's findings were already published
+
+### Where we are
+
+Yesterday I reported that nobody can predict whether a designed protein actually works,
+only whether it sticks. I flagged two papers I had not read that might already contain it.
+I have now read both. They do contain it. Yesterday's headline was a replication.
+
+### What this project is for
+
+Unchanged: find a gap in de novo protein design worth building a tool for. This entry is
+the cost of doing that honestly — checking before committing, and reporting what the check
+found even when it deletes your own result.
+
+### Why this step
+
+Because the alternative is spending a month on something that was published in March. The
+hour of reading was cheap. Building on an unchecked claim is not.
+
+### What we actually did
+
+Read the Bits to Binders paper in full, and the April 2026 paper that mined the same data.
+
+**On the structure scores.** The Bits to Binders authors write that ipTM, pLDDT, ipSAE,
+LIS, SAP, Rosetta interface metrics and pDockQ "did not predict experimental outcomes."
+Same metric list, same conclusion, with a supplementary table behind it. My section 10.4
+measured the same thing independently and got the same answer.
+
+**On the composition signal.** This one is worse, and more interesting. I found that the
+lysine/glutamate ratio predicted success, then caught myself and showed most of it was a
+fingerprint of which team submitted the design. They found the same signal first, scored
+it higher than I did (0.91 against my 0.897 for the closely related DNA-entropy feature),
+and then did the thing I did not: they explained *why*.
+
+Their answer is a mechanism. **98.9%** of the designs that vanished from the screen were
+made with ProteinMPNN or SolubleMPNN, which have a known preference for emitting lysine
+and glutamate. Those residues produce EE repeats in the protein and poly-A runs in the
+DNA, and both are documented to stall the ribosome mid-translation. So the designs were
+not badly designed — **they were never fully built.** The protein factory choked on the
+sequence.
+
+My "team fingerprint" and their "MPNN artefact" are the same confound seen from two sides.
+Teams that used MPNN made K/E-rich helices. They named the molecule; I named a proxy for
+it.
+
+**And a mistake of my own to correct.** I reported that 36% of designs that bind worked as
+CARs against 28% of designs that do not. The paper says the 100 tested were deliberately
+chosen by outcome — the top ten, plus 20 good ones, plus 10 bad ones, plus 60 middling. So
+those percentages were fixed by the sampling, not measured. The statistical test still
+holds (p = 0.53, no detectable association), but the two numbers I quoted should not have
+been quoted. Turned the right way round, the honest version is: **of the 30 designs that
+made T cells multiply, only 5 showed any detectable binding at all.**
+
+### How it works
+
+Yesterday's analogy was a driving school that only tests parallel parking. That still
+holds — but it turns out the school already knows. They published the complaint in March,
+and in April someone else published a partial fix.
+
+What this really taught us is about the shape of the race. Three times in two weeks, a
+direction this project identified turned out to be in print already. That is not bad luck
+three times. It is a pattern: **the obvious analyses on public datasets get done fast, by
+people who are closer to the data than we are.** Any plan whose first line is "re-analyse
+a public benchmark" starts from behind.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[Our finding:<br/>scores do not predict function] --> B{Read the<br/>source papers}
+    B -->|they state it<br/>in their results| C[Replication,<br/>not a finding]
+    D[Our finding:<br/>K/E is a team fingerprint] --> B
+    B -->|they found it first,<br/>and named the cause| E[Superseded:<br/>MPNN stalls the ribosome]
+    F[Our comparison:<br/>designer confound 0.15<br/>vs target confound 0.036] --> G[Survives -<br/>needs all four datasets]
+    C --> H[Lesson: public-benchmark<br/>re-analysis is a race<br/>we start behind]
+    E --> H
+    style C fill:#b91c1c,stroke:#7f1d1d,color:#ffffff
+    style E fill:#b91c1c,stroke:#7f1d1d,color:#ffffff
+    style G fill:#0f6e56,stroke:#04342c,color:#ffffff
+    style H fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+*Red is withdrawn. Green survives. Blue is what we take forward.*
+
+### What you have now
+
+- [`docs/RESEARCH-LANDSCAPE.md`](RESEARCH-LANDSCAPE.md) — sections 10.3, 10.4 and 10.5 now
+  carry warning notes at the top pointing to the correction, and new sections **10.8** and
+  **10.9** set out what was replicated, what was superseded and what survives. The original
+  text is left in place rather than edited away.
+- The scripts in [`benchmark/`](../benchmark/) still run and still produce those numbers.
+  Their value changed: they are no longer evidence of a gap, they are evidence that our
+  harness reproduces published results from raw data. DNA entropy 0.897 against their 0.90
+  is a good check on everything else in that directory.
+
+### What survives
+
+Two things.
+
+**The confound comparison.** Pooling designs across *targets* inflates a benchmark score by
+0.036. Pooling across *designers* inflates it by 0.15. Neither paper makes that comparison,
+because neither has the other three datasets open beside this one. We do.
+
+**A verified harness.** We can take a public dataset, reproduce its published numbers, and
+then ask it a question nobody asked. That is a capability, not a finding, and it is worth
+more than the finding was.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Read both papers before building anything | Starting the project on yesterday's result | Both headline claims dissolved. One hour saved a month |
+| Left the withdrawn sections in place with warnings on top | Deleting or quietly rewriting them | You were shown those claims. The record should show what happened to them |
+| Named the pattern, not just the incident | Treating it as three unlucky coincidences | Three in two weeks is information about strategy |
+
+### Jargon decoder
+
+- **ProteinMPNN / SolubleMPNN** — the standard tools for choosing which amino acids to put
+  on a designed backbone. Nearly everyone uses them. They have a statistical preference for
+  lysine and glutamate.
+- **Ribosome stalling** — the cellular machine that builds proteins getting stuck partway
+  through, so the protein is never finished. Certain repeated sequences cause it.
+- **Replication** — getting the same result as a published study, independently. Valuable,
+  but not a discovery.
+- **Case-control sampling** — choosing what to test based on the outcome you already know.
+  It makes raw percentages meaningless while still allowing a test of association.
+- **Confound** — something that moves with your result for a reason you did not intend.
+
+### What is next, and what could go wrong
+
+The gap list is shorter and more honest than it was yesterday. Of everything surveyed, the
+one door nobody has walked through is **target-conditional thresholds** — the question of
+how to pick the filtering cut-off for a target you have never designed against. The DTU
+benchmark authors state in print that they could not solve it, and nothing in this pass
+claims to have.
+
+The risk, stated plainly given the week we have had: **it may be open because it is hard,
+or because it is not very useful.** I have not established which, and I would want to know
+before you spend anything on it. That is the next hour of work, not the next month.
+
+---
+
 ## 33. 2026-11-12 — Everyone is grading the wrong exam
+
+> **Largely withdrawn by checkpoint 34.** Both headline findings below turned out to be
+> already published. Left in place as the record of what was claimed.
 
 ### Where we are
 
