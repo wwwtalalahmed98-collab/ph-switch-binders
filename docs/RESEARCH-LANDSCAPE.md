@@ -1014,3 +1014,161 @@ race already run.
   nanopores, protein materials, and the "de novo binderome" idea — a designed binder for every
   protein in a proteome, with BindCraft already reporting high-confidence design models against
   over 40% of the human proteome.
+
+---
+
+## 12. Sixth pass — beyond binders, into networks, and the wall the field is about to hit
+
+Section 11 established that the decade is about proteins that move. This pass goes into the
+specific domain the Rosetta Commons post names: **protein circuits** — networks of designed
+proteins that sense, compute and act inside a cell. The question asked here was not "what is
+interesting" but "where exactly does this field stop, and why."
+
+It stops at a countable number, for a reason that is arithmetic rather than biological.
+
+### 12.1 The domain has a founding document, and it is five years old
+
+**[verified, full text]** Chen & Elowitz, *Programmable protein circuit design*, **Cell**
+184:2284–2301, 2021. According to PubMed, [DOI](https://doi.org/10.1016/j.cell.2021.03.007).
+This is the paper that framed the field, and it names the two properties everything depends
+on in its abstract:
+
+> "focusing on principles such as **orthogonality and composability** that permit construction
+> of diverse circuit-level functions from a limited set of engineered protein components."
+
+- **Orthogonality** — each part talks only to its intended partner. No crosstalk.
+- **Composability** — a part behaves the same way when wired into a circuit as it did alone.
+
+The Kortemme review from October 2026 (read in full, §11.1) is the sequel: same programme,
+now with AI-designed components, aimed at signal amplification, decision-making and error
+correction.
+
+### 12.2 Where the field actually is: six
+
+| | **[reported]** |
+|---|---|
+| Mutually orthogonal designed heterodimers (DHDs) validated **in cells** | **6** (≈15 in vitro) |
+| Largest protein-circuit demonstration (the "perceptein" protein-level neural network, Science) | **8** coexpressed proteins |
+| Its measured behaviour | bulk data "did not show perfectly digital winner-take-all behavior" |
+| Logic gates built from DHDs | AND, OR, NAND, NOR, XNOR, NOT — all 2-input |
+
+For comparison, Cello's genetic circuits in yeast used **11** regulatory proteins with a
+dynamic model that predicted circuit response over days, and Cello ships **five curated part
+libraries** with measured response functions. Protein circuits have no equivalent of either.
+
+So the honest description of this field in November 2026: it has about **six usable parts**,
+its largest circuit has **eight**, and that circuit's behaviour is already not quite what was
+designed.
+
+### 12.3 Why it stops at six — the N² wall
+
+Orthogonality is not a property of a part. It is a property of a **pair**. Adding one part to
+a set of N adds N new pairs that must be checked for crosstalk.
+
+| parts | pairs to verify |
+|---|---|
+| 6 | 15 |
+| 10 | 45 |
+| 20 | 190 |
+| 30 | **435** |
+| 50 | 1,225 |
+
+Every one of those pairs currently has to be measured. An all-by-all binding experiment on 30
+designed proteins is 435 measurements before a single circuit is built. **Nobody designs 30
+orthogonal parts because nobody can afford to check 435 pairs.** The parts list is six because
+the verification cost is quadratic and the verification method is a pipette.
+
+This is the binding constraint on the entire "beyond binders" programme. Circuits that
+amplify, proofread and make decisions need tens of orthogonal channels. The field has six.
+
+### 12.4 The three things genetic circuits built to get past this, none of which exists for proteins
+
+Gene-circuit engineering hit precisely this wall fifteen years earlier and built three things:
+
+1. **Characterized part libraries** — measured response functions, stored in a machine-readable
+   format. Cello's libraries are JSON files of gate characterization data. **[reported]**
+2. **A compiler** — Cello takes a Verilog specification, assigns parts, simulates, and emits a
+   DNA sequence. **[reported]**
+3. **Context models** — formal accounts of why parts stop behaving when combined:
+   **retroactivity** (a downstream module loads the upstream one), and **resource competition**
+   (circuits compete for ribosomes, polymerases, dCas9). **[reported]**
+
+Searching five different ways, I found **no protein-level equivalent of any of the three**.
+The design-automation tools that exist — Cello, SynBAD, SYNBADm, TinkerCell, GenoCAD,
+EMMA-CAD — are all transcriptional. The burden and retroactivity literature is all about gene
+expression resources. A review of bacterial degrons states that current models "do not
+typically incorporate the effects of degradation bottlenecks … except in very few studies."
+
+Protein circuits have their own shared resources that nobody has modelled: proteasome and
+protease capacity, chaperone availability, and — unique to this domain — **the parts' own
+unintended affinity for each other**, which grows as N².
+
+### 12.5 The opening: the N² wall is now a compute problem, not a pipette problem
+
+**[reported]** All-by-all interaction screening with co-folding models is demonstrated and
+cheap. A 2026 study predicted every pairwise interaction among 476 proteins of
+*Mycoplasma genitalium* — **113,050 unique pairs** — using only the free AlphaFold3 web
+interface. A published ChimeraX workflow computes **4,598 dimers with Boltz in 29 hours**.
+
+435 pairs is nothing against those numbers. The computation is not the problem.
+
+**The calibration is.** The same study reports that raw and corrected ipTM scores carry a
+**size-dependent bias** — the ipTM of a non-interacting pair scales with the square root of
+the summed size of the two proteins. So a naive crosstalk screen would systematically
+mis-score the larger parts. And predicting *absence* of binding is a different and harder
+operating point than predicting binding: a crosstalk screen needs trustworthy negatives, and
+§8–§10 of this dossier measured exactly how trustworthy these scores are — ipSAE at 0.56,
+0.69 and 0.79 AUC across three datasets, thresholds that do not transfer between pipelines,
+and a 0.25 spread on the same metric.
+
+That is not a reason the idea fails. It is the reason the idea is a project: **nobody knows
+whether a computational orthogonality screen works, and this project already owns the tooling
+to find out.**
+
+### 12.6 There are real answer keys for this
+
+Unlike most of what §11 surveyed, this question has published experimental ground truth —
+all-by-all matrices that were actually measured:
+
+- **[reported]** The DHD set: ~15 pairs characterised in vitro, 6 in vivo, as a mutually
+  orthogonal set. An all-by-all matrix exists in that paper.
+- **[reported]** De novo IDR binders: "all-by-all binding experiments for 20 binders with
+  their 20 targets showed specificity with minimal off-target binding" — a **400-cell matrix**
+  (Kortemme review, §11).
+- **[reported]** A second IDR study: all-by-all across 8 targets.
+- **[reported]** Coiled-coil assemblies: a review documenting "several instances of promiscuous
+  exchange between peptides of different oligomeric state" — i.e. **recorded orthogonality
+  failures**, which are the hardest and most valuable cases.
+- Our own four benchmark datasets (§2, §10), which include the Anthropic release's ortholog
+  and CLEC12A counter-screens — measured off-target behaviour on 1,320 designs.
+
+A computational crosstalk screen can therefore be **scored against measurements**, not against
+simulations. That is the thing §11 found missing everywhere else in the dynamics field.
+
+### 12.7 What this pass establishes
+
+1. **The "beyond binders" programme is blocked on a number, and the number is six.** Not on
+   imagination, not on generators, not on biology — on the quadratic cost of verifying that
+   parts do not talk to each other.
+2. **The three tools that unblocked gene circuits do not exist for protein circuits**: no
+   characterized part library, no compiler, no context/retroactivity model.
+3. **The verification half is now computable**, at a scale three orders of magnitude beyond
+   what is needed, and the only thing standing in the way is whether interface scores can be
+   calibrated to call non-binding reliably.
+4. **This project has already measured those scores on four datasets**, which is an unusual
+   position from which to attempt it, and has published answer keys to score against.
+
+### 12.8 What was NOT done
+
+- The DHD orthogonality paper (Chen et al., 2019) was **not read in full** — the counts of 6
+  in vivo and 14–15 in vitro come from reviews and two sources disagree slightly. The actual
+  matrix has not been inspected and must be before anything is built on it.
+- The perceptein paper was read as search snippets only, not full text.
+- No check on whether a group is already building a protein-circuit compiler and has simply
+  not published. Five searches found nothing; that is absence of evidence.
+- No assessment of whether predicting non-binding is achievable at the needed precision. This
+  is the central technical risk and it is **untested**: a crosstalk screen that misses one
+  interaction in a 435-pair matrix may ruin a circuit.
+- No cost or compute estimate for running an all-by-all screen at the scale that would matter.
+- Nothing here addresses the *composability* half of Elowitz's pair — whether a part behaves
+  the same in a circuit as alone. That needs kinetics and concentrations, and is harder.

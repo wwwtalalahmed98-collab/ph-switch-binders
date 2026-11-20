@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 36 | 2026-11-20 | The field's next decade is blocked on the number six |
 | 35 | 2026-11-13 | The field is finished with proteins that stick, and stuck on proteins that move |
 | 34 | 2026-11-13 | I read the two papers, and yesterday's findings were already published |
 | 33 | 2026-11-12 | Everyone is grading the wrong exam |
@@ -39,6 +40,187 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 36. 2026-11-20 — The field's next decade is blocked on the number six
+
+### Where we are
+
+You sent me the Rosetta Commons post about moving beyond binders to networks. I went into
+that domain properly. It has a hard, specific, countable blocker, and it is not what I
+expected. The field can currently build circuits out of about **six** designed protein parts.
+The reason is arithmetic, and arithmetic is the kind of problem we can attack from a desk.
+
+### What this project is for
+
+Finding a gap big enough to build an ambitious project on — one that answers a question for
+the next decade, in a domain the field is actively moving into. This checkpoint is the
+research into the domain you picked. It ends with a gap, its competition, and the one
+technical risk that would sink it.
+
+### Why this step
+
+Because "beyond binders to networks" is a direction, not a project. A direction becomes a
+project when you find the single thing that is stopping everyone, and can say why nobody has
+removed it yet. That is what this pass went looking for.
+
+### What we actually did
+
+**Read the founding document.** Protein circuits have one: Chen & Elowitz, *Cell*, 2021.
+Its abstract names the two things everything depends on — **orthogonality** (each part talks
+only to its intended partner) and **composability** (a part behaves the same in a circuit as
+it did alone). Everything since, including last month's Kortemme review, is a continuation of
+that programme.
+
+**Counted what the field can actually do.** This is the number that matters:
+
+- Designed protein parts verified as mutually orthogonal **inside a living cell: 6**.
+- The biggest protein circuit yet built — a protein-level neural network in mammalian cells —
+  uses **8** proteins.
+- And its measured behaviour already "did not show perfectly digital winner-take-all
+  behavior." At eight parts it is already fraying.
+
+For comparison, gene-circuit tools routinely handle 11 and ship libraries of characterised
+parts.
+
+**Found why it stops at six.** This is the whole finding.
+
+Orthogonality is not a property of a part. It is a property of a **pair**. So checking a set
+of parts means checking every pair in it, and pairs grow as the square of the parts:
+
+| parts | pairs you must check |
+|---|---|
+| 6 | 15 |
+| 10 | 45 |
+| 20 | 190 |
+| 30 | **435** |
+
+Right now every one of those pairs is checked **by experiment**. Designing 30 orthogonal
+parts means 435 binding measurements before you build anything. So nobody does it. The parts
+list is six because the checking is quadratic and the checking is done by hand.
+
+That is the wall the entire "beyond binders" programme is standing behind.
+
+### How it works
+
+Think of it as building a telephone exchange.
+
+A binder is a single wire — you proved it connects A to B. The field is very good at wires
+now; both roadmaps say so.
+
+A circuit is an exchange with many wires in the same box. For it to work, no wire may leak
+into any other. With six wires there are fifteen possible leaks and you can test them all in
+an afternoon. With thirty wires there are four hundred and thirty-five, and testing them all
+is a year of lab work before you have built a single working exchange.
+
+So the field builds six-wire exchanges. Not because six is interesting — because fifteen is
+the most leaks anyone can afford to check.
+
+**And here is what is new.** Checking for leaks no longer has to be done by hand. The
+structure-prediction models can now ask "do these two proteins stick together?" computationally
+and at enormous scale: a 2026 study predicted every pair among 476 proteins — **113,050
+pairs** — on a free web interface, and a published workflow runs 4,598 of them with Boltz in
+29 hours. Against that, 435 is nothing.
+
+The computing is not the problem. **The trust is.** These scores are the exact ones we spent
+the last month measuring, across four datasets. We know what they are worth: the same metric
+scored 0.56, 0.69 and 0.79 on three different datasets, and thresholds do not carry from one
+pipeline to another. And a crosstalk screen needs something harder than what we measured — it
+needs to be reliably right when it says **"these two do NOT interact."**
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[Binders: one wire<br/>A connects to B] -->|the field is good<br/>at this now| B[Circuits: many wires<br/>in one box]
+    B --> C{Every pair must<br/>be leak-tested}
+    C -->|6 parts = 15 pairs<br/>affordable| D[Where the field is:<br/>6 parts, 8-protein circuit]
+    C -->|30 parts = 435 pairs<br/>a year of lab work| E[Where it needs to be:<br/>amplify, decide, proofread]
+    D -.->|blocked| E
+    F[Co-folding models:<br/>113,050 pairs computed<br/>on a free web tool] -->|could do 435<br/>in an afternoon| G{But can a score<br/>be trusted to say<br/>NO interaction?}
+    G --> H[Unanswered.<br/>We have the tooling<br/>to answer it]
+    style D fill:#b91c1c,stroke:#7f1d1d,color:#ffffff
+    style H fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+*Red is where the field is stuck. Blue is the question we are unusually placed to answer.*
+
+### The three things gene circuits built, and protein circuits have none of
+
+Gene-circuit engineering hit this identical wall fifteen years ago and built three things to
+get past it: **characterised part libraries** with measured behaviour, **a compiler** (Cello,
+which turns a specification into DNA), and **context models** explaining why parts stop
+behaving when you combine them.
+
+I searched five different ways. There is no protein-level equivalent of any of the three.
+Every design-automation tool I found — Cello, SynBAD, TinkerCell, GenoCAD, EMMA-CAD — works
+on genes. All the "why did my circuit break" theory is about genes competing for ribosomes.
+Protein circuits have their own shared resources nobody has modelled, including the parts'
+own accidental stickiness for each other.
+
+### Why this one is different from the last three gaps
+
+The last three directions were already in print when we got there. This one has a feature
+none of those had: **there are real experimental answer keys.** Published all-by-all matrices
+exist — 20 designed binders against their 20 targets is a 400-cell measured grid; a coiled-coil
+review documents actual orthogonality *failures*, which are the most valuable cases of all.
+
+So a computational crosstalk screen can be graded against measurements. Section 11 found that
+the whole protein-dynamics field has to grade itself against simulations. Here we would not.
+
+### What you have now
+
+- [`docs/RESEARCH-LANDSCAPE.md`](RESEARCH-LANDSCAPE.md) — now 1,174 lines, with a new
+  **section 12**: the founding document, the count of six, the N² table, the three missing
+  tools, the all-by-all precedents, the answer keys, and what I did not check.
+
+No code this session. Reading and judgement.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Looked for the numeric blocker | Surveying the domain broadly | "Beyond binders" is a direction; six orthogonal parts is a problem |
+| Checked whether gene circuits solved it first | Treating protein circuits as new | They hit the same wall in 2010 and built three tools. None has a protein version |
+| Named the central technical risk up front | Presenting it as a clear run | Predicting "these do NOT interact" is harder than what our benchmarks measured |
+
+### Jargon decoder
+
+- **Protein circuit** — a set of designed proteins wired to each other so the group computes
+  something, rather than one protein doing one job.
+- **Orthogonal** — not interfering. Two parts are orthogonal if neither reacts to the other.
+- **Composable** — behaves the same in company as it did alone. Rarer than it sounds.
+- **Crosstalk** — the leak. Part A accidentally binding part D.
+- **DHD, designed heterodimer** — a purpose-built pair of proteins that stick to each other
+  and, ideally, to nothing else. The basic wire of this field.
+- **Retroactivity** — when plugging something in changes the thing you plugged it into.
+- **Cello** — the compiler for genetic circuits: write a specification, get a DNA sequence.
+- **Co-folding model** — AlphaFold3, Boltz, Chai: given two proteins, predicts whether and how
+  they fit together.
+
+### What is next, and what could go wrong
+
+Three things would decide whether this is buildable, and none is done:
+
+1. **Read the DHD orthogonality paper in full and look at the actual matrix.** My counts come
+   from reviews, and two of them disagree. Everything rests on that matrix being what I think
+   it is.
+2. **Test whether a co-folding score can be trusted to say "no interaction"** on a published
+   all-by-all matrix where the answer is known. That is a day or two of work and it either
+   opens the project or kills it.
+3. **Check nobody is quietly building this.** Five searches found nothing, which is weaker
+   evidence than it sounds.
+
+The honest risks. Predicting *absence* of binding is a different operating point from
+predicting binding, and our own measurements say these scores are mediocre and do not transfer
+between pipelines. A crosstalk screen that misses one leak in 435 pairs may still ruin the
+circuit — so "pretty good" may not be good enough here, and that is a real way this dies.
+And none of this touches composability, the other half of Elowitz's pair, which needs rates
+and concentrations and is harder than orthogonality.
+
+But step 2 is cheap, decisive, and uses what we already built. I would do that before anything
+else.
 
 ---
 
