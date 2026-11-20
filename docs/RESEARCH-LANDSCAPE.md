@@ -1172,3 +1172,186 @@ simulations. That is the thing §11 found missing everywhere else in the dynamic
 - No cost or compute estimate for running an all-by-all screen at the scale that would matter.
 - Nothing here addresses the *composability* half of Elowitz's pair — whether a part behaves
   the same in a circuit as alone. That needs kinetics and concentrations, and is harder.
+
+---
+
+## 13. Seventh pass — what happens after the binder binds
+
+The question driving this pass, in the owner's words: *even if we design a binder that attaches
+to the receptor, what happens after that?* The movement, the interactions, the function, inside
+a real cell. Can that be simulated from data that exists?
+
+The answer is that there are two serious attempts to simulate a cell, they are built by
+different communities on different principles, and **neither of them can answer this question.**
+
+### 13.1 There are two "virtual cells" and they do not meet
+
+**The mechanistic one works, on a bacterium with 493 genes. [reported]**
+*Bringing the genetically minimal cell to life on a computer in 4D*, **Cell** 2026
+(DOI 10.1016/j.cell.2026.02.009). A whole-cell spatial **and** kinetic model of JCVI-syn3A
+covering the complete ~100-minute cell cycle: all 493 genes, metabolism, growth, division, in
+space and time. The authors call spatial reaction-diffusion dynamics "a significant challenge
+in the field of whole-cell modeling", and it is validated against fluorescence imaging of that
+one organism. A review notes the approach is "difficult to extend to complex cells."
+
+**The AI one targets human cells, predicts the wrong thing, and is losing. [reported]**
+The Arc Institute **Virtual Cell Challenge**: predict transcriptomic responses to CRISPRi
+knockdowns in cell lines the model has never seen perturbed. Arc's own wrap-up reports that
+models "recover roughly what a cross-line average would predict", that the cell-line-specific
+part of the response "remains largely missing", and that models "called far too many genes as
+differentially expressed." Secondary reporting says nearly every submission did worse on mean
+absolute error than a naive baseline that predicts the average cell. *(Those last figures are
+from blogs, not Arc, and are flagged as unconfirmed.)*
+
+And even if it worked, it predicts **mRNA levels**. One commentary puts it plainly: RNA
+expression is a proxy for internal cell state, itself "only loosely tied to phenotype."
+
+So: a physical simulator that works but only for a minimal bacterium, and a statistical one
+aimed at human cells that predicts RNA and currently loses to averaging. **If you put a
+designed binder into a human cell, neither tells you what happens next.**
+
+### 13.2 How far the physical simulations actually reach
+
+| approach | scale reached | time reached | **[reported]** |
+|---|---|---|---|
+| Atomistic cytoplasm MD (Feig, Sugita) | 100s–1000s of proteins at 300 g/L | **20–140 ns** per run | eLife 2016, JPCB 2017 |
+| Coarse-grained whole cell (Martini, JCVI-syn3A) | **560 million beads ≈ 6 billion atoms** | "a first step", short | Front. Chem. 2023 |
+| Whole-cell spatial-kinetic (4DWCM) | 493 genes, full cell | **~100 min cell cycle** | Cell 2026 |
+
+Note the trade. You can have atoms, or you can have a cell cycle — not both. Atomistic
+cell-scale MD reaches **nanoseconds**; a receptor engaging, internalising and being degraded
+takes **minutes to hours**. That is nine to twelve orders of magnitude of missing time, and no
+amount of GPU closes it.
+
+The 4DWCM route crosses the time gap by abandoning atoms for reaction-diffusion kinetics. That
+is the right trade for this question — and it is why the blocker becomes parameters rather than
+compute.
+
+### 13.3 Why a number measured in a tube does not survive inside a cell
+
+This is the physical reason the post-binding question is hard, and it is well documented.
+**[reported]**
+
+- **Quinary interactions** — weak, transient, nonspecific contacts a protein makes with
+  everything else in the cytoplasm. They "compete with specific binding, control diffusion, and
+  skew structural stability."
+- **They are not small.** In *E. coli*, one surface mutation in protein G B1 was about
+  **10-fold more destabilizing in cells than in buffer**, and the energy involved "can be as
+  large as the energies that stabilize specific protein complexes." A designed interface is
+  competing against a background of the same order as itself.
+- **Ribosomes are the main offender**, at roughly **20 µM**, enough to broaden in-cell NMR
+  signals completely.
+- **Crowding lowers affinity.** With BSA as a crowder, the EIN–HPr complex's affinity decreased
+  and dissociation accelerated.
+
+Which gives a one-line statement of the problem: **the K<sub>D</sub> you measured on an SPR chip
+is not the K<sub>D</sub> inside the cell, and nobody can currently tell you what it becomes.**
+
+This is the same lesson as §10.3 — where SPR binding did not predict whether a design worked as
+a CAR — but here with a physical mechanism attached rather than just a correlation.
+
+### 13.4 What happens after binding is decisive, and the field finds out by trying
+
+The recent designed-binder literature is full of post-binding behaviour determining everything,
+discovered empirically. **[reported]**
+
+- **EndoTags** — designed binders that trigger endocytosis; fused to a target binder they drive
+  a protein to the lysosome. The authors note the tags should help "decipher the relationship
+  between receptor engagement and cellular trafficking", i.e. that relationship is not known.
+- **GPCR degraders (Nature, 2026)** — "binder stoichiometry and valency change activity, with
+  different receptors favoring different configurations", and pH-sensitive binding "may enhance
+  degradation by facilitating target release in endosomes."
+- That last point is this project's own challenge 1: a binder that lets go when the pH drops.
+  We designed for that mechanism without any model of whether it would matter.
+
+In none of these cases could anyone predict the outcome from the design. The binder is designed
+computationally in a week; what it then does in a cell is discovered in the lab over a year.
+
+### 13.5 One field does model "after binding" quantitatively — and it is not ours
+
+Targeted protein degradation has built real quantitative models. **[reported]** ODE frameworks
+cover binary and ternary complex formation, ubiquitination and degradation; a kinetic model
+derives DC<sub>50</sub> as proportional to the ternary complex K<sub>d</sub> and inversely
+proportional to E3 ligase expression and the effective ubiquitylation rate; live-cell work finds
+that the degree of ubiquitination, not ternary complex formation alone, sets the degradation
+rate.
+
+So the **mathematics of post-binding fate exists**. It was built for small-molecule degraders,
+with a handful of species, in one compartment. Nobody has written the equivalent for a designed
+protein, which has more unknowns: its own expression, folding, trafficking, degradation route
+and off-target set.
+
+### 13.6 The actual blocker is parameters, and for designed proteins every one is unknown
+
+The 2026 literature is unanimous that parameters, not algorithms, block mechanistic cell
+models. **[reported]** A *Nature Biotechnology* commentary: "Many kinetic parameters for enzymes
+are missing… Fully mechanistic models rely on these accurate biochemical rules, and require
+thousands of parameters", with small errors propagating into unrealistic results. A review:
+"insufficient parameters and validation data made it difficult to extend to complex eukaryotic
+cells." A *Cells* 2026 framework warns that when structural error is ignored, "physical
+parameters absorb missing biology and appear interpretable while the model is wrong."
+
+Even for natural human proteins, the inventory is thin: the landmark quantitative proteome
+covered **~7,300 proteins** in one cell line and is from 2011; single-cell proteomics reaches
+roughly 4,000–7,700 protein groups. I found no comparable public resource for in-cell diffusion
+coefficients or protein half-lives — **noted as unchecked, not as absent.**
+
+Now apply that to a protein that did not exist last month. For a newly designed binder, the
+simulation would need: its copy number, its diffusion coefficient, its half-life and degradation
+route, its effective in-cell affinity, and **the list of everything else in the cell it sticks
+to**. Not one of these has ever been measured for it. They cannot be looked up. That is why no
+such simulation exists.
+
+### 13.7 The part of this that is computable, and why this project is placed for it
+
+Of those five unknowns, the one that matters most and is most nearly computable is **the
+off-target set** — what else in the cell does this designed protein touch?
+
+And that is §12's orthogonality problem with a bigger N. §12 asked whether a co-folding model
+can be trusted to say "these two do not interact" across 435 pairs of designed parts. The
+in-cell version asks it across one designed protein against ~10,000 human proteins. The compute
+is proven: a 2026 study predicted **113,050 pairs** on the free AlphaFold3 web interface, and a
+published workflow runs **4,598 Boltz dimers in 29 hours**.
+
+So the same single technical question governs both §12 and §13: **can an interface score call
+non-binding reliably?** Sections 5–10 of this dossier are four datasets of calibration work on
+exactly those scores. That is an unusual position from which to ask it.
+
+### 13.8 The hole in this, stated plainly: there is no answer key
+
+A search specifically for measured, proteome-wide off-target interactomes of de novo designed
+binders — BioID, TurboID, pull-down proteomics — **found none.** The field asserts specificity
+from in-vitro panels and from ipTM: the BindCraft paper states that "the AF2 i_pTM metric
+effectively discriminates on-target interactions from off-targets", which is a computational
+claim, not a proteome-wide measurement.
+
+So for the single most important unknown in post-binding fate, **the experiment that would grade
+a prediction has not been run.** The best that exists in our own four datasets is the Anthropic
+release's CLEC12A counter-screen and ortholog panels — one off-target protein, 1,320 designs.
+
+This cuts both ways and the honest reading matters:
+
+- **Against:** a predicted in-cell off-target list cannot currently be scored. §11 criticised the
+  dynamics field for grading itself against simulations. A proteome-wide crosstalk predictor
+  with no measured ground truth would be the same error.
+- **For:** it means the whole designed-binder field is claiming a property — specificity inside a
+  cell — that nobody has measured at proteome scale. That is not a crowded space. It is an
+  unexamined assumption underneath a field, which is the kind of thing this project has twice
+  shown it is good at testing.
+
+### 13.9 What was NOT done
+
+- The *Cell* 4DWCM paper was read from search results only, not full text. Its stated limitations
+  are inferred.
+- Arc's Challenge results beyond their own wrap-up page come from blogs and newsletters and are
+  explicitly unconfirmed.
+- No search on in-cell diffusion coefficient or protein half-life/turnover databases. The claim
+  that these are thin is **unchecked**.
+- No examination of cryo-electron tomography, which images actual molecular arrangements in real
+  cells and is the most plausible source of measured in-cell structural ground truth. Not looked
+  at at all, and it may be the most important omission in this pass.
+- No check on whether pharma already runs proteome-wide computational off-target screens for
+  biologics internally and does not publish.
+- The false-positive arithmetic has not been worked: screening one design against 10,000 human
+  proteins at even a 1% false-positive rate yields 100 spurious off-targets, which may make the
+  output useless. **This single calculation could kill the idea and has not been done.**

@@ -4,6 +4,7 @@ A running, plain-English record of what this project is doing and why. Newest en
 
 | # | Date | Checkpoint |
 |---|---|---|
+| 37 | 2026-11-20 | Two virtual cells exist, and neither answers your question |
 | 36 | 2026-11-20 | The field's next decade is blocked on the number six |
 | 35 | 2026-11-13 | The field is finished with proteins that stick, and stuck on proteins that move |
 | 34 | 2026-11-13 | I read the two papers, and yesterday's findings were already published |
@@ -40,6 +41,206 @@ A running, plain-English record of what this project is doing and why. Newest en
 | 3 | 2026-10-17 | Submitted, then asked what is actually weak |
 | 2 | 2026-10-17 | The set is built and verified; one click left |
 | 1 | 2026-10-17 | Measuring the mouse instead of guessing it |
+
+---
+
+## 37. 2026-11-20 — Two virtual cells exist, and neither answers your question
+
+### Where we are
+
+You asked what happens *after* the binder binds — the movement, the interactions, the function
+inside a real cell — and whether that can be simulated from data that exists. I researched it
+properly. There are two serious attempts to simulate a cell. One works but only on a bacterium
+with 493 genes. The other aims at human cells but predicts RNA levels and is currently losing
+to a model that just predicts the average. Neither can tell you what your designed protein does
+once it is inside.
+
+### What this project is for
+
+Finding something ambitious and real to build. You have named the domain: not the binder, but
+everything that happens to it afterwards. This checkpoint is what that domain looks like from
+the inside, including the one piece of it that is computable from a desk, and the hole that
+could sink it.
+
+### Why this step
+
+Because "simulate the cell" is a slogan until you know exactly which of its pieces are solved,
+which are blocked, and what is blocking them. It turns out the blocker is not computing power
+and not algorithms. It is that nobody has the numbers.
+
+### What we actually did
+
+**Found the two virtual cells.** They are built by different communities and they do not meet.
+
+*The physical one.* A paper in **Cell** this year simulates an entire minimal bacterium —
+JCVI-syn3A, 493 genes — through its whole 100-minute cell cycle, in space and time, with
+metabolism, growth and division. It is a real achievement and it works. It is also validated on
+exactly one organism, and reviewers note the approach is "difficult to extend to complex cells."
+
+*The AI one.* Arc Institute's **Virtual Cell Challenge** asks models to predict what happens to
+a human cell's gene expression when you switch a gene off. Arc's own write-up says the models
+"recover roughly what a cross-line average would predict" and "called far too many genes as
+differentially expressed." And even when it works, the output is **mRNA levels** — a proxy for
+cell state that one commentary calls "only loosely tied to phenotype."
+
+**Found the hard ceiling on physical simulation.** This is the number that settles the shape of
+the problem:
+
+| what you simulate | how much | for how long |
+|---|---|---|
+| every atom of a cytoplasm | ~1,000 proteins, realistically crowded | **20–140 nanoseconds** |
+| a whole cell, coarse-grained | 560 million beads ≈ 6 billion atoms | "a first step" |
+| a whole cell, as chemistry not atoms | 493 genes | **a full 100-minute cell cycle** |
+
+You can have atoms, or you can have a cell cycle. Not both. A receptor binding, being pulled
+inside and destroyed takes **minutes to hours**; atomistic cell simulation reaches
+**nanoseconds**. That is a gap of nine to twelve orders of magnitude and no amount of GPU
+closes it. Which means the honest route to your question is chemistry-and-space, not atoms —
+and that route's blocker is numbers, not compute.
+
+### How it works — why the cell breaks your measurement
+
+Here is the part I think matters most, and it is physics, not opinion.
+
+When you measure a binder's strength, you do it in clean buffer with two proteins. A cell is not
+that. A cell is a jammed box in which your protein is constantly brushing against everything
+else — ribosomes at around 20 micromolar, and every other protein in the cytoplasm. Those
+contacts are individually weak and are called **quinary interactions**.
+
+They are not negligible. In one bacterial study a single surface change was about **ten times
+more destabilising inside a cell than in buffer**, and the researchers state that the energies
+involved "can be as large as the energies that stabilize specific protein complexes." Your
+designed interface is competing against background noise of roughly its own size. Crowding also
+measurably lowers binding affinity and speeds up letting go.
+
+So: **the strength you measured on the machine is not the strength inside the cell, and nobody
+can currently tell you what it becomes.**
+
+That is the same lesson as our own finding two weeks ago — where measured binding did not
+predict whether a design worked as a CAR — except now with a physical mechanism behind it
+rather than just a correlation.
+
+### The diagram
+
+```mermaid
+flowchart TD
+    A[Designed binder<br/>made in a week] --> B[Binds its target<br/>on an SPR chip]
+    B --> C{What happens<br/>inside a cell?}
+    C --> D[Where does it go?]
+    C --> E[What else does<br/>it stick to?]
+    C --> F[How long does<br/>it last?]
+    C --> G[Is the affinity<br/>even the same?]
+    D --> H[Answered today<br/>only by experiment<br/>over a year]
+    E --> H
+    F --> H
+    G --> H
+    I[Virtual cell A:<br/>works, 493-gene bacterium] -.->|cannot extend<br/>to human cells| H
+    J[Virtual cell B:<br/>human, but predicts RNA<br/>and loses to averaging] -.->|wrong readout| H
+    E --> K[The computable one:<br/>predict the off-target set]
+    style H fill:#b91c1c,stroke:#7f1d1d,color:#ffffff
+    style K fill:#2563eb,stroke:#1e40af,color:#ffffff
+```
+
+*Red is the status quo: find out by doing the experiment. Blue is the one branch we could
+actually attack.*
+
+### What makes the post-binding question decisive, and unpredicted
+
+The recent literature keeps showing that what happens after binding decides everything, and is
+found out by trying:
+
+- **EndoTags** — designed binders that make a cell swallow a receptor and digest it. The authors
+  say the tags should help "decipher the relationship between receptor engagement and cellular
+  trafficking." That relationship is not known.
+- **GPCR degraders, Nature this year** — how many binders you attach and in what arrangement
+  changes whether it works, differently for different receptors. And **pH-sensitive binding may
+  help**, by letting the target go once inside an acidic compartment.
+
+That last one is our challenge 1. We designed a binder that lets go when the pH drops, with no
+model of whether that would matter. It turns out it does.
+
+### The one branch we could attack
+
+Of everything a simulation would need — copy number, diffusion, half-life, in-cell affinity, and
+the list of everything else it sticks to — **the last one is nearly computable**, and it is the
+same question as last week's checkpoint with a bigger N.
+
+Last week: can a structure-prediction model be trusted to say "these two designed parts do not
+interact", across 435 pairs? This week: can it do that for one designed protein against the
+~10,000 proteins of a human cell? The computing is proven — someone predicted **113,050 pairs**
+on a free web interface. The question is identical and it is the question our last six weeks of
+benchmark work was accidentally preparing for.
+
+### The hole, and I want this to be the part you remember
+
+I searched specifically for anyone who has **measured** what a designed binder sticks to inside
+a cell — proteome-wide, by pull-down or proximity labelling. **There is none.** The field claims
+specificity from test-tube panels and from a confidence score. The BindCraft paper states that
+its ipTM metric "effectively discriminates on-target interactions from off-targets" — that is a
+computer's opinion, not a measurement.
+
+Read this both ways, because both are true:
+
+- **Against us:** if nobody has measured it, nobody can grade our prediction either. Last week I
+  criticised the protein-dynamics field for marking its own homework. A proteome-wide off-target
+  predictor with no measured ground truth is that same error.
+- **For us:** an entire field is asserting a property — specificity inside a living cell — that
+  has never been measured at proteome scale. That is not a crowded room. It is an unexamined
+  assumption holding up a field, and testing those is the thing this project has twice proved it
+  can do.
+
+### What you have now
+
+- [`docs/RESEARCH-LANDSCAPE.md`](RESEARCH-LANDSCAPE.md) — now 1,357 lines, with a new **section
+  13**: the two virtual cells, the scale-versus-time table, the physics of why cells break your
+  measurements, the degradation-modelling precedent, and an unusually long list of what I did
+  not check.
+
+No code. Reading and judgement.
+
+### Decisions made, and why
+
+| Chose | Chose against | Why |
+|---|---|---|
+| Treated "simulate the cell" as two separate fields | Taking it as one goal | The mechanistic and the AI efforts have different readouts and different blockers |
+| Followed the parameter problem rather than the compute problem | Assuming more GPUs help | Every 2026 source says parameters, not algorithms, are the limit |
+| Led with the missing answer key instead of burying it | Presenting a clean opportunity | It is the single fact most likely to sink the project |
+
+### Jargon decoder
+
+- **Quinary interactions** — the weak, constant, nonspecific brushing-against-everything that a
+  protein experiences in a real cell. Not in your test tube.
+- **Crowding** — a cell is roughly 300 g/L of protein. Closer to jam than to water.
+- **Coarse-grained** — simulating blobs of several atoms instead of atoms, to buy time span.
+- **Reaction–diffusion** — modelling molecules as concentrations that move and react, rather
+  than as atoms. The only route that reaches minutes and hours.
+- **Interactome** — the full list of what a protein touches inside a cell.
+- **Proximity labelling (BioID, TurboID)** — attaching a tag that marks whatever comes near your
+  protein in a living cell, so you can find its real neighbours by mass spectrometry.
+- **PROTAC / targeted degradation** — a molecule that doesn't block a protein but drags it to
+  the cell's rubbish disposal. The one field that has real maths for "what happens after
+  binding."
+- **DC50** — the dose at which half the target protein is destroyed.
+
+### What is next, and what could go wrong
+
+Three things, cheap, and in this order:
+
+1. **Do the false-positive arithmetic.** One designed protein against 10,000 human proteins, at
+   even a 1% false-positive rate, gives 100 spurious off-targets. If that is where it lands, the
+   output is noise and the idea is dead. This is an afternoon's work with the data we already
+   have, and I have not done it.
+2. **Look at cryo-electron tomography.** It images actual molecular arrangements inside real
+   cells and is the most plausible source of measured in-cell ground truth. I did not look at it
+   at all. It may be the most important thing missing from this pass.
+3. **Check what is known about in-cell diffusion and protein half-lives.** I asserted these are
+   thin without checking.
+
+The honest risks. This is a domain where the serious work needs a lab, and the one piece that
+does not — predicting what a design will stick to — currently has nothing to check it against.
+That does not make it a bad project. It makes the first deliverable a *measurement of whether
+the prediction is possible at all*, rather than the prediction itself. Which, looking back at
+the last six weeks, is the thing this project is actually good at.
 
 ---
 
